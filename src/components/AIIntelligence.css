@@ -1,0 +1,221 @@
+.ai-section {
+    background: var(--bg-secondary);
+}
+
+.ai-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 3rem;
+}
+
+/* ─── Demo Window ─── */
+.ai-demo {
+    background: rgba(10, 15, 28, 0.9);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg), 0 0 80px rgba(139, 92, 246, 0.05);
+}
+
+.ai-demo-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-demo-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.dot-red {
+    background: #ff5f56;
+}
+
+.dot-yellow {
+    background: #ffbd2e;
+}
+
+.dot-green {
+    background: #27c93f;
+}
+
+.ai-demo-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ai-demo-body {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* ─── Verdict Box ─── */
+.ai-verdict-box {
+    padding: 1.5rem;
+    background: rgba(59, 130, 246, 0.06);
+    border-left: 3px solid var(--accent-blue);
+    border-radius: var(--radius-md);
+}
+
+.ai-verdict-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-blue);
+    margin-bottom: 0.75rem;
+}
+
+.ai-verdict-text {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* ─── Strengths / Priorities ─── */
+.ai-strengths-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.ai-strengths h4,
+.ai-priorities h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.ai-strength-item {
+    padding: 0.6rem 0.8rem;
+    background: rgba(16, 185, 129, 0.06);
+    border-left: 2px solid var(--accent-emerald);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.45rem;
+}
+
+.ai-priority-item {
+    padding: 0.6rem 0.8rem;
+    background: rgba(245, 158, 11, 0.06);
+    border-left: 2px solid var(--accent-amber);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.45rem;
+}
+
+/* ─── Section Analysis Cards ─── */
+.ai-sections-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+
+.ai-analysis-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    transition: border-color var(--transition-fast);
+}
+
+.ai-analysis-card:hover {
+    border-color: var(--border-gold);
+}
+
+.ai-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ai-card-icon {
+    font-size: 1.5rem;
+}
+
+.ai-card-section {
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+.ai-card-chapter {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.ai-card-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.ai-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.75rem;
+}
+
+.ai-metric-label {
+    color: var(--text-muted);
+}
+
+.ai-metric-value {
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-align: right;
+}
+
+.ai-card-quote {
+    font-style: italic;
+    font-size: 0.78rem;
+    color: var(--gold-primary);
+    padding: 0.5rem;
+    border-left: 2px solid var(--border-gold);
+    opacity: 0.8;
+    line-height: 1.6;
+}
+
+.ai-card-verdict {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+    .ai-sections-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-strengths-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-demo-body {
+        padding: 1.25rem;
+    }
+}

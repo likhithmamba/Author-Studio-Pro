@@ -1,0 +1,50 @@
+# ── Node / Frontend ────────────────────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.local
+.env.*.local
+
+# ── Python / Backend ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+*.so
+
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+backend/.env
+*.env
+*.pem
+*.key
+secrets.json
+
+# ── Temporary / OS files ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/settings.json
+*.log
+tmp/
+temp/
+
+# ── Build artifacts ────────────────────────────────────────────────────────────
+*.docx.tmp
+*.zip.tmp
+
+# ── Vite cache ────────────────────────────────────────────────────────────────
+.vite/

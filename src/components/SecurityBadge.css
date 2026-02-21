@@ -1,0 +1,65 @@
+.security-badge {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(10, 15, 28, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: var(--radius-full);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 1500;
+}
+
+.security-badge-icon {
+    font-size: 1.25rem;
+    color: var(--accent-emerald);
+    flex-shrink: 0;
+}
+
+.security-badge-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.security-badge-text strong {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+.security-badge-text span {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.security-badge-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    transition: all var(--transition-fast);
+    margin-left: 0.25rem;
+}
+
+.security-badge-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+@media (max-width: 500px) {
+    .security-badge {
+        left: 1rem;
+        right: 1rem;
+        transform: none;
+    }
+}

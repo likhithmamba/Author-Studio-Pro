@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════════════════════
+   App-Level Styles — Aurora Background, Animations, Overrides
+   ═══════════════════════════════════════════════════════════════ */
+
+.app {
+    position: relative;
+    min-height: 100vh;
+}
+
+/* ─── Aurora Background ─── */
+.aurora-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.aurora-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    animation: auroraFloat 20s ease-in-out infinite alternate;
+}
+
+.aurora-1 {
+    width: 600px;
+    height: 600px;
+    background: var(--gold-primary);
+    top: -10%;
+    right: -5%;
+    animation-delay: 0s;
+}
+
+.aurora-2 {
+    width: 500px;
+    height: 500px;
+    background: var(--accent-purple);
+    bottom: 10%;
+    left: -10%;
+    animation-delay: -7s;
+}
+
+.aurora-3 {
+    width: 400px;
+    height: 400px;
+    background: var(--accent-blue);
+    top: 50%;
+    left: 40%;
+    animation-delay: -14s;
+}
+
+@keyframes auroraFloat {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+        transform: translate(50px, -30px) scale(1.1);
+    }
+
+    66% {
+        transform: translate(-30px, 50px) scale(0.9);
+    }
+
+    100% {
+        transform: translate(20px, -20px) scale(1.05);
+    }
+}
+
+/* ─── Reduced Motion ─── */
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+/* ─── High Contrast ─── */
+html.high-contrast {
+    --text-secondary: #c8d6e5;
+    --text-muted: #a0b4c9;
+    --border-subtle: rgba(255, 255, 255, 0.15);
+}
+
+/* ─── Font Size Scale ─── */
+html[data-font-size="small"] {
+    font-size: 14px;
+}
+
+html[data-font-size="default"] {
+    font-size: 16px;
+}
+
+html[data-font-size="large"] {
+    font-size: 18px;
+}
+
+html[data-font-size="xlarge"] {
+    font-size: 20px;
+}
+
+/* ─── Section Divider ─── */
+.section-divider {
+    width: 100%;
+    max-width: 200px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-gold), transparent);
+    margin: 0 auto;
+}
