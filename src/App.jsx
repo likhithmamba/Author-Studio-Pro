@@ -1,18 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import Navbar from './components/Navbar'
-import Hero from './components/Hero'
-import Features from './components/Features'
-import HowItWorks from './components/HowItWorks'
-import AIIntelligence from './components/AIIntelligence'
-import GenreDatabase from './components/GenreDatabase'
-import Templates from './components/Templates'
-import Pricing from './components/Pricing'
-import FAQ from './components/FAQ'
-import Footer from './components/Footer'
+import LandingPage from './components/LandingPage'
+import AppWorkspace from './components/AppWorkspace'
 import SettingsPanel from './components/SettingsPanel'
-import SecurityBadge from './components/SecurityBadge'
-import Tools from './components/Tools'
 import ErrorBoundary from './components/ErrorBoundary'
 import ApiKeySetup from './components/ApiKeySetup'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
@@ -95,22 +86,26 @@ function App() {
                         <div className="aurora-blob aurora-3" />
                     </div>
 
-                    <Navbar onSettingsClick={() => setSettingsOpen(true)} />
-
-                    <main>
-                        <Hero settings={settings} />
-                        <Features />
-                        <HowItWorks />
-                        <AIIntelligence />
-                        <Tools settings={settings} />
-                        <GenreDatabase />
-                        <Templates />
-                        <Pricing />
-                        <FAQ />
-                    </main>
-
-                    <Footer />
-                    <SecurityBadge />
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={
+                                <LandingPage
+                                    settings={settings}
+                                    onSettingsClick={() => setSettingsOpen(true)}
+                                />
+                            }
+                        />
+                        <Route
+                            path="/app"
+                            element={
+                                <AppWorkspace
+                                    settings={settings}
+                                    onSettingsClick={() => setSettingsOpen(true)}
+                                />
+                            }
+                        />
+                    </Routes>
 
                     <AnimatePresence>
                         {settingsOpen && (

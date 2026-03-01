@@ -85,10 +85,58 @@
     border-color: var(--border-gold);
 }
 
+.nav-auth-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem !important;
+    font-size: 0.82rem !important;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.nav-auth-btn svg {
+    font-size: 1.1rem;
+}
+
+.nav-user-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-user-email {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-logout-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    padding: 0.35rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    transition: all 0.2s;
+}
+
+.nav-logout-btn:hover {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.25);
+    background: rgba(248, 113, 113, 0.08);
+}
+
 .nav-cta {
     margin-left: 0.5rem;
     padding: 0.6rem 1.5rem !important;
     font-size: 0.85rem !important;
+    text-decoration: none;
 }
 
 .nav-hamburger {

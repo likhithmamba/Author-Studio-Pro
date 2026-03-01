@@ -44,7 +44,8 @@ const GENRES = [
     { value: 'womens_fiction', label: "Women's Fiction" },
 ]
 
-export default function Tools({ settings }) {
+export default function Tools({ settings, allowedTabs }) {
+    const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market']
     const [tab, setTab] = useState('format')
     const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.08 })
 
@@ -85,17 +86,22 @@ export default function Tools({ settings }) {
                     animate={inView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6, delay: 0.15 }}
                 >
-                    {TABS.map(t => (
-                        <button
-                            key={t.id}
-                            className={`tools-tab ${tab === t.id ? 'active' : ''}`}
-                            onClick={() => setTab(t.id)}
-                        >
-                            {t.icon}
-                            <span>{t.label}</span>
-                            <span className="tools-tab-badge">{t.badge}</span>
-                        </button>
-                    ))}
+                    {TABS.map(t => {
+                        const isLocked = !allTabs.includes(t.id)
+                        return (
+                            <button
+                                key={t.id}
+                                className={`tools-tab ${tab === t.id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                onClick={() => !isLocked && setTab(t.id)}
+                                disabled={isLocked}
+                                title={isLocked ? 'Upgrade to Studio Pro to unlock' : t.label}
+                            >
+                                {isLocked ? <HiOutlineLockClosed /> : t.icon}
+                                <span>{t.label}</span>
+                                <span className="tools-tab-badge">{isLocked ? 'Pro' : t.badge}</span>
+                            </button>
+                        )
+                    })}
                 </motion.div>
 
                 {/* Tab panels */}

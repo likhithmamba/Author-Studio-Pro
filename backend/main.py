@@ -4,10 +4,10 @@
 # Run:  uvicorn main:app --reload --port 8000
 # ─────────────────────────────────────────────────────────────────────────────
 
-import os, sys, io, re, json, time, uuid, tempfile, zipfile, secrets, logging
+import os, sys, io, re, json, time, uuid, tempfile, zipfile, secrets, logging, hmac, hashlib
 from pathlib import Path
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 
 from fastapi import (
@@ -21,8 +21,35 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 load_dotenv()
+
+# ─── Local modules ────────────────────────────────────────────────────────────
+from auth import (
+    create_access_token, verify_token,
+    get_password_hash, verify_password,
+)
+from database import (
+    get_supabase, create_user, get_user_by_email, get_user_by_id,
+    create_subscription, get_active_subscription,
+    update_subscription_status, get_subscription_by_order_id,
+)
+
+# ─── Razorpay client ──────────────────────────────────────────────────────────
+try:
+    import razorpay
+    RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+    razorpay_client = (
+        razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET
+        else None
+    )
+except ImportError:
+    razorpay_client = None
+    RAZORPAY_KEY_ID = ""
+    RAZORPAY_KEY_SECRET = ""
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "raw claude novel editor pro" / "author_studio"))
 
@@ -754,6 +781,360 @@ async def _startup():
 @app.on_event("shutdown")
 async def _shutdown():
     logger.info("Author Studio Pro API shutting down")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUTHENTICATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+def get_current_user(request: Request) -> dict:
+    """Extract and verify JWT from Authorization header."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Missing or invalid authorization header")
+    token = auth[7:]
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(401, "Invalid or expired token")
+    user = get_user_by_id(payload["sub"])
+    if not user:
+        raise HTTPException(401, "User not found")
+    return user
+
+
+@app.post("/api/auth/register", tags=["Auth"])
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest):
+    """Create a new user account."""
+    try:
+        email = body.email.strip().lower()
+        password = body.password
+
+        if not email or not password:
+            raise HTTPException(400, "Email and password are required")
+        if len(password) < 8:
+            raise HTTPException(400, "Password must be at least 8 characters")
+
+        existing = get_user_by_email(email)
+        if existing:
+            raise HTTPException(409, "An account with this email already exists")
+
+        hashed = get_password_hash(password)
+        user = create_user(email, hashed)
+        token = create_access_token(user["id"], user["email"])
+
+        return {
+            "token": token,
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "created_at": user["created_at"],
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration failed: {e}", exc_info=True)
+        raise HTTPException(500, f"Registration failed: {str(e)}")
+
+
+@app.post("/api/auth/login", tags=["Auth"])
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest):
+    """Authenticate and return a JWT."""
+    email = body.email.strip().lower()
+    user = get_user_by_email(email)
+    if not user or not verify_password(body.password, user["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+
+    token = create_access_token(user["id"], user["email"])
+    sub = get_active_subscription(user["id"])
+
+    return {
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "created_at": user["created_at"],
+        },
+        "subscription": {
+            "plan": sub["plan"] if sub else "free",
+            "status": sub["status"] if sub else "none",
+            "expires_at": sub.get("expires_at") if sub else None,
+        },
+    }
+
+
+@app.get("/api/auth/me", tags=["Auth"])
+@limiter.limit("30/minute")
+async def me(request: Request):
+    """Return current user profile + subscription status."""
+    user = get_current_user(request)
+    sub = get_active_subscription(user["id"])
+
+    return {
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "created_at": user["created_at"],
+        },
+        "subscription": {
+            "plan": sub["plan"] if sub else "free",
+            "status": sub["status"] if sub else "none",
+            "expires_at": sub.get("expires_at") if sub else None,
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RAZORPAY PAYMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Plan amounts in paise (₹1 = 100 paise)
+# Using INR equivalents:  $19 ≈ ₹1,599  |  $49 ≈ ₹4,099
+PLAN_AMOUNTS = {
+    "studio_monthly":    159900,   # ₹1,599
+    "studio_annual":    1599900,   # ₹15,999  (≈ $19 × 10 months, 2 free)
+    "publisher_monthly":  409900,  # ₹4,099
+    "publisher_annual":  4099900,  # ₹40,999  (≈ $49 × 10 months, 2 free)
+}
+
+PLAN_LABELS = {
+    "studio_monthly": "Studio — Monthly",
+    "studio_annual": "Studio — Annual",
+    "publisher_monthly": "Publisher — Monthly",
+    "publisher_annual": "Publisher — Annual",
+}
+
+
+class CreateOrderRequest(BaseModel):
+    plan_id: str           # e.g. "studio_monthly"
+
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+@app.post("/api/create-order", tags=["Payment"])
+@limiter.limit("10/minute")
+async def create_order(request: Request, body: CreateOrderRequest):
+    """Create a Razorpay order for the selected plan."""
+    if not razorpay_client:
+        raise HTTPException(503, "Payment gateway not configured")
+
+    user = get_current_user(request)
+    plan_id = body.plan_id
+
+    if plan_id not in PLAN_AMOUNTS:
+        raise HTTPException(400, f"Invalid plan: {plan_id}. Valid plans: {list(PLAN_AMOUNTS.keys())}")
+
+    # Check for existing active subscription
+    existing = get_active_subscription(user["id"])
+    if existing and existing["plan"] == plan_id.split("_")[0]:
+        raise HTTPException(409, "You already have an active subscription for this plan")
+
+    try:
+        order = razorpay_client.order.create({
+            "amount": PLAN_AMOUNTS[plan_id],
+            "currency": "INR",
+            "receipt": f"asp_{user['id'][:8]}_{int(time.time())}",
+            "notes": {
+                "user_id": user["id"],
+                "plan_id": plan_id,
+                "plan_label": PLAN_LABELS.get(plan_id, plan_id),
+            },
+        })
+
+        # Pre-create a pending subscription
+        create_subscription(
+            user_id=user["id"],
+            plan=plan_id,
+            razorpay_order_id=order["id"],
+        )
+        # Mark it as pending immediately
+        sub = get_subscription_by_order_id(order["id"])
+        if sub:
+            update_subscription_status(sub["id"], "pending")
+
+        return {
+            "order_id": order["id"],
+            "amount": order["amount"],
+            "currency": order["currency"],
+            "key_id": RAZORPAY_KEY_ID,
+            "plan_label": PLAN_LABELS.get(plan_id, plan_id),
+        }
+    except Exception as e:
+        logger.exception("Razorpay order creation failed")
+        raise HTTPException(500, f"Payment order creation failed: {str(e)[:200]}")
+
+
+@app.post("/api/verify-payment", tags=["Payment"])
+@limiter.limit("10/minute")
+async def verify_payment(request: Request, body: VerifyPaymentRequest):
+    """
+    Verify Razorpay payment signature using HMAC SHA256.
+    The signature is: HMAC_SHA256(order_id + "|" + payment_id, key_secret)
+    """
+    if not RAZORPAY_KEY_SECRET:
+        raise HTTPException(503, "Payment gateway not configured")
+
+    user = get_current_user(request)
+
+    # ── HMAC SHA256 verification ─────────────────────────────────────────────
+    message = f"{body.razorpay_order_id}|{body.razorpay_payment_id}"
+    expected_signature = hmac.new(
+        RAZORPAY_KEY_SECRET.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_signature, body.razorpay_signature):
+        logger.warning(f"Payment signature mismatch for order {body.razorpay_order_id}")
+        raise HTTPException(400, "Payment verification failed — invalid signature")
+
+    # ── Activate subscription ────────────────────────────────────────────────
+    sub = get_subscription_by_order_id(body.razorpay_order_id)
+    if not sub:
+        raise HTTPException(404, "No subscription found for this order")
+
+    if sub["user_id"] != user["id"]:
+        raise HTTPException(403, "Subscription does not belong to this user")
+
+    # Calculate expiry based on plan type
+    plan_id = sub["plan"]
+    if "annual" in plan_id:
+        expires = (datetime.utcnow() + timedelta(days=365)).isoformat()
+    else:
+        expires = (datetime.utcnow() + timedelta(days=30)).isoformat()
+
+    # Update subscription to active + set payment ID and expiry
+    sb = get_supabase()
+    sb.table("subscriptions").update({
+        "status": "active",
+        "razorpay_payment_id": body.razorpay_payment_id,
+        "expires_at": expires,
+    }).eq("id", sub["id"]).execute()
+
+    logger.info(f"Payment verified for user {user['id']}, plan {plan_id}")
+
+    return {
+        "success": True,
+        "plan": plan_id,
+        "plan_label": PLAN_LABELS.get(plan_id, plan_id),
+        "expires_at": expires,
+        "message": "Payment verified successfully! Your subscription is now active.",
+    }
+
+
+@app.post("/api/webhook/razorpay", tags=["Payment"])
+async def razorpay_webhook(request: Request):
+    """
+    Razorpay webhook handler for async payment events.
+    Verifies webhook signature and updates subscription status.
+    """
+    if not RAZORPAY_KEY_SECRET:
+        raise HTTPException(503, "Payment gateway not configured")
+
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+
+    # Verify webhook signature
+    expected = hmac.new(
+        RAZORPAY_KEY_SECRET.encode("utf-8"),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        logger.warning("Webhook signature verification failed")
+        raise HTTPException(400, "Invalid webhook signature")
+
+    try:
+        event = json.loads(body)
+        event_type = event.get("event", "")
+        payload = event.get("payload", {})
+
+        if event_type == "payment.captured":
+            payment = payload.get("payment", {}).get("entity", {})
+            order_id = payment.get("order_id", "")
+            payment_id = payment.get("id", "")
+
+            sub = get_subscription_by_order_id(order_id)
+            if sub and sub["status"] != "active":
+                plan_id = sub["plan"]
+                if "annual" in plan_id:
+                    expires = (datetime.utcnow() + timedelta(days=365)).isoformat()
+                else:
+                    expires = (datetime.utcnow() + timedelta(days=30)).isoformat()
+
+                sb = get_supabase()
+                sb.table("subscriptions").update({
+                    "status": "active",
+                    "razorpay_payment_id": payment_id,
+                    "expires_at": expires,
+                }).eq("id", sub["id"]).execute()
+                logger.info(f"Webhook: activated subscription {sub['id']}")
+
+        elif event_type == "payment.failed":
+            payment = payload.get("payment", {}).get("entity", {})
+            order_id = payment.get("order_id", "")
+            sub = get_subscription_by_order_id(order_id)
+            if sub:
+                update_subscription_status(sub["id"], "failed")
+                logger.info(f"Webhook: payment failed for subscription {sub['id']}")
+
+        logger.info(f"Webhook processed: {event_type}")
+        return {"status": "ok"}
+
+    except Exception as e:
+        logger.exception("Webhook processing error")
+        return {"status": "error", "detail": str(e)[:200]}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI KEY VALIDATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ValidateKeyRequest(BaseModel):
+    api_key: str
+    provider: str = "openrouter"  # currently only openrouter
+
+
+@app.post("/api/ai/validate-key", tags=["AI"])
+@limiter.limit("5/minute")
+async def validate_ai_key(request: Request, body: ValidateKeyRequest):
+    """
+    Server-side validation of an AI API key.
+    Makes a lightweight test request to the provider.
+    """
+    import requests as http_requests
+
+    if body.provider == "openrouter":
+        try:
+            resp = http_requests.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {body.api_key}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return {"valid": True, "provider": "openrouter", "message": "API key is valid"}
+            else:
+                return {"valid": False, "provider": "openrouter", "message": f"Key validation failed (HTTP {resp.status_code})"}
+        except Exception as e:
+            return {"valid": False, "provider": "openrouter", "message": f"Could not reach provider: {str(e)[:100]}"}
+    else:
+        raise HTTPException(400, f"Unsupported provider: {body.provider}")
 
 
 # ─── Entry ────────────────────────────────────────────────────────────────────

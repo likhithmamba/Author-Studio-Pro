@@ -102,9 +102,23 @@
     border: 1px solid var(--border-subtle);
 }
 
-.tools-tab:hover:not(.active) {
+.tools-tab:hover:not(.active):not(.locked) {
     color: var(--text-secondary);
     background: rgba(255, 255, 255, 0.03);
+}
+
+.tools-tab.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: auto;
+}
+
+.tools-tab.locked .tools-tab-badge {
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 700;
 }
 
 .tools-tab-badge {

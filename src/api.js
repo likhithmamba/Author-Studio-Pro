@@ -158,4 +158,59 @@ export function downloadBlob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────
+export async function authRegister(email, password) {
+    return fetchJSON('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    })
+}
+
+export async function authLogin(email, password) {
+    return fetchJSON('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    })
+}
+
+export async function authMe(token) {
+    return fetchJSON('/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` },
+    })
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────
+export async function createOrder(planId, token) {
+    return fetchJSON('/create-order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan_id: planId }),
+    })
+}
+
+export async function verifyPayment(paymentData, token) {
+    return fetchJSON('/verify-payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(paymentData),
+    })
+}
+
+// ─── AI Key Validation ────────────────────────────────────────────────────
+export async function validateAIKey(apiKey, provider = 'openrouter') {
+    return fetchJSON('/ai/validate-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, provider }),
+    })
+}
+
 export { APIError }

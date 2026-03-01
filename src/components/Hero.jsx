@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { HiOutlineArrowRight, HiOutlinePlay } from 'react-icons/hi2'
+import { Link } from 'react-router-dom'
 import './Hero.css'
 
 const TYPING_WORDS = [
@@ -56,9 +57,9 @@ export default function Hero({ settings }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.7 }}
                 >
-                    <a href="#pricing" className="btn-primary hero-cta">
-                        Start Writing <HiOutlineArrowRight />
-                    </a>
+                    <Link to="/app" className="btn-primary hero-cta">
+                        Get Started <HiOutlineArrowRight />
+                    </Link>
                     <a href="#how-it-works" className="btn-secondary hero-cta-secondary">
                         <HiOutlinePlay /> See How It Works
                     </a>

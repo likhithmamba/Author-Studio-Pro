@@ -1,6 +1,11 @@
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
-import { HiOutlineCheck, HiOutlineStar } from 'react-icons/hi2'
+import { HiOutlineCheck, HiOutlineStar, HiOutlineCheckCircle, HiOutlineExclamationCircle } from 'react-icons/hi2'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { createOrder, verifyPayment } from '../api.js'
+import AuthModal from './AuthModal'
 import './Pricing.css'
 
 const plans = [
@@ -20,6 +25,7 @@ const plans = [
         cta: 'Start Free',
         featured: false,
         color: 'var(--text-secondary)',
+        planId: null, // free, no payment
     },
     {
         name: 'Studio',
@@ -39,6 +45,7 @@ const plans = [
         cta: 'Start Free Trial',
         featured: true,
         color: 'var(--gold-primary)',
+        planId: 'studio_monthly',
     },
     {
         name: 'Publisher',
@@ -58,11 +65,110 @@ const plans = [
         cta: 'Contact Sales',
         featured: false,
         color: 'var(--accent-purple)',
+        planId: 'publisher_monthly',
     },
 ]
 
+// Load Razorpay script once
+let razorpayScriptLoaded = false
+function loadRazorpayScript() {
+    if (razorpayScriptLoaded) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        script.onload = () => { razorpayScriptLoaded = true; resolve() }
+        script.onerror = () => reject(new Error('Failed to load Razorpay'))
+        document.body.appendChild(script)
+    })
+}
+
 export default function Pricing() {
     const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 })
+    const [paymentStatus, setPaymentStatus] = useState(null) // null | { type: 'success'|'error', message }
+    const [processingPlan, setProcessingPlan] = useState(null)
+    const [showAuth, setShowAuth] = useState(false)
+    const { user, token, isSubscribed, refreshSubscription } = useAuth()
+
+    const handlePayment = useCallback(async (plan) => {
+        if (!plan.planId) return // free plan
+
+        // Must be logged in to pay
+        if (!user) {
+            setShowAuth(true)
+            return
+        }
+
+        setProcessingPlan(plan.name)
+        setPaymentStatus(null)
+
+        try {
+            await loadRazorpayScript()
+
+            // 1. Create order on backend
+            const orderData = await createOrder(plan.planId, token)
+
+            // 2. Open Razorpay checkout
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: 'Author Studio Pro',
+                description: orderData.plan_label,
+                order_id: orderData.order_id,
+                handler: async (response) => {
+                    try {
+                        // 3. Verify payment signature on backend
+                        const result = await verifyPayment({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        }, token)
+
+                        setPaymentStatus({
+                            type: 'success',
+                            message: result.message || 'Payment successful! Your subscription is now active.',
+                        })
+                        refreshSubscription()
+                    } catch (err) {
+                        setPaymentStatus({
+                            type: 'error',
+                            message: err.detail || 'Payment verification failed. Please contact support.',
+                        })
+                    }
+                    setProcessingPlan(null)
+                },
+                modal: {
+                    ondismiss: () => {
+                        setProcessingPlan(null)
+                    },
+                },
+                prefill: {
+                    email: user?.email || '',
+                },
+                theme: {
+                    color: '#d4af37',
+                    backdrop_color: 'rgba(0, 0, 0, 0.7)',
+                },
+            }
+
+            const rzp = new window.Razorpay(options)
+            rzp.on('payment.failed', (response) => {
+                setPaymentStatus({
+                    type: 'error',
+                    message: response.error?.description || 'Payment failed. Please try again.',
+                })
+                setProcessingPlan(null)
+            })
+            rzp.open()
+
+        } catch (err) {
+            setPaymentStatus({
+                type: 'error',
+                message: err.detail || err.message || 'Could not initiate payment. Please try again.',
+            })
+            setProcessingPlan(null)
+        }
+    }, [user, token, refreshSubscription])
 
     return (
         <section id="pricing" className="pricing-section section">
@@ -80,6 +186,22 @@ export default function Pricing() {
                         Professional manuscript services cost $500–$2,000 per project. Get the same intelligence for a fraction of the cost — or start completely free.
                     </p>
                 </motion.div>
+
+                {/* Payment status toast */}
+                {paymentStatus && (
+                    <motion.div
+                        className={`pricing-toast ${paymentStatus.type}`}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        {paymentStatus.type === 'success'
+                            ? <HiOutlineCheckCircle />
+                            : <HiOutlineExclamationCircle />
+                        }
+                        <span>{paymentStatus.message}</span>
+                        <button onClick={() => setPaymentStatus(null)} className="pricing-toast-close">×</button>
+                    </motion.div>
+                )}
 
                 <div className="pricing-grid">
                     {plans.map((plan, i) => (
@@ -110,11 +232,26 @@ export default function Pricing() {
                                     </div>
                                 ))}
                             </div>
-                            <button
-                                className={plan.featured ? 'btn-primary pricing-cta' : 'btn-secondary pricing-cta'}
-                            >
-                                {plan.cta}
-                            </button>
+                            {plan.price === 'Free' ? (
+                                <Link to="/app" className="btn-secondary pricing-cta">
+                                    {plan.cta}
+                                </Link>
+                            ) : plan.name === 'Publisher' ? (
+                                <button className="btn-secondary pricing-cta">
+                                    {plan.cta}
+                                </button>
+                            ) : (
+                                <button
+                                    className="btn-primary pricing-cta"
+                                    onClick={() => handlePayment(plan)}
+                                    disabled={processingPlan === plan.name || isSubscribed}
+                                >
+                                    {processingPlan === plan.name
+                                        ? <><span className="pricing-spinner" /> Processing...</>
+                                        : isSubscribed ? '✓ Subscribed' : plan.cta
+                                    }
+                                </button>
+                            )}
                         </motion.div>
                     ))}
                 </div>
@@ -128,6 +265,8 @@ export default function Pricing() {
                     All plans include end-to-end encryption, GDPR compliance, and zero data retention by default. Your manuscript never leaves your browser unless you explicitly enable AI features.
                 </motion.p>
             </div>
+
+            {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
         </section>
     )
 }
