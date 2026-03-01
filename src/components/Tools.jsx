@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import {
-    HiOutlineDocumentText, HiOutlineBeaker, HiOutlineMail,
+    HiOutlineDocumentText, HiOutlineBeaker, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineCloudArrowUp, HiOutlineSparkles,
     HiOutlineArrowDownTray, HiOutlineExclamationCircle,
     HiOutlineCheckCircle, HiOutlineLockClosed, HiOutlineXMark,
@@ -17,7 +17,7 @@ import './Tools.css'
 const TABS = [
     { id: 'format', icon: <HiOutlineDocumentText />, label: 'Format', badge: 'No AI needed' },
     { id: 'analyse', icon: <HiOutlineBeaker />, label: 'Analyse', badge: 'AI optional' },
-    { id: 'query', icon: <HiOutlineMail />, label: 'Query', badge: 'Manual mode' },
+    { id: 'query', icon: <HiOutlineEnvelope />, label: 'Query', badge: 'Manual mode' },
     { id: 'market', icon: <HiOutlineChartBar />, label: 'Market', badge: 'No AI needed' },
 ]
 
@@ -303,7 +303,7 @@ function QueryTab({ apiKey, aiModel, hasKey }) {
     return (
         <TabPanel>
             <div className="tool-desc">
-                <HiOutlineMail className="tool-desc-icon" />
+                <HiOutlineEnvelope className="tool-desc-icon" />
                 <p>Generate a complete submission package: Query Letter, 1-page Synopsis, Author Bio Sheet, Copyright Page. Professional query consultants charge $200–$800 for this.</p>
             </div>
 

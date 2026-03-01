@@ -12,6 +12,7 @@ import {
     HiOutlineEyeSlash,
     HiOutlineCheckCircle,
 } from 'react-icons/hi2'
+import { hasApiKey, removeApiKey, getApiProvider, getDeviceFingerprint, loadApiKey } from '../utils/keyStorage'
 import './SettingsPanel.css'
 
 const AI_MODELS = [
@@ -33,23 +34,27 @@ const AI_MODELS = [
     { value: 'mistralai/mistral-large', label: '💎 Mistral Large — Flagship Mistral', tier: 'paid' },
 ]
 
-export default function SettingsPanel({ settings, onSettingsChange, onClose }) {
-    const [showKey, setShowKey] = useState(false)
-    const [keySaved, setKeySaved] = useState(false)
+export default function SettingsPanel({ settings, onSettingsChange, onClose, onRemoveKey }) {
+    const provider = getApiProvider()
+    const activeKeyRef = loadApiKey(getDeviceFingerprint())
 
     const update = (key, val) => {
         onSettingsChange(prev => ({ ...prev, [key]: val }))
     }
 
-    const saveApiKey = (val) => {
-        update('openRouterKey', val)
-        setKeySaved(true)
-        setTimeout(() => setKeySaved(false), 2000)
+    const handleRemoveKey = () => {
+        if (confirm('Are you sure you want to remove your API key? You will need to re-enter it to use AI features.')) {
+            removeApiKey()
+            if (onRemoveKey) onRemoveKey()
+            onClose()
+        }
     }
 
     const clearAllData = () => {
         if (confirm('This will clear all saved preferences and your API key. Continue?')) {
             localStorage.removeItem('asp_settings')
+            removeApiKey()
+            if (onRemoveKey) onRemoveKey()
             onSettingsChange({
                 reducedMotion: false,
                 highContrast: false,
@@ -59,9 +64,9 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }) {
                 soundEffects: false,
                 analyticsConsent: false,
                 dataRetention: 'session',
-                openRouterKey: '',
                 aiModel: 'mistralai/mistral-7b-instruct:free',
             })
+            onClose()
         }
     }
 
@@ -109,43 +114,27 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }) {
 
                         <div className="settings-item settings-item-full">
                             <div className="settings-item-info">
-                                <span className="settings-item-label">OpenRouter API Key</span>
+                                <span className="settings-item-label">API Key Status</span>
                                 <span className="settings-item-desc">
-                                    Stored only in your browser — never sent to our servers
+                                    Current Provider: {provider}
                                 </span>
                             </div>
-                            <div className="settings-api-key-row">
-                                <div className="settings-api-key-input-wrapper">
-                                    <input
-                                        type={showKey ? 'text' : 'password'}
-                                        className="settings-api-key-input"
-                                        placeholder="sk-or-v1-..."
-                                        value={settings.openRouterKey || ''}
-                                        onChange={e => saveApiKey(e.target.value)}
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                    />
-                                    <button
-                                        className="settings-key-toggle"
-                                        onClick={() => setShowKey(v => !v)}
-                                        aria-label={showKey ? 'Hide key' : 'Show key'}
-                                        type="button"
-                                    >
-                                        {showKey ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
-                                    </button>
+
+                            {hasApiKey() ? (
+                                <div className="settings-key-status" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4CAF50' }}>
+                                        <HiOutlineCheckCircle />
+                                        <span>Key is securely encrypted and saved locally.</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button className="settings-danger-btn" onClick={handleRemoveKey} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                                            Replace / Remove Key
+                                        </button>
+                                    </div>
                                 </div>
-                                {keySaved && (
-                                    <span className="settings-key-saved">
-                                        <HiOutlineCheckCircle /> Saved
-                                    </span>
-                                )}
-                            </div>
-                            {settings.openRouterKey && (
-                                <div className="settings-key-status">
-                                    ✅ AI features enabled
-                                    <span className="settings-key-hint">
-                                        Your key: {settings.openRouterKey.slice(0, 10)}...
-                                    </span>
+                            ) : (
+                                <div className="settings-key-status" style={{ color: '#ff4d4f' }}>
+                                    ⚠️ No API Key found.
                                 </div>
                             )}
                         </div>

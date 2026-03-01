@@ -4,7 +4,8 @@
  * Implements request signing, error normalisation, and response caching.
  */
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api'
+import { loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 
 // ─── Error normalisation ───────────────────────────────────────────────────
 class APIError extends Error {
@@ -70,7 +71,7 @@ export async function getWordCountAssessment(genreId, wordCount) {
 }
 
 // ─── Format ───────────────────────────────────────────────────────────────
-export async function formatManuscript({ file, author, title, templateKey, overrides, useAI, apiKey, aiModel }) {
+export async function formatManuscript({ file, author, title, templateKey, overrides, useAI, aiModel }) {
     const form = new FormData()
     form.append('file', file)
     form.append('author', author)
@@ -78,7 +79,10 @@ export async function formatManuscript({ file, author, title, templateKey, overr
     form.append('template_key', templateKey || 'us_standard')
     form.append('overrides', JSON.stringify(overrides || {}))
     form.append('use_ai', String(useAI || false))
-    form.append('api_key', apiKey || '')
+
+    // Always pull key securely from keyStorage instead of args explicitly
+    const localKey = loadApiKey(getDeviceFingerprint()) || ''
+    form.append('api_key', localKey)
     form.append('ai_model', aiModel || 'mistralai/mistral-7b-instruct:free')
 
     const { blob, headers } = await fetchBlob('/format', { method: 'POST', body: form })
@@ -93,12 +97,14 @@ export async function formatManuscript({ file, author, title, templateKey, overr
 }
 
 // ─── Analyse ──────────────────────────────────────────────────────────────
-export async function analyseManuscript({ file, genre, useAI, apiKey, aiModel }) {
+export async function analyseManuscript({ file, genre, useAI, aiModel }) {
     const form = new FormData()
     form.append('file', file)
     form.append('genre', genre || 'literary')
     form.append('use_ai', String(useAI || false))
-    form.append('api_key', apiKey || '')
+
+    const localKey = loadApiKey(getDeviceFingerprint()) || ''
+    form.append('api_key', localKey)
     form.append('ai_model', aiModel || 'mistralai/mistral-7b-instruct:free')
 
     return fetchJSON('/analyse', { method: 'POST', body: form })
@@ -120,7 +126,10 @@ export async function generateQueryManual(payload) {
 export async function generateQueryAI({ file, payload }) {
     const form = new FormData()
     form.append('file', file)
-    form.append('data', JSON.stringify(payload))
+
+    const localKey = loadApiKey(getDeviceFingerprint()) || ''
+    const updatedPayload = { ...payload, api_key: localKey }
+    form.append('data', JSON.stringify(updatedPayload))
 
     const { blob, headers } = await fetchBlob('/query/ai', { method: 'POST', body: form })
     let storyIntelligence = null

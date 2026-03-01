@@ -24,13 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─── Python path: point at the author_studio folder ───────────────────────────
-STUDIO_PATH = (
-    Path(__file__).parent.parent
-    / "raw claude novel editor pro"
-    / "author_studio"
-)
-sys.path.insert(0, str(STUDIO_PATH))
+sys.path.insert(0, str(Path(__file__).parent.parent / "raw claude novel editor pro" / "author_studio"))
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(

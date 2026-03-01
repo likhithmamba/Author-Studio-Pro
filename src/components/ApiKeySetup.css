@@ -1,0 +1,164 @@
+.api-key-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(8px);
+}
+
+.api-key-modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    padding: 3rem;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.api-key-modal .brand-logo {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+
+.api-key-modal .brand-logo span {
+    color: var(--primary-color);
+}
+
+.api-key-modal h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.api-key-modal .error-message {
+    color: #ff4d4f;
+    background: rgba(255, 77, 79, 0.1);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.api-key-modal .input-group {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    gap: 0.5rem;
+}
+
+.api-key-modal .input-group label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.api-key-modal .input-group select,
+.api-key-modal .input-group input {
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.api-key-modal .input-group select:focus,
+.api-key-modal .input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.api-key-modal .password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.api-key-modal .password-wrapper input {
+    padding-right: 3rem;
+}
+
+.api-key-modal .toggle-btn {
+    position: absolute;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.api-key-modal .toggle-btn:hover {
+    color: var(--text-primary);
+}
+
+.api-key-modal .save-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 0.5rem;
+}
+
+.api-key-modal .save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.api-key-modal .save-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.api-key-modal .trust-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #8c8c8c;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    max-width: 90%;
+    margin: 0 auto;
+}
+
+.api-key-modal .lock-icon {
+    flex-shrink: 0;
+}
+
+.api-key-modal .help-link {
+    color: var(--primary-color);
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.api-key-modal .help-link:hover {
+    text-decoration: underline;
+}

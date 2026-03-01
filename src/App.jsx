@@ -13,10 +13,31 @@ import Footer from './components/Footer'
 import SettingsPanel from './components/SettingsPanel'
 import SecurityBadge from './components/SecurityBadge'
 import Tools from './components/Tools'
+import ErrorBoundary from './components/ErrorBoundary'
+import ApiKeySetup from './components/ApiKeySetup'
+import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 import './App.css'
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
+
+    // Check if key exists and can be decrypted
+    const checkKeyStatus = () => {
+        if (!hasApiKey()) return { isValid: false, message: '' };
+        const key = loadApiKey(getDeviceFingerprint());
+        if (!key) return { isValid: false, message: 'Your previous key could not be loaded (decryption failed). Please re-enter it.' };
+        return { isValid: true, message: '' };
+    };
+
+    const initialKeyStatus = checkKeyStatus();
+    const [isKeyValid, setIsKeyValid] = useState(initialKeyStatus.isValid);
+    const [keyErrorMessage, setKeyErrorMessage] = useState(initialKeyStatus.message);
+
+    const handleKeySaved = () => {
+        setIsKeyValid(true);
+        setKeyErrorMessage('');
+    };
+
     const [settings, setSettings] = useState(() => {
         try {
             const saved = localStorage.getItem('asp_settings')
@@ -62,41 +83,48 @@ function App() {
     }, [settings.reducedMotion, settings.highContrast, settings.fontSize])
 
     return (
-        <div className="app">
-            <div className="noise-overlay" aria-hidden="true" />
-            <div className="aurora-bg" aria-hidden="true">
-                <div className="aurora-blob aurora-1" />
-                <div className="aurora-blob aurora-2" />
-                <div className="aurora-blob aurora-3" />
-            </div>
+        <ErrorBoundary>
+            {!isKeyValid ? (
+                <ApiKeySetup onKeysaved={handleKeySaved} initialMessage={keyErrorMessage} />
+            ) : (
+                <div className="app">
+                    <div className="noise-overlay" aria-hidden="true" />
+                    <div className="aurora-bg" aria-hidden="true">
+                        <div className="aurora-blob aurora-1" />
+                        <div className="aurora-blob aurora-2" />
+                        <div className="aurora-blob aurora-3" />
+                    </div>
 
-            <Navbar onSettingsClick={() => setSettingsOpen(true)} />
+                    <Navbar onSettingsClick={() => setSettingsOpen(true)} />
 
-            <main>
-                <Hero settings={settings} />
-                <Features />
-                <HowItWorks />
-                <AIIntelligence />
-                <Tools settings={settings} />
-                <GenreDatabase />
-                <Templates />
-                <Pricing />
-                <FAQ />
-            </main>
+                    <main>
+                        <Hero settings={settings} />
+                        <Features />
+                        <HowItWorks />
+                        <AIIntelligence />
+                        <Tools settings={settings} />
+                        <GenreDatabase />
+                        <Templates />
+                        <Pricing />
+                        <FAQ />
+                    </main>
 
-            <Footer />
-            <SecurityBadge />
+                    <Footer />
+                    <SecurityBadge />
 
-            <AnimatePresence>
-                {settingsOpen && (
-                    <SettingsPanel
-                        settings={settings}
-                        onSettingsChange={setSettings}
-                        onClose={() => setSettingsOpen(false)}
-                    />
-                )}
-            </AnimatePresence>
-        </div>
+                    <AnimatePresence>
+                        {settingsOpen && (
+                            <SettingsPanel
+                                settings={settings}
+                                onSettingsChange={setSettings}
+                                onClose={() => setSettingsOpen(false)}
+                                onRemoveKey={() => setIsKeyValid(false)}
+                            />
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+        </ErrorBoundary>
     )
 }
 
