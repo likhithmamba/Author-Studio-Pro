@@ -22,23 +22,39 @@ async function fetchJSON(path, options = {}) {
         'Accept': 'application/json',
         ...options.headers,
     }
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
-    if (!res.ok) {
-        let detail = ''
-        try { detail = (await res.json()).detail || '' } catch { }
-        throw new APIError(`API error: ${res.status}`, res.status, detail)
+    try {
+        const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+        if (!res.ok) {
+            let detail = ''
+            try { detail = (await res.json()).detail || '' } catch { }
+            throw new APIError(`API error: ${res.status}`, res.status, detail)
+        }
+        return await res.json()
+    } catch (e) {
+        if (e.name === 'APIError') throw e;
+        if (e.name === 'TypeError' && e.message === 'Failed to fetch') {
+            throw new APIError('Network timeout or connection refused. Please ensure the backend server is running and reachable.', 0, 'Network Error')
+        }
+        throw e;
     }
-    return res.json()
 }
 
 async function fetchBlob(path, options = {}) {
-    const res = await fetch(`${API_BASE}${path}`, options)
-    if (!res.ok) {
-        let detail = ''
-        try { detail = (await res.json()).detail || '' } catch { }
-        throw new APIError(`API error: ${res.status}`, res.status, detail)
+    try {
+        const res = await fetch(`${API_BASE}${path}`, options)
+        if (!res.ok) {
+            let detail = ''
+            try { detail = (await res.json()).detail || '' } catch { }
+            throw new APIError(`API error: ${res.status}`, res.status, detail)
+        }
+        return { blob: await res.blob(), headers: res.headers }
+    } catch (e) {
+        if (e.name === 'APIError') throw e;
+        if (e.name === 'TypeError' && e.message === 'Failed to fetch') {
+            throw new APIError('Network timeout or connection refused. Please ensure the backend server is running and reachable.', 0, 'Network Error')
+        }
+        throw e;
     }
-    return { blob: await res.blob(), headers: res.headers }
 }
 
 // ─── Health ────────────────────────────────────────────────────────────────

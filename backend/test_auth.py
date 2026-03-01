@@ -19,21 +19,21 @@ BOLD = "\033[1m"
 def test(name, fn):
     try:
         result = fn()
-        print(f"  {GREEN}✓{RESET} {name}: {result}")
+        print(f"  {GREEN}[OK]{RESET} {name}: {result}", flush=True)
         return True
     except Exception as e:
-        print(f"  {RED}✗{RESET} {name}: {e}")
+        print(f"  {RED}[FAIL]{RESET} {name}: {e}", flush=True)
         traceback.print_exc()
         return False
 
-print(f"\n{BOLD}{'='*50}")
-print(" Author Studio Pro — Backend Health Check")
-print(f"{'='*50}{RESET}\n")
+print(f"\n{BOLD}{'='*50}", flush=True)
+print(" Author Studio Pro — Backend Health Check", flush=True)
+print(f"{'='*50}{RESET}\n", flush=True)
 
 all_ok = True
 
 # 1. Test bcrypt
-print(f"{YELLOW}[1/5]{RESET} Password hashing (bcrypt)...")
+print(f"{YELLOW}[1/5]{RESET} Password hashing (bcrypt)...", flush=True)
 ok = test("Hash + verify", lambda: (
     __import__("auth").verify_password(
         "TestPass123",
@@ -43,7 +43,7 @@ ok = test("Hash + verify", lambda: (
 all_ok = all_ok and ok
 
 # 2. Test JWT
-print(f"\n{YELLOW}[2/5]{RESET} JWT tokens...")
+print(f"\n{YELLOW}[2/5]{RESET} JWT tokens...", flush=True)
 ok = test("Create + verify token", lambda: (
     __import__("auth").verify_token(
         __import__("auth").create_access_token("test-id", "test@test.com")
@@ -52,14 +52,14 @@ ok = test("Create + verify token", lambda: (
 all_ok = all_ok and ok
 
 # 3. Test Supabase connection
-print(f"\n{YELLOW}[3/5]{RESET} Supabase connection...")
+print(f"\n{YELLOW}[3/5]{RESET} Supabase connection...", flush=True)
 ok = test("Connect to Supabase", lambda: (
     __import__("database").get_supabase() and "CONNECTED"
 ))
 all_ok = all_ok and ok
 
 # 4. Test Supabase tables
-print(f"\n{YELLOW}[4/5]{RESET} Database tables...")
+print(f"\n{YELLOW}[4/5]{RESET} Database tables...", flush=True)
 ok = test("Query users table", lambda: (
     str(__import__("database").get_supabase().table("users").select("*").limit(1).execute().data is not None)
     and "OK"
@@ -73,7 +73,7 @@ ok2 = test("Query subscriptions table", lambda: (
 all_ok = all_ok and ok2
 
 # 5. Test full registration flow
-print(f"\n{YELLOW}[5/5]{RESET} Full registration flow...")
+print(f"\n{YELLOW}[5/5]{RESET} Full registration flow...", flush=True)
 def test_register():
     from auth import get_password_hash, create_access_token
     from database import create_user, get_user_by_email
@@ -92,12 +92,12 @@ ok = test("Register user", test_register)
 all_ok = all_ok and ok
 
 # Summary
-print(f"\n{BOLD}{'='*50}")
+print(f"\n{BOLD}{'='*50}", flush=True)
 if all_ok:
-    print(f" {GREEN}ALL TESTS PASSED ✓{RESET}")
-    print(f" Backend is healthy. Start the server with:")
-    print(f" python -m uvicorn main:app --reload --port 8000")
+    print(f" {GREEN}ALL TESTS PASSED ✓{RESET}", flush=True)
+    print(f" Backend is healthy. Start the server with:", flush=True)
+    print(f" python -m uvicorn main:app --reload --port 8000", flush=True)
 else:
-    print(f" {RED}SOME TESTS FAILED ✗{RESET}")
-    print(f" Fix the issues above before starting the server.")
-print(f"{'='*50}\n")
+    print(f" {RED}SOME TESTS FAILED ✗{RESET}", flush=True)
+    print(f" Fix the issues above before starting the server.", flush=True)
+print(f"{'='*50}\n", flush=True)

@@ -1,0 +1,29 @@
+
+[1m==================================================
+ Author Studio Pro ù Backend Health Check
+==================================================[0m
+
+[93m[1/5][0m Password hashing (bcrypt)...
+  [92m[OK][0m Hash + verify: PASS
+
+[93m[2/5][0m JWT tokens...
+  [92m[OK][0m Create + verify token: PASS
+
+[93m[3/5][0m Supabase connection...
+  [92m[OK][0m Connect to Supabase: CONNECTED
+
+[93m[4/5][0m Database tables...
+  [92m[OK][0m Query users table: OK
+  [92m[OK][0m Query subscriptions table: OK
+
+[93m[5/5][0m Full registration flow...
+  [92m[OK][0m Register user: Registered OK, token=eyJhbGciOiJIUzI1NiIs...
+
+[1m==================================================
+Traceback (most recent call last):
+  File "D:\Downloads\antigravityfiles\novel formatter\backend\test_auth.py", line 97, in <module>
+    print(f" {GREEN}ALL TESTS PASSED \u2713{RESET}", flush=True)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 23: character maps to <undefined>
