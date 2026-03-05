@@ -216,6 +216,10 @@ class ManuscriptAnalyzer:
         words: List[str],
     ) -> StyleMetrics:
 
+        # Pre-compute word attributes to avoid redundant computations
+        word_lowers = [w.lower() for w in words]
+        word_alphas = [w.isalpha() for w in words]
+
         # Dialogue percentage
         dialogue_chars = sum(
             len(p.cleaned) for p in body_paras
@@ -228,8 +232,8 @@ class ManuscriptAnalyzer:
         _non_adverb_ly = {"only", "early", "family", "likely", "lonely", "lovely",
                           "elderly", "friendly", "lively", "ugly", "silly", "holy"}
         adverbs = [
-            w for w in words
-            if w.lower().endswith("ly") and w.lower() not in _non_adverb_ly and len(w) > 4
+            w_low for w_low in word_lowers
+            if w_low.endswith("ly") and w_low not in _non_adverb_ly and len(w_low) > 4
         ]
         adverb_density = (len(adverbs) / len(words) * 1000) if words else 0
 
@@ -254,16 +258,16 @@ class ManuscriptAnalyzer:
 
         # Most frequent content words (excluding stop words)
         content_words = [
-            w.lower() for w in words
-            if w.lower() not in _STOP_WORDS and len(w) > 3 and w.isalpha()
+            w_low for w, w_low, is_alpha in zip(words, word_lowers, word_alphas)
+            if len(w) > 3 and is_alpha and w_low not in _STOP_WORDS
         ]
         word_freq = Counter(content_words).most_common(20)
 
         # Repeated 3-word phrases
         trigrams = [
-            " ".join(words[i:i+3]).lower()
+            f"{word_lowers[i]} {word_lowers[i+1]} {word_lowers[i+2]}"
             for i in range(len(words) - 2)
-            if all(w.isalpha() for w in words[i:i+3])
+            if word_alphas[i] and word_alphas[i+1] and word_alphas[i+2]
         ]
         phrase_freq = [
             (phrase, count)
