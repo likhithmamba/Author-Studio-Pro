@@ -74,7 +74,7 @@ async def register(request: Request, body: RegisterRequest):
         raise
     except Exception as e:
         logger.error(f"Registration failed: {e}", exc_info=True)
-        raise HTTPException(500, f"Registration failed: {str(e)}")
+        raise HTTPException(500, "Registration failed")
 
 
 @router.post("/api/auth/login", tags=["Auth"])

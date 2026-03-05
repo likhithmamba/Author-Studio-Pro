@@ -84,7 +84,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal Server Error: {str(exc)}"}
+        content={"detail": "Internal Server Error"}
     )
 
 app.include_router(auth_router)
@@ -248,7 +248,7 @@ async def create_order(request: Request, body: CreateOrderRequest):
         }
     except Exception as e:
         logger.exception("Razorpay order creation failed")
-        raise HTTPException(500, f"Payment order creation failed: {str(e)[:200]}")
+        raise HTTPException(500, "Payment order creation failed")
 
 
 @app.post("/api/verify-payment", tags=["Payment"])
@@ -371,7 +371,7 @@ async def razorpay_webhook(request: Request):
 
     except Exception as e:
         logger.exception("Webhook processing error")
-        return {"status": "error", "detail": str(e)[:200]}
+        return {"status": "error", "detail": "Webhook processing failed"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -404,7 +404,8 @@ async def validate_ai_key(request: Request, body: ValidateKeyRequest):
             else:
                 return {"valid": False, "provider": "openrouter", "message": f"Key validation failed (HTTP {resp.status_code})"}
         except Exception as e:
-            return {"valid": False, "provider": "openrouter", "message": f"Could not reach provider: {str(e)[:100]}"}
+            logger.exception("AI key validation failed")
+            return {"valid": False, "provider": "openrouter", "message": "Could not reach provider"}
     else:
         raise HTTPException(400, f"Unsupported provider: {body.provider}")
 
