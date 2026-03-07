@@ -205,6 +205,7 @@ async def create_order(request: Request, body: CreateOrderRequest):
     if not razorpay_client:
         raise HTTPException(503, "Payment gateway not configured")
 
+    from routers.auth_routes import get_current_user
     user = get_current_user(request)
     plan_id = body.plan_id
 
@@ -261,6 +262,7 @@ async def verify_payment(request: Request, body: VerifyPaymentRequest):
     if not RAZORPAY_KEY_SECRET:
         raise HTTPException(503, "Payment gateway not configured")
 
+    from routers.auth_routes import get_current_user
     user = get_current_user(request)
 
     # ── HMAC SHA256 verification ─────────────────────────────────────────────
