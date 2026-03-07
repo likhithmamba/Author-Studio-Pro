@@ -4,12 +4,15 @@ Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 """
 
 import os
+import secrets
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt
 from jose import jwt, JWTError
 
+logger = logging.getLogger("auth")
 
 # ─── Password hashing ────────────────────────────────────────────────────────
 def get_password_hash(password: str) -> str:
@@ -26,7 +29,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ─── JWT tokens ──────────────────────────────────────────────────────────────
-JWT_SECRET = os.getenv("JWT_SECRET_KEY", "change-me-in-production-please")
+JWT_SECRET = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET:
+    logger.warning("JWT_SECRET_KEY not set in environment. Using a random ephemeral key. Sessions will invalidate on restart.")
+    JWT_SECRET = secrets.token_urlsafe(32)
+
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72  # 3 days
 

@@ -189,4 +189,4 @@ async def format_manuscript(
         logger.exception("Format error")
         bg.add_task(rm, inp)
         bg.add_task(rm, out)
-        raise HTTPException(500, f"Formatting failed: {str(e)[:300]}")
+        raise HTTPException(500, "Formatting failed due to an internal error.")

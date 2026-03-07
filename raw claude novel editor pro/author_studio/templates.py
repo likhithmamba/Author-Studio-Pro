@@ -29,7 +29,7 @@ class NovelTemplate:
     chapter_font_name:     Optional[str] = None  # None → same as body font
 
     # ── Spacing ─────────────────────────────────────────────────────────────
-    line_spacing:           str   # "single" | "one_half" | "double"
+    line_spacing:           str = "double"  # "single" | "one_half" | "double"
     space_before_para_pt:   int   = 0
     space_after_para_pt:    int   = 0
     paragraph_gap_between:  bool  = False  # If True, blank line replaces indent
