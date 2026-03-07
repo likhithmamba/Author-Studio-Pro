@@ -156,7 +156,7 @@ async def analyse_manuscript(
     except Exception as e:
         logger.exception("Analyse error")
         bg.add_task(rm, inp)
-        raise HTTPException(500, f"Analysis failed: {str(e)[:300]}")
+        raise HTTPException(500, "Analysis failed due to an internal error.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ async def query_manual(
         raise
     except Exception as e:
         logger.exception("Query manual error")
-        raise HTTPException(500, f"Query generation failed: {str(e)[:300]}")
+        raise HTTPException(500, "Query generation failed due to an internal error.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -364,4 +364,4 @@ async def query_ai(
     except Exception as e:
         logger.exception("AI query error")
         bg.add_task(rm, inp)
-        raise HTTPException(500, f"AI query generation failed: {str(e)[:300]}")
+        raise HTTPException(500, "AI query generation failed due to an internal error.")
