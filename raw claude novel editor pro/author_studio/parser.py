@@ -119,6 +119,9 @@ FRONT_MATTER_PATTERNS = [
     r"^printed in",
 ]
 
+# Pre-compiled for performance
+COMPILED_FRONT_MATTER = [re.compile(pat, re.IGNORECASE) for pat in FRONT_MATTER_PATTERNS]
+
 
 # ── Main Parser Class ─────────────────────────────────────────────────────────
 
@@ -160,9 +163,24 @@ class ManuscriptParser:
         patterns = self._learn_patterns(cleaned)
         self.patterns = patterns
 
+        # Pre-compile patterns for Phase 3 to avoid re-compiling in loop
+        compiled_scene_breaks = []
+        for pat in patterns.scene_break_regexes:
+            try:
+                compiled_scene_breaks.append(re.compile(pat, re.IGNORECASE))
+            except re.error:
+                continue
+
+        compiled_chapters = []
+        for pat in patterns.chapter_regexes:
+            try:
+                compiled_chapters.append(re.compile(pat, re.IGNORECASE))
+            except re.error:
+                continue
+
         # Phase 3 — classify every paragraph with the rule engine
         parsed = [
-            self._classify(cleaned[i], raw_paragraphs[i], i, patterns)
+            self._classify(cleaned[i], raw_paragraphs[i], i, compiled_scene_breaks, compiled_chapters)
             for i in range(len(cleaned))
         ]
 
@@ -366,10 +384,11 @@ class ManuscriptParser:
         cleaned: str,
         raw:     str,
         index:   int,
-        patterns: LearnedPatterns,
+        compiled_scene_breaks: List[re.Pattern],
+        compiled_chapters: List[re.Pattern],
     ) -> ParsedParagraph:
         """
-        Classifies a single paragraph using the learned patterns.
+        Classifies a single paragraph using pre-compiled regex patterns.
         Pure Python — zero API calls here.
         """
         issues: List[str] = []
@@ -381,35 +400,29 @@ class ManuscriptParser:
                                    ptype=PARA_EMPTY, issues=[])
 
         # ── Front matter ──
-        for pat in FRONT_MATTER_PATTERNS:
-            if re.match(pat, stripped, re.IGNORECASE):
+        for pat in COMPILED_FRONT_MATTER:
+            if pat.match(stripped):
                 return ParsedParagraph(index=index, raw=raw, cleaned=stripped,
                                        ptype=PARA_FRONT_MATTER, issues=[])
 
         # ── Scene break ──
-        for pat in patterns.scene_break_regexes:
-            try:
-                if re.match(pat, stripped, re.IGNORECASE):
-                    return ParsedParagraph(index=index, raw=raw, cleaned=stripped,
-                                           ptype=PARA_SCENE_BREAK, issues=[])
-            except re.error:
-                continue  # Skip malformed AI-generated regex safely
+        for pat in compiled_scene_breaks:
+            if pat.match(stripped):
+                return ParsedParagraph(index=index, raw=raw, cleaned=stripped,
+                                       ptype=PARA_SCENE_BREAK, issues=[])
 
         # ── Chapter heading ──
-        for pat in patterns.chapter_regexes:
-            try:
-                if re.match(pat, stripped, re.IGNORECASE):
-                    if len(stripped) > 80:
-                        # A heading this long is suspicious — flag it
-                        issues.append(
-                            f"Long potential chapter heading ({len(stripped)} chars) — verify manually."
-                        )
-                    # Normalise: title-case if it was all-caps in the original
-                    display = stripped.title() if stripped.isupper() and len(stripped) < 60 else stripped
-                    return ParsedParagraph(index=index, raw=raw, cleaned=display,
-                                           ptype=PARA_CHAPTER, issues=issues)
-            except re.error:
-                continue
+        for pat in compiled_chapters:
+            if pat.match(stripped):
+                if len(stripped) > 80:
+                    # A heading this long is suspicious — flag it
+                    issues.append(
+                        f"Long potential chapter heading ({len(stripped)} chars) — verify manually."
+                    )
+                # Normalise: title-case if it was all-caps in the original
+                display = stripped.title() if stripped.isupper() and len(stripped) < 60 else stripped
+                return ParsedParagraph(index=index, raw=raw, cleaned=display,
+                                       ptype=PARA_CHAPTER, issues=issues)
 
         # ── Body text quality checks ──
         if "  " in raw:
