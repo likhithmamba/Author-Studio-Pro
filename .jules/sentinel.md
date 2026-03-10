@@ -1,0 +1,4 @@
+## 2025-03-08 - [Bcrypt 72-Byte Limit DoS Vulnerability]
+**Vulnerability:** Bcrypt password hashing crashes with a `ValueError` if the input password exceeds 72 bytes. This happens because the `bcrypt` library natively limits inputs.
+**Learning:** This could be exploited as a Denial of Service (DoS) attack, where a user registers or logs in with an extremely long password, causing an unhandled 500 Internal Server Error in the backend and potentially affecting service availability or resource consumption.
+**Prevention:** Pre-hash all passwords using `hashlib.sha256(...).hexdigest()` before passing them to `bcrypt.hashpw(...)`. The SHA-256 hex string is a fixed 64 bytes in length, safely bypassing the bcrypt limit. The resulting hash is stored with a `$sha256$` prefix to differentiate from legacy hashes and allow backward compatibility during verification.
