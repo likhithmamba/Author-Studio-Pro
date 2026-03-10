@@ -78,12 +78,29 @@ export async function getGenres() {
     return genresCache
 }
 
+// ⚡ Bolt: Cache market data to prevent redundant network requests
+const marketDataCache = new Map()
+
 export async function getMarketData(genreId) {
-    return fetchJSON(`/market/${genreId}`)
+    if (marketDataCache.has(genreId)) {
+        return marketDataCache.get(genreId)
+    }
+    const data = await fetchJSON(`/market/${genreId}`)
+    marketDataCache.set(genreId, data)
+    return data
 }
 
+// ⚡ Bolt: Cache word count assessment to prevent redundant network requests
+const wcAssessmentCache = new Map()
+
 export async function getWordCountAssessment(genreId, wordCount) {
-    return fetchJSON(`/genre/${genreId}/word-count?word_count=${wordCount}`)
+    const cacheKey = `${genreId}-${wordCount}`
+    if (wcAssessmentCache.has(cacheKey)) {
+        return wcAssessmentCache.get(cacheKey)
+    }
+    const data = await fetchJSON(`/genre/${genreId}/word-count?word_count=${wordCount}`)
+    wcAssessmentCache.set(cacheKey, data)
+    return data
 }
 
 // ─── Format ───────────────────────────────────────────────────────────────
