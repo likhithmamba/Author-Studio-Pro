@@ -14,6 +14,21 @@ const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area,
     </Field>
 ))
 
+const MemoizedSelect = memo(({ label, fieldKey, value, options, onChange }) => (
+    <Field label={label}>
+        <select className="tool-select" value={value} onChange={e => onChange(fieldKey, e.target.value)}>
+            {options.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+        </select>
+    </Field>
+))
+
+const MemoizedCheckbox = memo(({ label, fieldKey, checked, onChange }) => (
+    <label className="tool-checkbox-item">
+        <input type="checkbox" checked={checked} onChange={e => onChange(fieldKey, e.target.checked)} />
+        {label}
+    </label>
+))
+
 export default function QueryTab({ apiKey, aiModel, hasKey }) {
     const [form, setForm] = useState({
         title: '', author_name: '', genre: 'literary', word_count: '',
@@ -60,11 +75,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
             <div className="tool-fields">
                 <MemoizedFieldInput label="Manuscript Title" fieldKey="title" value={form.title} onChange={handleSet} placeholder="The Lost Hours" required />
                 <MemoizedFieldInput label="Author Name" fieldKey="author_name" value={form.author_name} onChange={handleSet} placeholder="Jane Smith" required />
-                <Field label="Genre">
-                    <select className="tool-select" value={form.genre} onChange={e => handleSet('genre', e.target.value)}>
-                        {GENRES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-                    </select>
-                </Field>
+                <MemoizedSelect label="Genre" fieldKey="genre" value={form.genre} options={GENRES} onChange={handleSet} />
                 <MemoizedFieldInput label="Word Count" fieldKey="word_count" value={form.word_count} onChange={handleSet} placeholder="82,000" />
                 <MemoizedFieldInput label="Series Note" fieldKey="series_note" value={form.series_note} onChange={handleSet} placeholder="Standalone with series potential" />
             </div>
@@ -105,10 +116,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                     { k: 'include_synopsis_3', label: '3-Page Synopsis (~1,200 words)' },
                     { k: 'include_back_matter', label: 'Author Bio + Copyright Page' },
                 ].map(({ k, label }) => (
-                    <label key={k} className="tool-checkbox-item">
-                        <input type="checkbox" checked={form[k]} onChange={e => handleSet(k, e.target.checked)} />
-                        {label}
-                    </label>
+                    <MemoizedCheckbox key={k} label={label} fieldKey={k} checked={form[k]} onChange={handleSet} />
                 ))}
             </div>
 
