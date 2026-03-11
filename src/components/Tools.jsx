@@ -1,14 +1,22 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import { HiOutlineCheckCircle, HiOutlineLockClosed, HiOutlineCpuChip } from 'react-icons/hi2'
 import './Tools.css'
 
 import { TABS } from './Tools/constants.jsx'
-import FormatTab from './Tools/FormatTab.jsx'
-import AnalyseTab from './Tools/AnalyseTab.jsx'
-import QueryTab from './Tools/QueryTab.jsx'
-import MarketTab from './Tools/MarketTab.jsx'
+
+const FormatTab = lazy(() => import('./Tools/FormatTab.jsx'))
+const AnalyseTab = lazy(() => import('./Tools/AnalyseTab.jsx'))
+const QueryTab = lazy(() => import('./Tools/QueryTab.jsx'))
+const MarketTab = lazy(() => import('./Tools/MarketTab.jsx'))
+
+// ⚡ Bolt: Added fallback component for Suspense to provide smooth loading transitions for code-split tabs
+const TabLoadingFallback = () => (
+    <div className="tool-tab-panel" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <div className="run-spinner" style={{ width: '24px', height: '24px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    </div>
+)
 
 export default function Tools({ settings, allowedTabs }) {
     const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market']
@@ -78,10 +86,26 @@ export default function Tools({ settings, allowedTabs }) {
                     transition={{ duration: 0.6, delay: 0.25 }}
                 >
                     <AnimatePresence mode="wait">
-                        {tab === 'format' && <FormatTab key="format" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
-                        {tab === 'analyse' && <AnalyseTab key="analyse" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
-                        {tab === 'query' && <QueryTab key="query" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
-                        {tab === 'market' && <MarketTab key="market" />}
+                        {tab === 'format' && (
+                            <Suspense key="format" fallback={<TabLoadingFallback />}>
+                                <FormatTab apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />
+                            </Suspense>
+                        )}
+                        {tab === 'analyse' && (
+                            <Suspense key="analyse" fallback={<TabLoadingFallback />}>
+                                <AnalyseTab apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />
+                            </Suspense>
+                        )}
+                        {tab === 'query' && (
+                            <Suspense key="query" fallback={<TabLoadingFallback />}>
+                                <QueryTab apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />
+                            </Suspense>
+                        )}
+                        {tab === 'market' && (
+                            <Suspense key="market" fallback={<TabLoadingFallback />}>
+                                <MarketTab />
+                            </Suspense>
+                        )}
                     </AnimatePresence>
                 </motion.div>
 
