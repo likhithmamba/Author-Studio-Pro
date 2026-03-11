@@ -1,0 +1,4 @@
+## 2023-10-27 - [Bcrypt 72-Byte Truncation Vulnerability]
+**Vulnerability:** The codebase passed user passwords directly to `bcrypt.hashpw()`. `bcrypt` silently truncates input strings at 72 bytes. This could lead to a Denial of Service (DoS) vulnerability via large string processing and hash collisions for passwords longer than 72 bytes (where only the first 72 bytes are evaluated).
+**Learning:** Legacy systems often misuse `bcrypt` by not pre-hashing long inputs, leaving applications vulnerable to both silent collisions and resource exhaustion.
+**Prevention:** Implemented SHA-256 pre-hashing before invoking `bcrypt`, which guarantees inputs are consistently 64-character hex strings, well within the limit. For backward compatibility with legacy hashes, new pre-hashed passwords are prefixed with `$sha256$` to distinguish them during verification.
