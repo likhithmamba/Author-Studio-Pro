@@ -12,9 +12,10 @@ to produce manually. This module generates them instantly.
 
 import re
 import math
-from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass, field
+from typing import List, Tuple
+from dataclasses import dataclass
 from collections import Counter
+import functools
 
 from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER, PARA_SCENE_BREAK
 
@@ -152,8 +153,14 @@ class ManuscriptAnalyzer:
 
         n_sentences = len(sentences)
         n_words     = len(words)
-        n_syllables = sum(self._count_syllables(w) for w in words)
-        complex_words = sum(1 for w in words if self._count_syllables(w) >= 3)
+
+        n_syllables = 0
+        complex_words = 0
+        for w in words:
+            syls = self._count_syllables(w)
+            n_syllables += syls
+            if syls >= 3:
+                complex_words += 1
 
         avg_sent_len = n_words / n_sentences
         avg_syllables = n_syllables / n_words
@@ -190,7 +197,9 @@ class ManuscriptAnalyzer:
             interpretation=verdict,
         )
 
-    def _count_syllables(self, word: str) -> int:
+    @staticmethod
+    @functools.lru_cache(maxsize=20000)
+    def _count_syllables(word: str) -> int:
         """Estimates syllable count using the CMU/vowel-run method."""
         word = word.lower().strip(".,!?;:\"'")
         if not word:
@@ -251,7 +260,7 @@ class ManuscriptAnalyzer:
         sent_lens = [len(s.split()) for s in sentences if s.strip()]
         if len(sent_lens) > 1:
             mean = sum(sent_lens) / len(sent_lens)
-            variance = sum((l - mean) ** 2 for l in sent_lens) / len(sent_lens)
+            variance = sum((length - mean) ** 2 for length in sent_lens) / len(sent_lens)
             std_dev = math.sqrt(variance)
         else:
             std_dev = 0
