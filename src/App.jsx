@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import LandingPage from './components/LandingPage'
-import AppWorkspace from './components/AppWorkspace'
-import SettingsPanel from './components/SettingsPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import ApiKeySetup from './components/ApiKeySetup'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 import './App.css'
+
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const AppWorkspace = lazy(() => import('./components/AppWorkspace'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'))
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
@@ -86,37 +87,41 @@ function App() {
                         <div className="aurora-blob aurora-3" />
                     </div>
 
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <LandingPage
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                        <Route
-                            path="/app"
-                            element={
-                                <AppWorkspace
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                    </Routes>
-
-                    <AnimatePresence>
-                        {settingsOpen && (
-                            <SettingsPanel
-                                settings={settings}
-                                onSettingsChange={setSettings}
-                                onClose={() => setSettingsOpen(false)}
-                                onRemoveKey={() => setIsKeyValid(false)}
+                    <Suspense fallback={<div className="loading-spinner" />}>
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <LandingPage
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
                             />
-                        )}
-                    </AnimatePresence>
+                            <Route
+                                path="/app"
+                                element={
+                                    <AppWorkspace
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
+                            />
+                        </Routes>
+                    </Suspense>
+
+                    <Suspense fallback={null}>
+                        <AnimatePresence>
+                            {settingsOpen && (
+                                <SettingsPanel
+                                    settings={settings}
+                                    onSettingsChange={setSettings}
+                                    onClose={() => setSettingsOpen(false)}
+                                    onRemoveKey={() => setIsKeyValid(false)}
+                                />
+                            )}
+                        </AnimatePresence>
+                    </Suspense>
                 </div>
             )}
         </ErrorBoundary>
