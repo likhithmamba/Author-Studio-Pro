@@ -6,6 +6,7 @@ Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 import os
 import secrets
 import logging
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -15,17 +16,34 @@ from jose import jwt, JWTError
 logger = logging.getLogger("auth")
 
 # ─── Password hashing ────────────────────────────────────────────────────────
+def _prehash(password: str) -> str:
+    """Pre-hash password with SHA-256 to bypass bcrypt's 72-byte limit."""
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    """Hash a password using bcrypt (with SHA-256 pre-hashing)."""
+    prehashed = _prehash(password)
+    hashed = bcrypt.hashpw(prehashed.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return f"v2${hashed}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its bcrypt hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8"),
-    )
+    """Verify a password against its bcrypt hash (supports legacy v1 and new v2 hashes)."""
+    if hashed_password.startswith("v2$"):
+        actual_hash = hashed_password[3:]
+        prehashed = _prehash(plain_password)
+        return bcrypt.checkpw(
+            prehashed.encode("utf-8"),
+            actual_hash.encode("utf-8"),
+        )
+    else:
+        # Legacy passwords without pre-hashing
+        if len(plain_password.encode("utf-8")) > 72:
+            return False
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
 
 
 # ─── JWT tokens ──────────────────────────────────────────────────────────────
