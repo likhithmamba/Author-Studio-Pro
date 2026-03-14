@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
     HiOutlineCloudArrowUp,
@@ -74,6 +74,17 @@ export function Field({ label, required, children }) {
         </div>
     )
 }
+
+// ⚡ Bolt: Use React.memo for individual form inputs to prevent unnecessary re-renders.
+// Impact: Reduces re-renders of all input fields when typing in a single field.
+export const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange }) => (
+    <Field label={label} required={required}>
+        {area
+            ? <textarea className="tool-input tool-textarea" rows={4} placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
+            : <input className="tool-input" placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
+        }
+    </Field>
+))
 
 export function AIToggle({ hasKey, checked, onChange, label, desc }) {
     return (

@@ -1,28 +1,33 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { HiOutlineDocumentText } from 'react-icons/hi2'
 import { formatManuscript, downloadBlob } from '../../api.js'
 import { TEMPLATES } from './constants.jsx'
-import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
+import { TabPanel, FileDrop, Field, MemoizedFieldInput, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
 
 export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [file, setFile] = useState(null)
-    const [author, setAuthor] = useState('')
-    const [title, setTitle] = useState('')
-    const [template, setTemplate] = useState('us_standard')
+    const [form, setForm] = useState({
+        author: '',
+        title: '',
+        template: 'us_standard'
+    })
     const [useAI, setUseAI] = useState(false)
     const [status, setStatus] = useState(null)   // null | 'loading' | {ok} | {err}
     const fileRef = useRef()
 
+    // ⚡ Bolt: Cache handler with useCallback to prevent recreating on every render
+    const handleSet = useCallback((k, v) => setForm(p => ({ ...p, [k]: v })), [])
+
     const run = async () => {
-        if (!file || !author.trim() || !title.trim()) {
+        if (!file || !form.author.trim() || !form.title.trim()) {
             setStatus({ err: 'Please provide the manuscript file, author name, and title.' })
             return
         }
         setStatus('loading')
         try {
             const result = await formatManuscript({
-                file, author: author.trim(), title: title.trim(),
-                templateKey: template,
+                file, author: form.author.trim(), title: form.title.trim(),
+                templateKey: form.template,
                 useAI: useAI && hasKey,
                 apiKey: useAI ? apiKey : '',
                 aiModel,
@@ -44,14 +49,10 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
             <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
 
             <div className="tool-fields">
-                <Field label="Author Name" required>
-                    <input className="tool-input" placeholder="Jane Smith" value={author} onChange={e => setAuthor(e.target.value)} />
-                </Field>
-                <Field label="Manuscript Title" required>
-                    <input className="tool-input" placeholder="The Lost Hours" value={title} onChange={e => setTitle(e.target.value)} />
-                </Field>
+                <MemoizedFieldInput label="Author Name" fieldKey="author" value={form.author} onChange={handleSet} placeholder="Jane Smith" required />
+                <MemoizedFieldInput label="Manuscript Title" fieldKey="title" value={form.title} onChange={handleSet} placeholder="The Lost Hours" required />
                 <Field label="Formatting Template">
-                    <select className="tool-select" value={template} onChange={e => setTemplate(e.target.value)}>
+                    <select className="tool-select" value={form.template} onChange={e => handleSet('template', e.target.value)}>
                         {TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                 </Field>
