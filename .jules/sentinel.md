@@ -1,0 +1,4 @@
+## 2025-05-18 - [Bcrypt 72-byte limit and DoS via large passwords]
+**Vulnerability:** Bcrypt truncates passwords after 72 bytes. Attackers can exploit this and cause Denial of Service (DoS) attacks by submitting excessively large passwords, causing the server to expend excessive CPU cycles during hashing.
+**Learning:** Legacy systems directly hashed plain-text passwords using bcrypt which suffered from both the 72-byte truncation limitation and the DoS potential of large string inputs.
+**Prevention:** Pre-hash incoming passwords using a fast cryptographic hash function like SHA-256 before passing the resulting fixed-length string to bcrypt. Include a versioned prefix (e.g., `v2$`) in the output hash string to distinguish new secure hashes from legacy ones during the authentication verify flow.
