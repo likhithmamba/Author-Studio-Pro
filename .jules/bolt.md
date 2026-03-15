@@ -5,3 +5,7 @@
 ## 2025-02-21 - API Request Caching for Static Data
 **Learning:** Frequent fetching of static backend data (like market metadata or rule-based assessments) during user interactions causes unnecessary network overhead and UI latency.
 **Action:** Implement simple frontend memoization/caching (e.g. Map) in the API layer for endpoints that return deterministic, non-user-specific data based on arguments.
+
+## 2025-02-23 - Caching on Instance Methods (Memory Leak)
+**Learning:** Applying `@lru_cache` directly to an instance method stores the `self` reference in the cache keys. This both ruins the cross-instance hit rate (since every new instance creates new keys) and introduces a memory leak by preventing garbage collection of instances.
+**Action:** When caching class methods, make them `@staticmethod` first so `self` is not cached. Ensure the `lru_cache` maxsize is set to a reasonable limit to prevent unbounded memory usage.

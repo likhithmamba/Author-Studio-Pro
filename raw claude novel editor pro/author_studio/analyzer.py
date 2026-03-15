@@ -12,6 +12,7 @@ to produce manually. This module generates them instantly.
 
 import re
 import math
+from functools import lru_cache
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, field
 from collections import Counter
@@ -152,8 +153,9 @@ class ManuscriptAnalyzer:
 
         n_sentences = len(sentences)
         n_words     = len(words)
-        n_syllables = sum(self._count_syllables(w) for w in words)
-        complex_words = sum(1 for w in words if self._count_syllables(w) >= 3)
+        # ⚡ Bolt: _count_syllables is now a cached staticmethod
+        n_syllables = sum(ManuscriptAnalyzer._count_syllables(w) for w in words)
+        complex_words = sum(1 for w in words if ManuscriptAnalyzer._count_syllables(w) >= 3)
 
         avg_sent_len = n_words / n_sentences
         avg_syllables = n_syllables / n_words
@@ -190,7 +192,11 @@ class ManuscriptAnalyzer:
             interpretation=verdict,
         )
 
-    def _count_syllables(self, word: str) -> int:
+    # ⚡ Bolt: Cache syllable counting for significant speedup on large manuscripts
+    # Made this a staticmethod so cache is shared across Analyzer instances and doesn't leak memory by storing `self` keys.
+    @staticmethod
+    @lru_cache(maxsize=10000)
+    def _count_syllables(word: str) -> int:
         """Estimates syllable count using the CMU/vowel-run method."""
         word = word.lower().strip(".,!?;:\"'")
         if not word:
