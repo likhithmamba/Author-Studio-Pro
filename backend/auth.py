@@ -6,6 +6,7 @@ Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 import os
 import secrets
 import logging
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -17,15 +18,29 @@ logger = logging.getLogger("auth")
 # ─── Password hashing ────────────────────────────────────────────────────────
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    # Pre-hash password with SHA-256 to prevent 72-byte DoS vulnerability
+    pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    # Prefix with v2$ to distinguish from old hashes
+    hashed = bcrypt.hashpw(pre_hashed.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return f"v2${hashed}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its bcrypt hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8"),
-    )
+    if hashed_password.startswith("v2$"):
+        # This is a new format hash
+        real_hash = hashed_password[3:]
+        pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+        return bcrypt.checkpw(
+            pre_hashed.encode("utf-8"),
+            real_hash.encode("utf-8"),
+        )
+    else:
+        # Legacy format fallback
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
 
 
 # ─── JWT tokens ──────────────────────────────────────────────────────────────

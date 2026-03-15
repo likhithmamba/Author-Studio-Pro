@@ -1,0 +1,4 @@
+## 2025-02-23 - Bcrypt 72-Byte Limit DoS Vulnerability
+**Vulnerability:** The password hashing implementation used standard `bcrypt.hashpw()` directly on user-provided passwords. Bcrypt silently truncates passwords longer than 72 bytes, which can lead to a Denial of Service (DoS) vulnerability or authentication bypass if attackers supply extremely long passwords or craft collisions within the 72-byte limit.
+**Learning:** Bcrypt's native 72-byte limit was not accounted for. Using a hashing algorithm that truncates input is dangerous when user input lengths are not strictly controlled prior to hashing.
+**Prevention:** Always pre-hash passwords using a fast, non-truncating cryptographic hash function like SHA-256 (via `.hexdigest()`) before passing them to bcrypt. Additionally, prefix the resulting hash (e.g., `v2$`) to ensure backwards compatibility with existing legacy hashes so user logins are not broken during the transition.
