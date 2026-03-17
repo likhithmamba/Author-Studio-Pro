@@ -1,0 +1,4 @@
+## 2024-05-24 - [Bcrypt Password Truncation]
+**Vulnerability:** Passwords hashed with bcrypt are silently truncated to 72 bytes. Long passwords or crafted inputs exceeding 72 bytes can lead to Denial of Service (DoS) attacks or weakened security since anything after the 72nd byte is ignored.
+**Learning:** Bcrypt has a hard limit on input size (72 bytes). This limitation makes it vulnerable if the raw user password is fed directly to bcrypt.
+**Prevention:** Pre-hash passwords using a fast cryptographic hash like SHA-256 (e.g., `hashlib.sha256(password.encode("utf-8")).hexdigest()`) before passing them to bcrypt. To maintain backward compatibility for existing users, prefix the newly generated hashes with a versioning string (e.g., `v2$`) and conditionally check the prefix during password verification to decide whether to pre-hash the plain text input.
