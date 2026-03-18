@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { HiOutlineChartBar } from 'react-icons/hi2'
 import { getMarketData, getWordCountAssessment } from '../../api.js'
 import { GENRES } from './constants.jsx'
-import { TabPanel, Field, RunButton, StatusBox, MarketResults } from './SharedUI.jsx'
+import { TabPanel, Field, RunButton, StatusBox, MarketResults, MemoizedFieldInput } from './SharedUI.jsx'
 
 export default function MarketTab() {
     const [genre, setGenre] = useState('thriller')
@@ -41,9 +41,7 @@ export default function MarketTab() {
                         {GENRES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                     </select>
                 </Field>
-                <Field label="Your Word Count (optional)">
-                    <input className="tool-input" type="number" placeholder="82000" value={wc} onChange={e => setWc(e.target.value)} />
-                </Field>
+                <MemoizedFieldInput label="Your Word Count (optional)" type="number" value={wc} onChange={setWc} placeholder="82000" />
             </div>
 
             <RunButton onClick={run} loading={status === 'loading'} label="Load Market Intelligence →" />

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
     HiOutlineCloudArrowUp,
@@ -65,6 +65,25 @@ export function FileDrop({ file, onFile, fileRef }) {
         </div>
     )
 }
+
+export const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange, type = "text" }) => {
+    const handleChange = (e) => {
+        if (fieldKey) {
+            onChange(fieldKey, e.target.value)
+        } else {
+            onChange(e.target.value)
+        }
+    }
+
+    return (
+        <Field label={label} required={required}>
+            {area
+                ? <textarea className="tool-input tool-textarea" rows={4} placeholder={placeholder} value={value} onChange={handleChange} />
+                : <input className="tool-input" type={type} placeholder={placeholder} value={value} onChange={handleChange} />
+            }
+        </Field>
+    )
+})
 
 export function Field({ label, required, children }) {
     return (
