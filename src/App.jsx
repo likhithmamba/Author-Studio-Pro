@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import LandingPage from './components/LandingPage'
-import AppWorkspace from './components/AppWorkspace'
 import SettingsPanel from './components/SettingsPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import ApiKeySetup from './components/ApiKeySetup'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 import './App.css'
+
+// ⚡ Bolt: Route-based code splitting for LandingPage and AppWorkspace to reduce initial monolithic bundle size
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const AppWorkspace = lazy(() => import('./components/AppWorkspace'))
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
@@ -86,26 +88,28 @@ function App() {
                         <div className="aurora-blob aurora-3" />
                     </div>
 
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <LandingPage
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                        <Route
-                            path="/app"
-                            element={
-                                <AppWorkspace
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                    </Routes>
+                    <Suspense fallback={<div className="workspace-loading"><div className="workspace-loading-spinner" /></div>}>
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <LandingPage
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/app"
+                                element={
+                                    <AppWorkspace
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
+                            />
+                        </Routes>
+                    </Suspense>
 
                     <AnimatePresence>
                         {settingsOpen && (
