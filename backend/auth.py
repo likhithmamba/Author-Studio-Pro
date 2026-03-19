@@ -4,6 +4,7 @@ Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 """
 
 import os
+import hashlib
 import secrets
 import logging
 from datetime import datetime, timedelta
@@ -16,12 +17,21 @@ logger = logging.getLogger("auth")
 
 # ─── Password hashing ────────────────────────────────────────────────────────
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    """Hash a password using bcrypt. Pre-hashing with SHA-256 prevents 72-byte limit DoS."""
+    pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    b_hash = bcrypt.hashpw(pre_hashed.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return f"v2${b_hash}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its bcrypt hash."""
+    if hashed_password.startswith("v2$"):
+        actual_hash = hashed_password[3:]
+        pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+        return bcrypt.checkpw(
+            pre_hashed.encode("utf-8"),
+            actual_hash.encode("utf-8"),
+        )
     return bcrypt.checkpw(
         plain_password.encode("utf-8"),
         hashed_password.encode("utf-8"),
