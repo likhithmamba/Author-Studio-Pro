@@ -133,16 +133,20 @@ export function StatusBox({ status, onClear }) {
     )
 }
 
-export function StatCard({ label, value }) {
+// ⚡ Bolt: Memoize purely presentational StatCard to avoid redundant re-renders
+// during rapid parent state changes (e.g., form typing)
+export const StatCard = React.memo(function StatCard({ label, value }) {
     return (
         <div className="stat-card">
             <div className="stat-value">{value ?? '—'}</div>
             <div className="stat-label">{label}</div>
         </div>
     )
-}
+})
 
-export function AnalysisResults({ data }) {
+// ⚡ Bolt: Memoize heavy presentation component to prevent unnecessary deep
+// DOM reconciliation when sibling tabs or unrelated parent state updates
+export const AnalysisResults = React.memo(function AnalysisResults({ data }) {
     return (
         <div className="analysis-results">
             <div className="analysis-grid">
@@ -226,9 +230,11 @@ export function AnalysisResults({ data }) {
             )}
         </div>
     )
-}
+})
 
-export function MarketResults({ data, assessment }) {
+// ⚡ Bolt: Memoize heavy presentation component to prevent unnecessary deep
+// DOM reconciliation when sibling tabs or unrelated parent state updates
+export const MarketResults = React.memo(function MarketResults({ data, assessment }) {
     const pct = v => Math.round(((v - data.wc_min) / (data.wc_max - data.wc_min)) * 100)
 
     return (
@@ -279,4 +285,4 @@ export function MarketResults({ data, assessment }) {
             )}
         </div>
     )
-}
+})
