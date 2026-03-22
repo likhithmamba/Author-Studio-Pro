@@ -3,7 +3,9 @@ Author Studio Pro — Backend Health Check
 Run this BEFORE testing in the browser to confirm everything works.
 Usage: python test_auth.py
 """
-import traceback, os, sys, json
+import traceback
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -95,9 +97,9 @@ all_ok = all_ok and ok
 print(f"\n{BOLD}{'='*50}", flush=True)
 if all_ok:
     print(f" {GREEN}ALL TESTS PASSED ✓{RESET}", flush=True)
-    print(f" Backend is healthy. Start the server with:", flush=True)
-    print(f" python -m uvicorn main:app --reload --port 8000", flush=True)
+    print(" Backend is healthy. Start the server with:", flush=True)
+    print(" python -m uvicorn main:app --reload --port 8000", flush=True)
 else:
     print(f" {RED}SOME TESTS FAILED ✗{RESET}", flush=True)
-    print(f" Fix the issues above before starting the server.", flush=True)
+    print(" Fix the issues above before starting the server.", flush=True)
 print(f"{'='*50}\n", flush=True)

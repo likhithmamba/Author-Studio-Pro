@@ -1,0 +1,4 @@
+## 2024-05-18 - Bcrypt 72-Byte Limit Truncation
+**Vulnerability:** Bcrypt truncates passwords over 72 bytes, which can lead to authentication bypass if parts of a password beyond the limit are ignored, or Denial-of-Service (DoS) if large passwords cause excessive bcrypt hashing time before truncation.
+**Learning:** This application used bcrypt directly for password hashing. Any passwords over 72 bytes would be truncated automatically.
+**Prevention:** Pre-hash the password with a fast algorithm like SHA-256 (`hashlib.sha256(password.encode()).hexdigest()`) before passing it to `bcrypt`. Since SHA-256 output is 64 hex characters, it fits nicely within the 72-byte limit of bcrypt, avoiding truncation and the DoS vectors from hashing extremely large passwords. Legacy hashes were handled conditionally using a `v2$` prefix on new hashes.
