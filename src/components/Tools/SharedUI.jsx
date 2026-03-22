@@ -9,6 +9,15 @@ import {
     HiOutlineCheckCircle
 } from 'react-icons/hi2'
 
+export const MemoizedFieldInput = React.memo(({ label, fieldKey, placeholder, required, area, value, onChange, type = "text" }) => (
+    <Field label={label} required={required}>
+        {area
+            ? <textarea className="tool-input tool-textarea" rows={4} placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
+            : <input className="tool-input" type={type} placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
+        }
+    </Field>
+))
+
 export function TabPanel({ children }) {
     return (
         <motion.div

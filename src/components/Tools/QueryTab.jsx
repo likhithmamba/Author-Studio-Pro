@@ -2,17 +2,7 @@ import React, { useState, useCallback, memo } from 'react'
 import { HiOutlineEnvelope } from 'react-icons/hi2'
 import { generateQueryManual, downloadBlob } from '../../api.js'
 import { GENRES } from './constants.jsx'
-import { TabPanel, Field, RunButton, StatusBox } from './SharedUI.jsx'
-
-
-const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange }) => (
-    <Field label={label} required={required}>
-        {area
-            ? <textarea className="tool-input tool-textarea" rows={4} placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
-            : <input className="tool-input" placeholder={placeholder} value={value} onChange={e => onChange(fieldKey, e.target.value)} />
-        }
-    </Field>
-))
+import { TabPanel, Field, RunButton, StatusBox, MemoizedFieldInput } from './SharedUI.jsx'
 
 export default function QueryTab({ apiKey, aiModel, hasKey }) {
     const [form, setForm] = useState({

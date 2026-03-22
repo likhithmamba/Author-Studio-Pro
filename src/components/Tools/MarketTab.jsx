@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { HiOutlineChartBar } from 'react-icons/hi2'
 import { getMarketData, getWordCountAssessment } from '../../api.js'
 import { GENRES } from './constants.jsx'
-import { TabPanel, Field, RunButton, StatusBox, MarketResults } from './SharedUI.jsx'
+import { TabPanel, Field, RunButton, StatusBox, MarketResults, MemoizedFieldInput } from './SharedUI.jsx'
 
 export default function MarketTab() {
     const [genre, setGenre] = useState('thriller')
     const [wc, setWc] = useState('')
+
+    const handleWcChange = useCallback((k, v) => setWc(v), [])
     const [data, setData] = useState(null)
     const [assessment, setAssessment] = useState(null)
     const [status, setStatus] = useState(null)
@@ -41,9 +43,7 @@ export default function MarketTab() {
                         {GENRES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                     </select>
                 </Field>
-                <Field label="Your Word Count (optional)">
-                    <input className="tool-input" type="number" placeholder="82000" value={wc} onChange={e => setWc(e.target.value)} />
-                </Field>
+                <MemoizedFieldInput label="Your Word Count (optional)" fieldKey="wc" type="number" value={wc} onChange={handleWcChange} placeholder="82000" />
             </div>
 
             <RunButton onClick={run} loading={status === 'loading'} label="Load Market Intelligence →" />

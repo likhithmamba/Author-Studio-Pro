@@ -1,14 +1,17 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { HiOutlineDocumentText } from 'react-icons/hi2'
 import { formatManuscript, downloadBlob } from '../../api.js'
 import { TEMPLATES } from './constants.jsx'
-import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
+import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox, MemoizedFieldInput } from './SharedUI.jsx'
 
 export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [file, setFile] = useState(null)
     const [author, setAuthor] = useState('')
     const [title, setTitle] = useState('')
     const [template, setTemplate] = useState('us_standard')
+
+    const handleAuthorChange = useCallback((k, v) => setAuthor(v), [])
+    const handleTitleChange = useCallback((k, v) => setTitle(v), [])
     const [useAI, setUseAI] = useState(false)
     const [status, setStatus] = useState(null)   // null | 'loading' | {ok} | {err}
     const fileRef = useRef()
@@ -44,12 +47,8 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
             <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
 
             <div className="tool-fields">
-                <Field label="Author Name" required>
-                    <input className="tool-input" placeholder="Jane Smith" value={author} onChange={e => setAuthor(e.target.value)} />
-                </Field>
-                <Field label="Manuscript Title" required>
-                    <input className="tool-input" placeholder="The Lost Hours" value={title} onChange={e => setTitle(e.target.value)} />
-                </Field>
+                <MemoizedFieldInput label="Author Name" fieldKey="author" value={author} onChange={handleAuthorChange} placeholder="Jane Smith" required />
+                <MemoizedFieldInput label="Manuscript Title" fieldKey="title" value={title} onChange={handleTitleChange} placeholder="The Lost Hours" required />
                 <Field label="Formatting Template">
                     <select className="tool-select" value={template} onChange={e => setTemplate(e.target.value)}>
                         {TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
