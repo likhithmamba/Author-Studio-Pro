@@ -4,19 +4,23 @@
 # Run:  uvicorn main:app --reload --port 8000
 # ─────────────────────────────────────────────────────────────────────────────
 
-import os, sys, io, re, json, time, uuid, tempfile, zipfile, secrets, logging, hmac, hashlib
+import os
+import sys
+import json
+import time
+import uuid
+import logging
+import hmac
+import hashlib
 from pathlib import Path
-from typing import Optional, List
 from datetime import datetime, timedelta
-from functools import lru_cache
 
 from fastapi import (
-    FastAPI, File, UploadFile, Form, HTTPException,
-    Depends, Request, BackgroundTasks, status,
+    FastAPI, HTTPException,
+    Request,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
@@ -25,13 +29,8 @@ from pydantic import BaseModel
 load_dotenv()
 
 # ─── Local modules ────────────────────────────────────────────────────────────
-from auth import (
-    create_access_token, verify_token,
-    get_password_hash, verify_password,
-)
 from database import (
-    get_supabase, create_user, get_user_by_email, get_user_by_id,
-    create_subscription, get_active_subscription,
+    get_supabase, create_subscription, get_active_subscription,
     update_subscription_status, get_subscription_by_order_id,
 )
 
@@ -131,10 +130,6 @@ async def log_requests(request: Request, call_next):
         logger.error(f"[{rid}] error: {exc}")
         raise
 
-from api_utils import (
-    require_api_key, validate_upload, check_magic,
-    san, save_tmp, rm, _mods, _parse_upload
-)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -153,7 +148,7 @@ from api_utils import (
 
 @app.on_event("startup")
 async def _startup():
-    logger.info(f"Author Studio Pro API v2.0 starting")
+    logger.info("Author Studio Pro API v2.0 starting")
     logger.info(f"Allowed origins: {ALLOWED_ORIGINS}")
 
 

@@ -185,7 +185,7 @@ async def format_manuscript(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Format error")
         bg.add_task(rm, inp)
         bg.add_task(rm, out)
