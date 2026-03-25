@@ -1,0 +1,4 @@
+## 2026-03-25 - [HIGH] Fix bcrypt 72-byte truncation limit
+**Vulnerability:** Bcrypt truncates inputs longer than 72 bytes, which can lead to a Denial of Service (DoS) or unexpected collisions if attackers send very long passwords. This truncation issue was present in the `get_password_hash` and `verify_password` functions in `backend/auth.py`.
+**Learning:** This is a known limitation of the bcrypt algorithm. The vulnerability arises when passwords directly bypass length limits and enter the bcrypt hashing function.
+**Prevention:** To prevent this, always pre-hash passwords using a fast algorithm like SHA-256 (e.g., `hashlib.sha256(password).hexdigest()`) before passing them to bcrypt. To support backward compatibility with existing legacy hashes, prefix the new hashes (e.g., `v2$`) and adapt the verification logic to handle both versions.
