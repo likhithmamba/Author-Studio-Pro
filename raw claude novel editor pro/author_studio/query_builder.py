@@ -18,8 +18,6 @@ and Publisher's Marketplace guidelines.
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
 from typing import Optional, Dict
 
 
@@ -297,9 +295,9 @@ class QueryLetterBuilder(_DocBuilder):
                 f"or {data.stakes or '[stakes: what is lost if they fail]'}."
             )
         return (
-            f"[Write your hook sentence here. One to two sentences that capture "
-            f"the protagonist, the inciting event, and the central dramatic question. "
-            f"This is the most important sentence in the query — it must compel the agent to read on.]"
+            "[Write your hook sentence here. One to two sentences that capture "
+            "the protagonist, the inciting event, and the central dramatic question. "
+            "This is the most important sentence in the query — it must compel the agent to read on.]"
         )
 
     def _compose_plot(self, data: QueryPackageData) -> str:
@@ -308,10 +306,10 @@ class QueryLetterBuilder(_DocBuilder):
             trimmed = data.synopsis_plot[:500].rsplit(" ", 1)[0]
             return trimmed + " [Continue: what is the central conflict and what are the stakes?]"
         return (
-            f"[Write 3–5 sentences here describing: (1) your protagonist and their "
-            f"situation at the story's opening; (2) the inciting event that disrupts "
-            f"their world; (3) the central conflict and the obstacles they face; "
-            f"(4) the emotional and external stakes. Do not reveal the ending in a query letter.]"
+            "[Write 3–5 sentences here describing: (1) your protagonist and their "
+            "situation at the story's opening; (2) the inciting event that disrupts "
+            "their world; (3) the central conflict and the obstacles they face; "
+            "(4) the emotional and external stakes. Do not reveal the ending in a query letter.]"
         )
 
     def _compose_bio(self, data: QueryPackageData) -> str:

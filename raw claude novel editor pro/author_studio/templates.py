@@ -9,7 +9,7 @@ Users can select a template and use it as-is, or override individual
 settings through the app's customisation panel.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Optional
 
 

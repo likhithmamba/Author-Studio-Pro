@@ -17,7 +17,6 @@ Design principles
 """
 
 import re
-from copy import deepcopy
 from typing import List, Optional, Tuple
 
 from docx import Document
@@ -27,7 +26,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 from templates import NovelTemplate
-from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER, PARA_SCENE_BREAK, PARA_EMPTY, PARA_FRONT_MATTER
+from parser import ParsedParagraph, PARA_CHAPTER, PARA_SCENE_BREAK, PARA_EMPTY, PARA_FRONT_MATTER
 
 
 # ── Page size constants ───────────────────────────────────────────────────────

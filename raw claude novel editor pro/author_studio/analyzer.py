@@ -12,9 +12,10 @@ to produce manually. This module generates them instantly.
 
 import re
 import math
-from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass, field
+from typing import List, Tuple
+from dataclasses import dataclass
 from collections import Counter
+from functools import lru_cache
 
 from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER, PARA_SCENE_BREAK
 
@@ -152,8 +153,14 @@ class ManuscriptAnalyzer:
 
         n_sentences = len(sentences)
         n_words     = len(words)
-        n_syllables = sum(self._count_syllables(w) for w in words)
-        complex_words = sum(1 for w in words if self._count_syllables(w) >= 3)
+
+        n_syllables = 0
+        complex_words = 0
+        for w in words:
+            syl_count = self._count_syllables(w)
+            n_syllables += syl_count
+            if syl_count >= 3:
+                complex_words += 1
 
         avg_sent_len = n_words / n_sentences
         avg_syllables = n_syllables / n_words
@@ -190,7 +197,9 @@ class ManuscriptAnalyzer:
             interpretation=verdict,
         )
 
-    def _count_syllables(self, word: str) -> int:
+    @staticmethod
+    @lru_cache(maxsize=10000)
+    def _count_syllables(word: str) -> int:
         """Estimates syllable count using the CMU/vowel-run method."""
         word = word.lower().strip(".,!?;:\"'")
         if not word:

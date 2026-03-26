@@ -37,7 +37,7 @@ import requests
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
-from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER, PARA_SCENE_BREAK
+from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER
 
 
 OPENROUTER_URL  = "https://openrouter.ai/api/v1/chat/completions"

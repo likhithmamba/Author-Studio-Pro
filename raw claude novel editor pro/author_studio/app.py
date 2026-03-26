@@ -12,7 +12,12 @@ Tabs:
   5. Guide       — Submission knowledge base
 """
 
-import os, re, copy, tempfile, zipfile, io
+import os
+import re
+import copy
+import tempfile
+import zipfile
+import io
 import streamlit as st
 
 from templates       import TEMPLATES, NovelTemplate
