@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import LandingPage from './components/LandingPage'
-import AppWorkspace from './components/AppWorkspace'
-import SettingsPanel from './components/SettingsPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import ApiKeySetup from './components/ApiKeySetup'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 import './App.css'
+
+// ⚡ Bolt: Route-based Code Splitting
+// By replacing static imports with React.lazy(), we defer loading these heavy route
+// components until they are actually needed. This splits our monolithic JavaScript
+// bundle into smaller chunks, significantly improving the initial page load speed.
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const AppWorkspace = lazy(() => import('./components/AppWorkspace'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'))
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
@@ -86,37 +91,52 @@ function App() {
                         <div className="aurora-blob aurora-3" />
                     </div>
 
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <LandingPage
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                        <Route
-                            path="/app"
-                            element={
-                                <AppWorkspace
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                    </Routes>
-
-                    <AnimatePresence>
-                        {settingsOpen && (
-                            <SettingsPanel
-                                settings={settings}
-                                onSettingsChange={setSettings}
-                                onClose={() => setSettingsOpen(false)}
-                                onRemoveKey={() => setIsKeyValid(false)}
+                    {/*
+                      ⚡ Bolt: Suspense Boundary for Lazy Routes
+                      This boundary catches the loading state of our lazy-loaded route components.
+                      It renders a lightweight CSS spinner while the corresponding chunk is being fetched
+                      from the network, ensuring a smooth UX instead of a blank screen.
+                    */}
+                    <Suspense fallback={<div className="loading-spinner"></div>}>
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <LandingPage
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
                             />
-                        )}
-                    </AnimatePresence>
+                            <Route
+                                path="/app"
+                                element={
+                                    <AppWorkspace
+                                        settings={settings}
+                                        onSettingsClick={() => setSettingsOpen(true)}
+                                    />
+                                }
+                            />
+                        </Routes>
+                    </Suspense>
+
+                    {/*
+                      ⚡ Bolt: Suspense around AnimatePresence
+                      When using framer-motion's AnimatePresence with React.lazy components, the Suspense
+                      boundary must be OUTSIDE AnimatePresence to preserve exit animations properly.
+                    */}
+                    <Suspense fallback={null}>
+                        <AnimatePresence>
+                            {settingsOpen && (
+                                <SettingsPanel
+                                    settings={settings}
+                                    onSettingsChange={setSettings}
+                                    onClose={() => setSettingsOpen(false)}
+                                    onRemoveKey={() => setIsKeyValid(false)}
+                                />
+                            )}
+                        </AnimatePresence>
+                    </Suspense>
                 </div>
             )}
         </ErrorBoundary>
