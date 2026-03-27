@@ -4,9 +4,6 @@ Basic smoke-test script for the Author Studio Pro API backend.
 Run with: python test_api.py
 """
 import requests
-import json
-import sys
-import os
 
 BASE = "http://localhost:8000"
 
