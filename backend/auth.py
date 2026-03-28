@@ -6,6 +6,7 @@ Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 import os
 import secrets
 import logging
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -17,15 +18,33 @@ logger = logging.getLogger("auth")
 # ─── Password hashing ────────────────────────────────────────────────────────
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    # SECURITY: Pre-hash password with SHA-256 to prevent 72-byte limit DoS
+    # bcrypt limits passwords to 72 bytes. Passing longer strings causes a ValueError.
+    pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    hash_str = bcrypt.hashpw(pre_hashed.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return f"v2${hash_str}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its bcrypt hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8"),
-    )
+    try:
+        # Check for new v2 format with SHA-256 pre-hashing
+        if hashed_password.startswith("v2$"):
+            actual_hash = hashed_password[3:]
+            pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+            return bcrypt.checkpw(
+                pre_hashed.encode("utf-8"),
+                actual_hash.encode("utf-8"),
+            )
+
+        # Fallback for legacy hashes (no prefix, plain bcrypt)
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    except ValueError:
+        # Catches ValueError from legacy hashes with >72 byte plain_password
+        return False
 
 
 # ─── JWT tokens ──────────────────────────────────────────────────────────────
