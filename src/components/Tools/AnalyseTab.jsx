@@ -6,7 +6,7 @@ import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox, AnalysisResu
 
 export default function AnalyseTab({ apiKey, aiModel, hasKey }) {
     const [file, setFile] = useState(null)
-    const [genre, setGenre] = useState('literary')
+    const [genre, setGenre] = useState('literary_fiction')
     const [useAI, setUseAI] = useState(false)
     const [status, setStatus] = useState(null)
     const [result, setResult] = useState(null)

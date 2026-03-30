@@ -9,24 +9,25 @@ export const TABS = [
 ];
 
 export const TEMPLATES = [
-    { value: 'us_standard', label: 'US Standard (Curtis Brown)' },
-    { value: 'uk_standard', label: 'UK Standard (AAR/PA)' },
-    { value: 'literary', label: 'Literary / Academic' },
-    { value: 'screenplay', label: 'Screenplay (WGA)' },
-    { value: 'self_pub', label: 'Self-Publishing (KDP)' },
+    { value: 'traditional', label: 'Traditional Manuscript (US/UK)' },
+    { value: 'modern', label: 'Modern Literary (Trade)' },
+    { value: 'kdp', label: 'Self-Publishing (KDP)' },
+    { value: 'academic', label: 'Academic / University Press' },
+    { value: 'a4', label: 'International A4' },
 ];
 
 export const GENRES = [
-    { value: 'thriller', label: 'Thriller' },
-    { value: 'mystery', label: 'Mystery / Crime' },
+    { value: 'thriller', label: 'Thriller / Suspense' },
+    { value: 'literary_fiction', label: 'Literary Fiction' },
     { value: 'romance', label: 'Romance' },
-    { value: 'fantasy', label: 'Fantasy' },
-    { value: 'science_fiction', label: 'Science Fiction' },
-    { value: 'literary', label: 'Literary Fiction' },
+    { value: 'fantasy', label: 'Fantasy (Adult)' },
+    { value: 'sci_fi', label: 'Science Fiction (Adult)' },
+    { value: 'mystery', label: 'Mystery / Crime Fiction' },
+    { value: 'historical_fiction', label: 'Historical Fiction' },
     { value: 'horror', label: 'Horror' },
-    { value: 'historical', label: 'Historical Fiction' },
-    { value: 'ya_contemp', label: 'YA Contemporary' },
     { value: 'ya_fantasy', label: 'YA Fantasy' },
-    { value: 'cozy_mystery', label: 'Cozy Mystery' },
-    { value: 'womens_fiction', label: "Women's Fiction" },
+    { value: 'ya_contemporary', label: 'YA Contemporary' },
+    { value: 'middle_grade', label: 'Middle Grade (8-12)' },
+    { value: 'narrative_nonfiction', label: 'Narrative Non-Fiction' },
+    { value: 'memoir', label: 'Memoir' },
 ];

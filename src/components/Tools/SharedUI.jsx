@@ -26,12 +26,25 @@ export function TabPanel({ children }) {
 export function FileDrop({ file, onFile, fileRef }) {
     const [drag, setDrag] = useState(false)
 
+    const processFile = useCallback((f) => {
+        if (!f) { onFile(null); return }
+        if (!f.name.toLowerCase().endsWith('.docx')) {
+            alert('Security Error: Only .docx manuscript files are supported. Please convert your file to .docx.')
+            return
+        }
+        if (f.size > 20 * 1024 * 1024) {  // 20 MB size limit
+            alert('File too large. Please limit your manuscript size to 20MB.')
+            return
+        }
+        onFile(f)
+    }, [onFile])
+
     const handleDrop = useCallback(e => {
         e.preventDefault()
         setDrag(false)
         const f = e.dataTransfer.files[0]
-        if (f && f.name.endsWith('.docx')) onFile(f)
-    }, [onFile])
+        processFile(f)
+    }, [processFile])
 
     return (
         <div
@@ -46,7 +59,7 @@ export function FileDrop({ file, onFile, fileRef }) {
                 type="file"
                 accept=".docx"
                 style={{ display: 'none' }}
-                onChange={e => onFile(e.target.files[0] || null)}
+                onChange={e => processFile(e.target.files[0] || null)}
             />
             <HiOutlineCloudArrowUp className="file-drop-icon" />
             {file
@@ -112,7 +125,44 @@ export function RunButton({ onClick, loading, label }) {
 }
 
 export function StatusBox({ status, onClear }) {
-    if (!status || status === 'loading') return null
+    if (!status) return null
+
+    if (status === 'loading') {
+        return (
+            <motion.div
+                className="status-box loading"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{ border: '1px solid rgba(212, 175, 55, 0.3)', background: 'rgba(212, 175, 55, 0.05)' }}
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', padding: '0.25rem 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--gold-primary)' }}>
+                        <span style={{ 
+                            display: 'inline-block',
+                            width: '18px', height: '18px', 
+                            border: '2px solid rgba(212, 175, 55, 0.2)', 
+                            borderTopColor: 'var(--gold-primary)', 
+                            borderRadius: '50%', 
+                            animation: 'ws-spin 0.8s linear infinite' 
+                        }} />
+                        <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>Processing Document...</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        This might take a minute depending on your file size and AI features. Please don't close this tab while we work.
+                    </div>
+                    <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <motion.div
+                            initial={{ x: '-100%' }}
+                            animate={{ x: '200%' }}
+                            transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                            style={{ width: '50%', height: '100%', background: 'var(--gold-primary, #d4af37)', borderRadius: '4px' }}
+                        />
+                    </div>
+                </div>
+            </motion.div>
+        )
+    }
+
     return (
         <motion.div
             className={`status-box ${status.err ? 'error' : 'success'}`}

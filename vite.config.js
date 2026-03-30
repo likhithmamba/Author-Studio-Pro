@@ -1,14 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), basicSsl()],
+    base: '/',
     server: {
+        https: true,
         port: 5173,
-        open: true,
+        open: false,
         proxy: {
             '/api': {
-                target: 'http://localhost:8000',
+                target: 'http://127.0.0.1:8000',
                 changeOrigin: true,
                 secure: false,
             },
@@ -23,6 +26,16 @@ export default defineConfig({
                     vendor: ['react', 'react-dom'],
                     animation: ['framer-motion'],
                 },
+            },
+        },
+    },
+    preview: {
+        port: 5173,
+        proxy: {
+            '/api': {
+                target: 'http://127.0.0.1:8000',
+                changeOrigin: true,
+                secure: false,
             },
         },
     },

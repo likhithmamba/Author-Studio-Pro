@@ -48,3 +48,11 @@ temp/
 
 # ── Vite cache ────────────────────────────────────────────────────────────────
 .vite/
+
+# ── Deployment env (contains secrets / domain-specific values) ────────────────
+.env.production
+
+# ── Debug output files ────────────────────────────────────────────────────────
+backend/out.txt
+backend/out2.txt
+backend/backend_err.txt

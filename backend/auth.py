@@ -12,7 +12,8 @@ from typing import Optional
 import bcrypt
 from jose import jwt, JWTError
 
-logger = logging.getLogger("auth")
+logger = logging.getLogger("author-studio-auth")
+
 
 # ─── Password hashing ────────────────────────────────────────────────────────
 def get_password_hash(password: str) -> str:
@@ -31,9 +32,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # ─── JWT tokens ──────────────────────────────────────────────────────────────
 JWT_SECRET = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET:
-    logger.warning("JWT_SECRET_KEY not set in environment. Using a random ephemeral key. Sessions will invalidate on restart.")
     JWT_SECRET = secrets.token_urlsafe(32)
-
+    logger.warning(
+        "JWT_SECRET_KEY not set — using a random ephemeral key. "
+        "All tokens will be invalidated on server restart. "
+        "Set JWT_SECRET_KEY in your environment for production."
+    )
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72  # 3 days
 

@@ -9,15 +9,16 @@ import FormatTab from './Tools/FormatTab.jsx'
 import AnalyseTab from './Tools/AnalyseTab.jsx'
 import QueryTab from './Tools/QueryTab.jsx'
 import MarketTab from './Tools/MarketTab.jsx'
+import { hasApiKey, loadApiKey, getDeviceFingerprint } from '../utils/keyStorage.js'
 
 export default function Tools({ settings, allowedTabs }) {
     const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market']
     const [tab, setTab] = useState('format')
     const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.08 })
 
-    const apiKey = settings?.openRouterKey || ''
+    const hasKey = hasApiKey()
+    const apiKey = hasKey ? loadApiKey(getDeviceFingerprint()) : ''
     const aiModel = settings?.aiModel || 'mistralai/mistral-7b-instruct:free'
-    const hasKey = Boolean(apiKey)
 
     return (
         <section id="tools" className="tools-section" ref={ref}>

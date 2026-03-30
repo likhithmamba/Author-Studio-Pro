@@ -1,0 +1,6 @@
+INFO:     Started server process [5184]
+INFO:     Waiting for application startup.
+2026-03-28 21:20:06,586 [INFO] author-studio-api: Author Studio Pro API v2.0 starting
+2026-03-28 21:20:06,587 [INFO] author-studio-api: Allowed origins: ['http://localhost:5173', 'http://localhost:5174', 'https://localhost:5173', 'https://127.0.0.1:5173']
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)

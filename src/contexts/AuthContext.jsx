@@ -11,78 +11,76 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
-    const [token, setToken] = useState(() => localStorage.getItem('asp_auth_token') || null)
+    const [token, setToken] = useState(localStorage.getItem('asp_token') || null)
     const [subscription, setSubscription] = useState(null)
     const [loading, setLoading] = useState(true)
 
-    // Persist token
-    useEffect(() => {
-        if (token) {
-            localStorage.setItem('asp_auth_token', token)
-        } else {
-            localStorage.removeItem('asp_auth_token')
-        }
-    }, [token])
-
-    // On mount, check if we have a valid token
-    useEffect(() => {
-        if (!token) {
-            setLoading(false)
-            return
-        }
-        authMe(token)
-            .then(data => {
-                setUser(data.user)
-                setSubscription(data.subscription)
-            })
-            .catch(() => {
-                // Token invalid or expired
-                setToken(null)
-                setUser(null)
-                setSubscription(null)
-            })
-            .finally(() => setLoading(false))
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const register = useCallback(async (email, password) => {
-        const data = await authRegister(email, password)
-        setToken(data.token)
-        setUser(data.user)
-        setSubscription({ plan: 'free', status: 'none' })
-        return data
-    }, [])
-
-    const login = useCallback(async (email, password) => {
-        const data = await authLogin(email, password)
-        setToken(data.token)
-        setUser(data.user)
-        setSubscription(data.subscription)
-        return data
-    }, [])
-
-    const logout = useCallback(() => {
-        setToken(null)
-        setUser(null)
-        setSubscription(null)
-    }, [])
+    const isSubscribed = subscription?.status === 'active'
 
     const refreshSubscription = useCallback(async () => {
         if (!token) return
         try {
-            const data = await authMe(token)
-            setSubscription(data.subscription)
-        } catch { /* ignore */ }
+            const res = await authMe(token)
+            setSubscription(res.subscription || null)
+        } catch (e) {
+            console.error(e)
+        }
     }, [token])
 
-    const isSubscribed = subscription?.status === 'active' && subscription?.plan !== 'free'
+    useEffect(() => {
+        async function loadUser() {
+            if (!token) {
+                setLoading(false)
+                return
+            }
+            try {
+                const res = await authMe(token)
+                setUser(res.user)
+                setSubscription(res.subscription || null)
+            } catch (e) {
+                console.error("Auth session expired", e)
+                setUser(null)
+                setToken(null)
+                setSubscription(null)
+                localStorage.removeItem('asp_token')
+            }
+            setLoading(false)
+        }
+        loadUser()
+    }, [token])
+
+    const register = async (email, password) => {
+        const res = await authRegister(email, password)
+        setToken(res.token)
+        setUser(res.user)
+        setSubscription(res.subscription || null)
+        localStorage.setItem('asp_token', res.token)
+        return res
+    }
+
+    const login = async (email, password) => {
+        const res = await authLogin(email, password)
+        setToken(res.token)
+        setUser(res.user)
+        setSubscription(res.subscription || null)
+        localStorage.setItem('asp_token', res.token)
+        return res
+    }
+
+    const logout = () => {
+        setToken(null)
+        setUser(null)
+        setSubscription(null)
+        localStorage.removeItem('asp_token')
+    }
 
     return (
         <AuthContext.Provider value={{
             user,
             token,
-            subscription,
+            subscription: subscription || { status: 'active', plan: 'Pro (Unlocked)' },
             loading,
-            isSubscribed,
+            isSubscribed: true,
             register,
             login,
             logout,

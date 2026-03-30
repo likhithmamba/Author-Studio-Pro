@@ -441,15 +441,17 @@ def run_ai_query_generation(
     time.sleep(0.5)
 
     if story_intel:
-        content.hook_sentence       = story_intel.get("hook_sentence", "")
-        content.plot_paragraph      = story_intel.get("plot_paragraph", "")
-        content.theme_sentence      = story_intel.get("theme_sentence", "")
-        content.protagonist_summary = story_intel.get("protagonist_name", "") + " — " + story_intel.get("protagonist_trait", "")
-        content.central_conflict    = story_intel.get("central_conflict", "")
-        content.stakes              = story_intel.get("stakes", "")
-        content.comp_suggestions    = story_intel.get("comp_suggestions", [])
-        content.genre_detected      = story_intel.get("genre_confirmed", genre)
-        content.tone_detected       = story_intel.get("tone_detected", "")
+        content.hook_sentence       = story_intel.get("hook_sentence") or ""
+        content.plot_paragraph      = story_intel.get("plot_paragraph") or ""
+        content.theme_sentence      = story_intel.get("theme_sentence") or ""
+        p_name = story_intel.get("protagonist_name") or ""
+        p_trait = story_intel.get("protagonist_trait") or ""
+        content.protagonist_summary = f"{p_name} — {p_trait}" if p_name or p_trait else ""
+        content.central_conflict    = story_intel.get("central_conflict") or ""
+        content.stakes              = story_intel.get("stakes") or ""
+        content.comp_suggestions    = story_intel.get("comp_suggestions") or []
+        content.genre_detected      = story_intel.get("genre_confirmed") or genre
+        content.tone_detected       = story_intel.get("tone_detected") or ""
 
     # Call 2: synopsis
     synopsis = writer.generate_synopsis_draft(

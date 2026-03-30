@@ -78,29 +78,12 @@ export async function getGenres() {
     return genresCache
 }
 
-// ⚡ Bolt: Cache market data to prevent redundant network requests
-const marketDataCache = new Map()
-
 export async function getMarketData(genreId) {
-    if (marketDataCache.has(genreId)) {
-        return marketDataCache.get(genreId)
-    }
-    const data = await fetchJSON(`/market/${genreId}`)
-    marketDataCache.set(genreId, data)
-    return data
+    return fetchJSON(`/market/${genreId}`)
 }
 
-// ⚡ Bolt: Cache word count assessment to prevent redundant network requests
-const wcAssessmentCache = new Map()
-
 export async function getWordCountAssessment(genreId, wordCount) {
-    const cacheKey = `${genreId}-${wordCount}`
-    if (wcAssessmentCache.has(cacheKey)) {
-        return wcAssessmentCache.get(cacheKey)
-    }
-    const data = await fetchJSON(`/genre/${genreId}/word-count?word_count=${wordCount}`)
-    wcAssessmentCache.set(cacheKey, data)
-    return data
+    return fetchJSON(`/genre/${genreId}/word-count?word_count=${wordCount}`)
 }
 
 // ─── Format ───────────────────────────────────────────────────────────────
@@ -109,7 +92,7 @@ export async function formatManuscript({ file, author, title, templateKey, overr
     form.append('file', file)
     form.append('author', author)
     form.append('title', title)
-    form.append('template_key', templateKey || 'us_standard')
+    form.append('template_key', templateKey || 'traditional')
     form.append('overrides', JSON.stringify(overrides || {}))
     form.append('use_ai', String(useAI || false))
 

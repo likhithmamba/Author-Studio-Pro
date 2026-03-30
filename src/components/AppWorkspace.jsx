@@ -99,8 +99,8 @@ export default function AppWorkspace({ settings, onSettingsClick }) {
     // ─── Logged in — determine access level ─────────────────────────────────
     const planLabel = isSubscribed
         ? (subscription?.plan || 'studio').replace('_monthly', '').replace('_annual', '')
-        : 'free'
-    const allowedTabs = isSubscribed ? PAID_TABS : FREE_TABS
+        : 'pro (Local Trial Mode)'
+    const allowedTabs = PAID_TABS // Local trial override unlocks all tabs
 
     return (
         <div className="workspace">
@@ -133,7 +133,7 @@ export default function AppWorkspace({ settings, onSettingsClick }) {
             </header>
 
             {/* Free tier upgrade banner */}
-            {!isSubscribed && (
+            {false && (
                 <motion.div
                     className="workspace-upgrade-banner"
                     initial={{ opacity: 0, y: -10 }}

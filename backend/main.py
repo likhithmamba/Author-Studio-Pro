@@ -63,7 +63,7 @@ logger = logging.getLogger("author-studio-api")
 from rate_limiter import limiter
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
-from routers.auth_routes import router as auth_router
+from routers.auth_routes import router as auth_router, get_current_user
 from routers.format_routes import router as format_router
 from routers.ai_routes import router as ai_router
 
@@ -92,16 +92,18 @@ app.include_router(format_router)
 app.include_router(ai_router)
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:5174"
-).split(",")
+ALLOWED_ORIGINS = [
+    org.strip() for org in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173"
+    ).split(",") if org.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -115,6 +117,15 @@ async def security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://checkout.razorpay.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://openrouter.ai https://*.supabase.co https://api.razorpay.com; "
+        "frame-src https://api.razorpay.com"
+    )
     return response
 
 # ─── Request logging ──────────────────────────────────────────────────────────
@@ -145,6 +156,16 @@ from api_utils import (
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANALYSE & QUERY (Moved to routers/ai_routes.py)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HEALTH CHECK
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/health", tags=["Meta"])
+async def health():
+    """Health check endpoint for monitoring and uptime checks."""
+    return {"status": "ok", "version": "2.0.0"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -205,7 +226,6 @@ async def create_order(request: Request, body: CreateOrderRequest):
     if not razorpay_client:
         raise HTTPException(503, "Payment gateway not configured")
 
-    from routers.auth_routes import get_current_user
     user = get_current_user(request)
     plan_id = body.plan_id
 
@@ -262,7 +282,6 @@ async def verify_payment(request: Request, body: VerifyPaymentRequest):
     if not RAZORPAY_KEY_SECRET:
         raise HTTPException(503, "Payment gateway not configured")
 
-    from routers.auth_routes import get_current_user
     user = get_current_user(request)
 
     # ── HMAC SHA256 verification ─────────────────────────────────────────────

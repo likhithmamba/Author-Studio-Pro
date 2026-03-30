@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
 import {
     HiOutlineXMark,
     HiOutlineShieldCheck,
@@ -35,8 +36,36 @@ const AI_MODELS = [
 ]
 
 export default function SettingsPanel({ settings, onSettingsChange, onClose, onRemoveKey }) {
+    const { user, isSubscribed, subscription } = useAuth() || {}
     const provider = getApiProvider()
     const activeKeyRef = loadApiKey(getDeviceFingerprint())
+    const [keyInfo, setKeyInfo] = useState({ loading: false, limit: null, usage: null, active: false })
+
+    useEffect(() => {
+        async function fetchKeyInfo() {
+            if (provider?.toLowerCase() !== 'openrouter' || !activeKeyRef) return
+            setKeyInfo(k => ({ ...k, loading: true }))
+            try {
+                const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
+                    headers: { 'Authorization': `Bearer ${activeKeyRef}` }
+                })
+                const data = await res.json()
+                if (res.ok && data.data) {
+                    setKeyInfo({
+                        loading: false,
+                        active: true,
+                        usage: data.data.usage,
+                        limit: data.data.limit,
+                    })
+                } else {
+                    setKeyInfo({ loading: false, active: false, usage: null, limit: null })
+                }
+            } catch (e) {
+                setKeyInfo({ loading: false, active: false, usage: null, limit: null })
+            }
+        }
+        fetchKeyInfo()
+    }, [activeKeyRef, provider])
 
     const update = (key, val) => {
         onSettingsChange(prev => ({ ...prev, [key]: val }))
@@ -124,8 +153,14 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                                 <div className="settings-key-status" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4CAF50' }}>
                                         <HiOutlineCheckCircle />
-                                        <span>Key is securely encrypted and saved locally.</span>
+                                        <span>Key is active, securely encrypted and saved locally.</span>
                                     </div>
+                                    {provider?.toLowerCase() === 'openrouter' && (
+                                        keyInfo.loading ? <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Checking key usage...</div> :
+                                        keyInfo.active && <div style={{ fontSize: '0.85rem', color: '#aaa' }}>
+                                            Usage: ${keyInfo.usage?.toFixed(4) || '0.000'} / {keyInfo.limit ? `$${keyInfo.limit}` : 'No Limit'}
+                                        </div>
+                                    )}
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         <button className="settings-danger-btn" onClick={handleRemoveKey} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
                                             Replace / Remove Key
@@ -133,8 +168,16 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                                     </div>
                                 </div>
                             ) : (
-                                <div className="settings-key-status" style={{ color: '#ff4d4f' }}>
-                                    ⚠️ No API Key found.
+                                <div className="settings-key-status" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem', color: '#ff4d4f' }}>
+                                    <span>⚠️ No API Key found.</span>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button className="settings-danger-btn" onClick={() => {
+                                            if (onRemoveKey) onRemoveKey()
+                                            onClose()
+                                        }} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
+                                            Add API Key
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -168,6 +211,52 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                         <AIGuide />
                     </div>
 
+
+                    {/* ─── Subscription & Billing ─── */}
+                    <div className="settings-group">
+                        <h3 className="settings-group-title">
+                            💳 Subscription &amp; Billing
+                        </h3>
+                        {user ? (
+                            isSubscribed ? (
+                                <div className="settings-item settings-item-full">
+                                    <div className="settings-item-info">
+                                        <span className="settings-item-label" style={{ color: '#4CAF50' }}>Active Subscription: {subscription?.plan?.replace('_', ' ').toUpperCase()}</span>
+                                        <span className="settings-item-desc" style={{ marginTop: '0.25rem', display: 'block' }}>
+                                            Your account has full access to AI features. Expires: {subscription?.expires_at ? new Date(subscription.expires_at).toLocaleDateString() : 'Auto-renewing'}
+                                        </span>
+                                        {subscription?.razorpay_payment_id && (
+                                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.25rem', display: 'block' }}>
+                                                Payment ID: {subscription.razorpay_payment_id}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="settings-item settings-item-full">
+                                    <div className="settings-item-info">
+                                        <span className="settings-item-label">Free Plan / Trial</span>
+                                        <span className="settings-item-desc">
+                                            You are currently on the free tier. Upgrade to unlock AI features like Editorial Assessment and Synopsis generation.
+                                        </span>
+                                    </div>
+                                    <button className="settings-danger-btn" style={{ padding: '0.5rem 1rem', background: '#4CAF50', border: 'none', color: 'white', marginTop: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} onClick={() => {
+                                        onClose()
+                                        window.location.href = '/#pricing'
+                                    }}>
+                                        Upgrade Now
+                                    </button>
+                                </div>
+                            )
+                        ) : (
+                            <div className="settings-item settings-item-full">
+                                <div className="settings-item-info">
+                                    <span className="settings-item-label">Not Logged In</span>
+                                    <span className="settings-item-desc">Sign in to view your subscription details.</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* ─── Appearance ─── */}
                     <div className="settings-group">

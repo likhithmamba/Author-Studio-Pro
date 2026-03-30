@@ -1,8 +1,8 @@
-import React, { useState, useCallback, memo } from 'react'
+import React, { useState, useCallback, memo, useRef } from 'react'
 import { HiOutlineEnvelope } from 'react-icons/hi2'
-import { generateQueryManual, downloadBlob } from '../../api.js'
+import { generateQueryManual, generateQueryAI, downloadBlob } from '../../api.js'
 import { GENRES } from './constants.jsx'
-import { TabPanel, Field, RunButton, StatusBox } from './SharedUI.jsx'
+import { TabPanel, Field, AIToggle, RunButton, StatusBox, FileDrop } from './SharedUI.jsx'
 
 
 const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange }) => (
@@ -16,7 +16,7 @@ const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area,
 
 export default function QueryTab({ apiKey, aiModel, hasKey }) {
     const [form, setForm] = useState({
-        title: '', author_name: '', genre: 'literary', word_count: '',
+        title: '', author_name: '', genre: 'literary_fiction', word_count: '',
         email: '', phone: '', address: '',
         bio_credits: '', series_note: '',
         comp_1_title: '', comp_1_author: '', comp_1_year: '',
@@ -30,18 +30,34 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
 
     const handleSet = useCallback((k, v) => setForm(p => ({ ...p, [k]: v })), [])
 
+    const [useAI, setUseAI] = useState(false)
+    const [file, setFile] = useState(null)
+    const fileRef = useRef()
+
     const run = async () => {
         if (!form.title || !form.author_name) {
             setStatus({ err: 'Title and author name are required.' }); return
         }
+        if (useAI && hasKey && !file) {
+            setStatus({ err: 'Please upload a manuscript file for AI generation.' }); return
+        }
         setStatus('loading')
         try {
-            const result = await generateQueryManual({
-                ...form,
-                word_count: parseInt(form.word_count) || 0,
-            })
-            downloadBlob(result.blob, result.filename)
-            setStatus({ ok: `✅ Package generated! Downloaded as ${result.filename}. Contains: Query Letter, Synopsis, Author Bio.` })
+            if (useAI && hasKey) {
+                const result = await generateQueryAI({
+                    file,
+                    payload: { ...form, aiModel, word_count: parseInt(form.word_count) || 0 }
+                })
+                downloadBlob(result.blob, result.filename)
+                setStatus({ ok: `✅ AI Package generated! Downloaded as ${result.filename}.` })
+            } else {
+                const result = await generateQueryManual({
+                    ...form,
+                    word_count: parseInt(form.word_count) || 0,
+                })
+                downloadBlob(result.blob, result.filename)
+                setStatus({ ok: `✅ Package generated! Downloaded as ${result.filename}.` })
+            }
         } catch (e) {
             setStatus({ err: e.detail || e.message || 'Query generation failed.' })
         }
@@ -55,6 +71,18 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                 <HiOutlineEnvelope className="tool-desc-icon" />
                 <p>Generate a complete submission package: Query Letter, 1-page Synopsis, Author Bio Sheet, Copyright Page. Professional query consultants charge $200–$800 for this.</p>
             </div>
+
+            <AIToggle
+                hasKey={hasKey}
+                checked={useAI}
+                onChange={setUseAI}
+                label="AI Query Generation"
+                desc="Upload your manuscript to have AI automatically write your synopsis and query letter based on your book's actual content."
+            />
+
+            {useAI && hasKey && (
+                <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
+            )}
 
             <div className="tool-section-label">Manuscript Identity</div>
             <div className="tool-fields">

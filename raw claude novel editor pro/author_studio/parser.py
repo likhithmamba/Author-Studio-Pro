@@ -327,8 +327,8 @@ class ManuscriptParser:
             data = json.loads(raw)
 
             # Merge AI patterns with universal fallbacks for robustness
-            ai_chapter_patterns = data.get("chapter_patterns", [])
-            ai_scene_patterns   = data.get("scene_break_patterns", [])
+            ai_chapter_patterns = data.get("chapter_patterns") or []
+            ai_scene_patterns   = data.get("scene_break_patterns") or []
 
             merged_chapter = list(dict.fromkeys(
                 ai_chapter_patterns + UNIVERSAL_CHAPTER_PATTERNS

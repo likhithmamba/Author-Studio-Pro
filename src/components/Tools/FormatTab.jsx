@@ -8,7 +8,7 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [file, setFile] = useState(null)
     const [author, setAuthor] = useState('')
     const [title, setTitle] = useState('')
-    const [template, setTemplate] = useState('us_standard')
+    const [template, setTemplate] = useState('traditional')
     const [useAI, setUseAI] = useState(false)
     const [status, setStatus] = useState(null)   // null | 'loading' | {ok} | {err}
     const fileRef = useRef()
