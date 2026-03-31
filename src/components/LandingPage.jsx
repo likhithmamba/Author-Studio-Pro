@@ -5,6 +5,7 @@ import HowItWorks from './HowItWorks'
 import AIIntelligence from './AIIntelligence'
 import GenreDatabase from './GenreDatabase'
 import Templates from './Templates'
+import ComparisonTable from './ComparisonTable'
 import Pricing from './Pricing'
 import FAQ from './FAQ'
 import Footer from './Footer'
@@ -21,6 +22,7 @@ export default function LandingPage({ settings, onSettingsClick }) {
                 <AIIntelligence />
                 <GenreDatabase />
                 <Templates />
+                <ComparisonTable />
                 <Pricing />
                 <FAQ />
             </main>

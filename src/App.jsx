@@ -5,29 +5,10 @@ import LandingPage from './components/LandingPage'
 import AppWorkspace from './components/AppWorkspace'
 import SettingsPanel from './components/SettingsPanel'
 import ErrorBoundary from './components/ErrorBoundary'
-import ApiKeySetup from './components/ApiKeySetup'
-import { hasApiKey, loadApiKey, getDeviceFingerprint } from './utils/keyStorage'
 import './App.css'
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
-
-    // Check if key exists and can be decrypted
-    const checkKeyStatus = () => {
-        if (!hasApiKey()) return { isValid: false, message: '' };
-        const key = loadApiKey(getDeviceFingerprint());
-        if (!key) return { isValid: false, message: 'Your previous key could not be loaded (decryption failed). Please re-enter it.' };
-        return { isValid: true, message: '' };
-    };
-
-    const initialKeyStatus = checkKeyStatus();
-    const [isKeyValid, setIsKeyValid] = useState(initialKeyStatus.isValid);
-    const [keyErrorMessage, setKeyErrorMessage] = useState(initialKeyStatus.message);
-
-    const handleKeySaved = () => {
-        setIsKeyValid(true);
-        setKeyErrorMessage('');
-    };
 
     const [settings, setSettings] = useState(() => {
         try {
@@ -73,71 +54,84 @@ function App() {
         document.documentElement.setAttribute('data-font-size', settings.fontSize)
     }, [settings.reducedMotion, settings.highContrast, settings.fontSize])
 
+    // FIX-2: Warmup ping — fire and forget
+    useEffect(() => {
+        const apiUrl = import.meta.env.VITE_API_URL
+        if (apiUrl) {
+            fetch(`${apiUrl}/api/health`).catch(() => {})
+        }
+    }, [])
+
     return (
         <ErrorBoundary>
-            {!isKeyValid ? (
-                <ApiKeySetup onKeysaved={handleKeySaved} initialMessage={keyErrorMessage} />
-            ) : (
-                <div className="app">
-                    <div className="noise-overlay" aria-hidden="true" />
-                    <div className="aurora-bg" aria-hidden="true">
-                        <div className="aurora-blob aurora-1" />
-                        <div className="aurora-blob aurora-2" />
-                        <div className="aurora-blob aurora-3" />
-                    </div>
-
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <LandingPage
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                        <Route
-                            path="/app"
-                            element={
-                                <AppWorkspace
-                                    settings={settings}
-                                    onSettingsClick={() => setSettingsOpen(true)}
-                                />
-                            }
-                        />
-                        <Route
-                            path="*"
-                            element={
-                                <div style={{
-                                    display: 'flex', flexDirection: 'column',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    minHeight: '100vh', color: '#fff', textAlign: 'center',
-                                    padding: '2rem', gap: '1rem',
-                                }}>
-                                    <h1 style={{ fontSize: '4rem', margin: 0, opacity: 0.8 }}>404</h1>
-                                    <p style={{ fontSize: '1.25rem', opacity: 0.6 }}>Page not found</p>
-                                    <a href="/" style={{
-                                        marginTop: '1rem', padding: '0.75rem 2rem',
-                                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                                        borderRadius: '8px', color: '#fff', textDecoration: 'none',
-                                    }}>Go Home</a>
-                                </div>
-                            }
-                        />
-                    </Routes>
-
-                    <AnimatePresence>
-                        {settingsOpen && (
-                            <SettingsPanel
-                                settings={settings}
-                                onSettingsChange={setSettings}
-                                onClose={() => setSettingsOpen(false)}
-                                onRemoveKey={() => setIsKeyValid(false)}
-                            />
-                        )}
-                    </AnimatePresence>
+            <div className="app">
+                <div className="noise-overlay" aria-hidden="true" />
+                <div className="aurora-bg" aria-hidden="true">
+                    <div className="aurora-blob aurora-1" />
+                    <div className="aurora-blob aurora-2" />
+                    <div className="aurora-blob aurora-3" />
                 </div>
-            )}
+
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <LandingPage
+                                settings={settings}
+                                onSettingsClick={() => setSettingsOpen(true)}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/app"
+                        element={
+                            <AppWorkspace
+                                settings={settings}
+                                onSettingsClick={() => setSettingsOpen(true)}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/editor"
+                        element={
+                            <AppWorkspace
+                                settings={settings}
+                                onSettingsClick={() => setSettingsOpen(true)}
+                                initialTab="editor"
+                            />
+                        }
+                    />
+                    <Route
+                        path="*"
+                        element={
+                            <div style={{
+                                display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center',
+                                minHeight: '100vh', color: '#fff', textAlign: 'center',
+                                padding: '2rem', gap: '1rem',
+                            }}>
+                                <h1 style={{ fontSize: '4rem', margin: 0, opacity: 0.8 }}>404</h1>
+                                <p style={{ fontSize: '1.25rem', opacity: 0.6 }}>Page not found</p>
+                                <a href="/" style={{
+                                    marginTop: '1rem', padding: '0.75rem 2rem',
+                                    background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                                    borderRadius: '8px', color: '#fff', textDecoration: 'none',
+                                }}>Go Home</a>
+                            </div>
+                        }
+                    />
+                </Routes>
+
+                <AnimatePresence>
+                    {settingsOpen && (
+                        <SettingsPanel
+                            settings={settings}
+                            onSettingsChange={setSettings}
+                            onClose={() => setSettingsOpen(false)}
+                        />
+                    )}
+                </AnimatePresence>
+            </div>
         </ErrorBoundary>
     )
 }

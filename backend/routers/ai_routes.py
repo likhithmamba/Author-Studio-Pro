@@ -5,10 +5,11 @@ import json
 import logging
 import zipfile
 import tempfile
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from rate_limiter import limiter
 from api_utils import (
@@ -365,3 +366,130 @@ async def query_ai(
         logger.exception("AI query error")
         bg.add_task(rm, inp)
         raise HTTPException(500, "AI query generation failed due to an internal error.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANALYSE-TEXT — accepts JSON text (not file upload)
+# Browser extracts text via mammoth.js, sends only text to backend.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AnalyseTextRequest(BaseModel):
+    raw_text: str
+    chapters: list  # [{title, paragraphs, word_count}, ...]
+    total_words: int
+    genre: str = "literary"
+    use_ai: bool = False
+    api_key: str = ""
+    ai_model: str = "deepseek/deepseek-chat:free"
+
+
+@router.post("/api/analyse-text", tags=["Analyse"])
+@limiter.limit("5/minute")
+async def analyse_text(request: Request, body: AnalyseTextRequest):
+    """
+    Analyse pre-extracted text from the browser.
+    The .docx binary stays in the browser — only text comes here.
+    """
+    # Validate
+    if not body.raw_text or not body.raw_text.strip():
+        raise HTTPException(400, "raw_text must be non-empty")
+    if len(body.raw_text) > 500_000:
+        raise HTTPException(400, "Text too large. Maximum 500,000 characters.")
+    if body.total_words <= 0:
+        raise HTTPException(400, "total_words must be > 0")
+
+    m = _mods()
+    GENRES = m["GENRES"]
+    genre = body.genre if body.genre in GENRES else "literary"
+    genre_name = GENRES[genre].name
+
+    try:
+        # Reconstruct ParsedParagraph list from chapters
+        from parser import ParsedParagraph, PARA_CHAPTER, PARA_BODY
+        parsed = []
+        for ch in body.chapters:
+            title = ch.get("title", "Chapter")
+            paragraphs = ch.get("paragraphs", [])
+            parsed.append(ParsedParagraph(type=PARA_CHAPTER, text=title))
+            for para in paragraphs:
+                if para and para.strip():
+                    parsed.append(ParsedParagraph(type=PARA_BODY, text=para.strip()))
+
+        # Run structural analysis
+        analyzer = m["ManuscriptAnalyzer"]()
+        report = analyzer.analyse(parsed)
+
+        r, s, p = report.readability, report.style, report.pacing
+        result = {
+            "total_words":       report.total_words,
+            "total_sentences":   report.total_sentences,
+            "total_paragraphs":  report.total_paragraphs,
+            "total_chapters":    report.total_chapters,
+            "unique_words":      report.unique_words,
+            "lexical_diversity": report.lexical_diversity,
+            "readability": {
+                "flesch_ease":       r.flesch_ease,
+                "flesch_kincaid":    r.flesch_kincaid,
+                "gunning_fog":       r.gunning_fog,
+                "avg_sentence_words": r.avg_sentence_words,
+                "avg_word_syllables": r.avg_word_syllables,
+                "interpretation":    r.interpretation,
+            },
+            "style": {
+                "dialogue_pct":             s.dialogue_pct,
+                "adverb_density":           s.adverb_density,
+                "passive_voice_pct":        s.passive_voice_pct,
+                "avg_paragraph_words":      s.avg_paragraph_words,
+                "sentence_length_variance": s.sentence_length_variance,
+                "most_frequent_words":      s.most_frequent_words[:15],
+                "repeated_phrases":         s.repeated_phrases[:10],
+            },
+            "pacing": {
+                "chapter_word_counts":    p.chapter_word_counts,
+                "chapter_avg":            p.chapter_avg,
+                "chapter_std_dev":        p.chapter_std_dev,
+                "longest_chapter":        p.longest_chapter,
+                "shortest_chapter":       p.shortest_chapter,
+                "pacing_verdict":         p.pacing_verdict,
+                "scene_break_frequency":  p.scene_break_frequency,
+            },
+            "editorial_flags":   report.editorial_flags,
+            "genre":             genre_name,
+            "ai_analysis":       None,
+        }
+
+        # Optional AI analysis
+        if body.use_ai and body.api_key:
+            try:
+                ai_report = m["run_ai_analysis"](
+                    parsed=parsed,
+                    api_key=body.api_key,
+                    model=body.ai_model,
+                    genre=genre_name,
+                )
+                result["ai_analysis"] = {
+                    "model_used":       ai_report.model_used,
+                    "ai_powered":       ai_report.ai_powered,
+                    "overall_verdict":  ai_report.overall_verdict,
+                    "voice_consistency": ai_report.voice_consistency,
+                    "arc_assessment":   ai_report.arc_assessment,
+                    "top_3_strengths":  ai_report.top_3_strengths,
+                    "top_3_priorities": ai_report.top_3_priorities,
+                    "opening":   _sec(ai_report.opening_analysis),
+                    "midpoint":  _sec(ai_report.midpoint_analysis),
+                    "closing":   _sec(ai_report.closing_analysis),
+                }
+            except Exception as e:
+                logger.warning(f"AI analysis failed: {e}")
+                result["ai_analysis"] = {"error": str(e)[:300]}
+        elif body.use_ai and not body.api_key:
+            result["ai_analysis"] = {"error": "api_key required for AI mode"}
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Analyse-text error")
+        raise HTTPException(422, f"Could not process the manuscript structure. Try re-uploading the file. Detail: {str(e)[:200]}")
+

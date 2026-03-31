@@ -10,11 +10,11 @@ import Tools from './Tools'
 import AuthModal from './AuthModal'
 import './AppWorkspace.css'
 
-// ─── Free-tier limited tabs ─────────────────────────────────────────────────
-const FREE_TABS = ['format']  // Only formatting is free
-const PAID_TABS = ['format', 'analyse', 'query', 'market']
+// FIX-6: Format and Market are free for all users
+const FREE_TABS = ['format', 'market', 'submissions']
+const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
 
-export default function AppWorkspace({ settings, onSettingsClick }) {
+export default function AppWorkspace({ settings, onSettingsClick, initialTab }) {
     const { user, loading, isSubscribed, subscription, logout } = useAuth()
     const [showAuth, setShowAuth] = useState(false)
     const navigate = useNavigate()
@@ -140,7 +140,7 @@ export default function AppWorkspace({ settings, onSettingsClick }) {
                     animate={{ opacity: 1, y: 0 }}
                 >
                     <span>
-                        <HiOutlineStar /> You're on the <strong>Free plan</strong> — formatting only.
+                        <HiOutlineStar /> You're on the <strong>Free plan</strong> — Format and Market are free.
                     </span>
                     <Link to="/#pricing" className="workspace-upgrade-link">
                         Upgrade for AI features →
@@ -155,7 +155,7 @@ export default function AppWorkspace({ settings, onSettingsClick }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <Tools settings={settings} allowedTabs={allowedTabs} />
+                <Tools settings={settings} allowedTabs={allowedTabs} initialTab={initialTab} />
             </motion.main>
 
             {/* Workspace footer */}

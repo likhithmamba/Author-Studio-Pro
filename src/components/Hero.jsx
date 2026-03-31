@@ -1,15 +1,8 @@
-import { useRef, useEffect } from 'react'
+import { useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { HiOutlineArrowRight, HiOutlinePlay } from 'react-icons/hi2'
 import { Link } from 'react-router-dom'
 import './Hero.css'
-
-const TYPING_WORDS = [
-    'your manuscript.',
-    'your query letter.',
-    'your synopsis.',
-    'your publishing career.',
-]
 
 export default function Hero({ settings }) {
     const ref = useRef(null)
@@ -27,7 +20,7 @@ export default function Hero({ settings }) {
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
                     <span className="hero-badge-dot" />
-                    <span>Trusted by 2,500+ authors worldwide</span>
+                    <span>Your manuscript never leaves your browser</span>
                 </motion.div>
 
                 <motion.h1
@@ -36,9 +29,9 @@ export default function Hero({ settings }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.3 }}
                 >
-                    The Professional Toolkit
+                    Write it. Perfect it.
                     <br />
-                    <span className="hero-title-accent">for Serious Authors</span>
+                    <span className="hero-title-accent">Submit it.</span>
                 </motion.h1>
 
                 <motion.p
@@ -47,8 +40,9 @@ export default function Hero({ settings }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.5 }}
                 >
-                    Format manuscripts to international standards. Analyse your prose with AI editorial intelligence.
-                    Generate query packages that get agent requests. Everything authors pay $500–$2,000 for — in one studio.
+                    The professional toolkit for serious authors. Format manuscripts to international standards.
+                    Analyse your prose with AI editorial intelligence. Generate query packages that get agent requests.
+                    Everything authors pay $500–$2,000 for — in one studio.
                 </motion.p>
 
                 <motion.div
@@ -73,8 +67,8 @@ export default function Hero({ settings }) {
                 >
                     {[
                         { value: '5', label: 'International Templates' },
-                        { value: '12+', label: 'Genre Databases' },
-                        { value: '3', label: 'AI Calls Per Analysis' },
+                        { value: '13', label: 'Genre Databases' },
+                        { value: '100%', label: 'Local Processing' },
                         { value: '$0', label: 'Free AI Models' },
                     ].map((stat, i) => (
                         <div key={i} className="hero-stat">

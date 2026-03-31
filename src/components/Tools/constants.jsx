@@ -1,11 +1,13 @@
 import React from 'react';
-import { HiOutlineDocumentText, HiOutlineBeaker, HiOutlineEnvelope, HiOutlineChartBar } from 'react-icons/hi2';
+import { HiOutlineDocumentText, HiOutlineBeaker, HiOutlineEnvelope, HiOutlineChartBar, HiOutlineClipboardDocumentList, HiOutlinePencilSquare } from 'react-icons/hi2';
 
 export const TABS = [
     { id: 'format', icon: <HiOutlineDocumentText />, label: 'Format', badge: 'No AI needed' },
     { id: 'analyse', icon: <HiOutlineBeaker />, label: 'Analyse', badge: 'AI optional' },
     { id: 'query', icon: <HiOutlineEnvelope />, label: 'Query', badge: 'Manual mode' },
     { id: 'market', icon: <HiOutlineChartBar />, label: 'Market', badge: 'No AI needed' },
+    { id: 'submissions', icon: <HiOutlineClipboardDocumentList />, label: 'Submissions', badge: 'Local' },
+    { id: 'editor', icon: <HiOutlinePencilSquare />, label: 'Editor', badge: 'Auto-save' },
 ];
 
 export const TEMPLATES = [

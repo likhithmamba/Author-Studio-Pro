@@ -1,0 +1,218 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import { HiOutlineClipboardDocumentList, HiOutlinePlusCircle, HiOutlineTrash, HiOutlineArrowDownTray } from 'react-icons/hi2'
+import { TabPanel, Field, RunButton, StatusBox } from './SharedUI.jsx'
+
+const STATUS_OPTIONS = ['Queried', 'Requested', 'Full Sent', 'Rejected', 'Offer', 'Withdrawn', 'No Response']
+const STATUS_COLORS = {
+    'Queried': '#3b82f6',
+    'Requested': '#f59e0b',
+    'Full Sent': '#8b5cf6',
+    'Rejected': '#ef4444',
+    'Offer': '#22c55e',
+    'Withdrawn': '#6b7280',
+    'No Response': '#9ca3af',
+}
+
+const LS_KEY = 'asp_submissions'
+
+function loadSubmissions() {
+    try {
+        return JSON.parse(localStorage.getItem(LS_KEY) || '[]')
+    } catch { return [] }
+}
+
+function saveSubmissions(subs) {
+    try {
+        localStorage.setItem(LS_KEY, JSON.stringify(subs))
+    } catch { /* silently fail */ }
+}
+
+export default function SubmissionTab() {
+    const [submissions, setSubmissions] = useState(loadSubmissions)
+    const [showForm, setShowForm] = useState(false)
+    const [status, setStatus] = useState(null)
+    const [form, setForm] = useState({
+        agentName: '', agency: '', dateSent: new Date().toISOString().split('T')[0],
+        status: 'Queried', requestType: 'Query', responseDate: '', notes: '',
+    })
+
+    useEffect(() => { saveSubmissions(submissions) }, [submissions])
+
+    const stats = useMemo(() => {
+        const total = submissions.length
+        const pending = submissions.filter(s => ['Queried', 'Requested', 'Full Sent'].includes(s.status)).length
+        const rejected = submissions.filter(s => s.status === 'Rejected').length
+        const offers = submissions.filter(s => s.status === 'Offer').length
+        const avgDays = submissions
+            .filter(s => s.responseDate && s.dateSent)
+            .map(s => (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24))
+        const avgResponseDays = avgDays.length > 0 ? Math.round(avgDays.reduce((a, b) => a + b, 0) / avgDays.length) : 0
+        return { total, pending, rejected, offers, avgResponseDays }
+    }, [submissions])
+
+    const handleAdd = () => {
+        if (!form.agentName) { setStatus({ err: 'Agent name is required.' }); return }
+        const newSub = { ...form, id: Date.now().toString(), createdAt: new Date().toISOString() }
+        setSubmissions(prev => [newSub, ...prev])
+        setForm({
+            agentName: '', agency: '', dateSent: new Date().toISOString().split('T')[0],
+            status: 'Queried', requestType: 'Query', responseDate: '', notes: '',
+        })
+        setShowForm(false)
+        setStatus({ ok: `Added submission to ${newSub.agentName}.` })
+    }
+
+    const handleDelete = (id) => {
+        if (!confirm('Delete this submission?')) return
+        setSubmissions(prev => prev.filter(s => s.id !== id))
+    }
+
+    const handleUpdateStatus = (id, newStatus) => {
+        setSubmissions(prev => prev.map(s =>
+            s.id === id ? { ...s, status: newStatus, responseDate: newStatus !== 'Queried' ? new Date().toISOString().split('T')[0] : s.responseDate } : s
+        ))
+    }
+
+    const exportCSV = () => {
+        const headers = ['Agent Name', 'Agency', 'Date Sent', 'Status', 'Request Type', 'Response Date', 'Notes']
+        const rows = submissions.map(s => [s.agentName, s.agency, s.dateSent, s.status, s.requestType, s.responseDate, `"${(s.notes || '').replace(/"/g, '""')}"`])
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = `submissions_${new Date().toISOString().split('T')[0]}.csv`; a.click()
+        URL.revokeObjectURL(url)
+    }
+
+    const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+
+    return (
+        <TabPanel>
+            <div className="tool-desc">
+                <HiOutlineClipboardDocumentList className="tool-desc-icon" />
+                <p>Track every agent query — submission dates, response times, request types, and outcomes. Export to CSV for spreadsheet users.</p>
+            </div>
+
+            {/* Stats Row */}
+            <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                gap: '0.75rem', marginBottom: '1.5rem',
+            }}>
+                {[
+                    { label: 'Total', value: stats.total, color: '#3b82f6' },
+                    { label: 'Pending', value: stats.pending, color: '#f59e0b' },
+                    { label: 'Rejected', value: stats.rejected, color: '#ef4444' },
+                    { label: 'Offers', value: stats.offers, color: '#22c55e' },
+                    { label: 'Avg Days', value: stats.avgResponseDays || '—', color: '#8b5cf6' },
+                ].map(s => (
+                    <div key={s.label} className="glass-card" style={{
+                        padding: '1rem', textAlign: 'center', borderLeft: `3px solid ${s.color}`,
+                    }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{s.value}</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{s.label}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                <button className="btn-primary" onClick={() => setShowForm(!showForm)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <HiOutlinePlusCircle /> {showForm ? 'Cancel' : 'Add Submission'}
+                </button>
+                {submissions.length > 0 && (
+                    <button className="btn-secondary" onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <HiOutlineArrowDownTray /> Export CSV
+                    </button>
+                )}
+            </div>
+
+            {/* Add Form */}
+            {showForm && (
+                <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+                    <div className="tool-fields">
+                        <Field label="Agent Name" required>
+                            <input className="tool-input" value={form.agentName} onChange={e => set('agentName', e.target.value)} placeholder="Jane Agent" />
+                        </Field>
+                        <Field label="Agency">
+                            <input className="tool-input" value={form.agency} onChange={e => set('agency', e.target.value)} placeholder="Literary Associates" />
+                        </Field>
+                        <Field label="Date Sent">
+                            <input className="tool-input" type="date" value={form.dateSent} onChange={e => set('dateSent', e.target.value)} />
+                        </Field>
+                        <Field label="Request Type">
+                            <select className="tool-select" value={form.requestType} onChange={e => set('requestType', e.target.value)}>
+                                <option value="Query">Query Only</option>
+                                <option value="Query + Pages">Query + Pages</option>
+                                <option value="Partial Manuscript">Partial Manuscript</option>
+                                <option value="Full Manuscript">Full Manuscript</option>
+                            </select>
+                        </Field>
+                        <Field label="Notes">
+                            <input className="tool-input" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Response window, specific interests..." />
+                        </Field>
+                    </div>
+                    <button className="btn-primary" onClick={handleAdd} style={{ marginTop: '0.75rem' }}>
+                        ✓ Save Submission
+                    </button>
+                </div>
+            )}
+
+            <StatusBox status={status} onClear={() => setStatus(null)} />
+
+            {/* Submissions Table */}
+            {submissions.length > 0 ? (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{
+                        width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem',
+                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px',
+                    }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                {['Agent', 'Agency', 'Sent', 'Type', 'Status', 'Response', ''].map(h => (
+                                    <th key={h} style={{ padding: '0.6rem 0.5rem', textAlign: 'left', fontWeight: 600, opacity: 0.7 }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {submissions.map(sub => (
+                                <tr key={sub.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                    <td style={{ padding: '0.6rem 0.5rem', fontWeight: 500 }}>{sub.agentName}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem', opacity: 0.7 }}>{sub.agency || '—'}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem', opacity: 0.7 }}>{sub.dateSent}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem', opacity: 0.7 }}>{sub.requestType}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem' }}>
+                                        <select
+                                            value={sub.status}
+                                            onChange={e => handleUpdateStatus(sub.id, e.target.value)}
+                                            style={{
+                                                background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                                                color: STATUS_COLORS[sub.status] || '#fff',
+                                                borderRadius: '4px', padding: '0.2rem 0.4rem', fontSize: '0.8rem',
+                                                fontWeight: 600, cursor: 'pointer',
+                                            }}
+                                        >
+                                            {STATUS_OPTIONS.map(s => <option key={s} value={s} style={{ color: '#222' }}>{s}</option>)}
+                                        </select>
+                                    </td>
+                                    <td style={{ padding: '0.6rem 0.5rem', opacity: 0.7 }}>{sub.responseDate || '—'}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem' }}>
+                                        <button onClick={() => handleDelete(sub.id)} style={{
+                                            background: 'none', border: 'none', color: '#ef4444',
+                                            cursor: 'pointer', opacity: 0.6, fontSize: '1rem',
+                                        }}>
+                                            <HiOutlineTrash />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
+                    <p>No submissions yet. Click "Add Submission" to start tracking your query campaign.</p>
+                </div>
+            )}
+        </TabPanel>
+    )
+}

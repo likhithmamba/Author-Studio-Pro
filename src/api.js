@@ -230,3 +230,21 @@ export async function validateAIKey(apiKey, provider = 'openrouter') {
 }
 
 export { APIError }
+
+// ─── Analyse Text (browser-side parsing) ──────────────────────────────────
+export async function analyseText({ rawText, chapters, totalWords, genre, useAI, apiKey, aiModel }) {
+    return fetchJSON('/analyse-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            raw_text: rawText,
+            chapters,
+            total_words: totalWords,
+            genre: genre || 'literary',
+            use_ai: useAI || false,
+            api_key: apiKey || '',
+            ai_model: aiModel || 'deepseek/deepseek-chat:free',
+        }),
+    })
+}
+

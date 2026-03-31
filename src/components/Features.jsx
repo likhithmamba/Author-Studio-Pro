@@ -5,26 +5,51 @@ import {
     HiOutlineBeaker,
     HiOutlineChartBar,
     HiOutlineEnvelope,
-    HiOutlineAcademicCap,
+    HiOutlineClipboardDocumentList,
+    HiOutlinePencilSquare,
 } from 'react-icons/hi2'
 import './Features.css'
 
 const features = [
     {
-        icon: <HiOutlineDocumentText />,
-        title: 'Manuscript Formatter',
-        description: 'Apply any of 5 internationally recognised publishing standards — US Standard, UK Submission, Modern Agent, Literary Review, or Custom — with one click. Produces a perfectly formatted .docx with running headers, title page, and correct indent rules.',
-        color: 'var(--accent-blue)',
-        tag: 'FORMAT',
-        highlights: ['5 Templates', 'Running Headers', 'Auto Title Page', 'Custom Overrides'],
+        icon: <HiOutlineEnvelope />,
+        title: 'Query Package Builder',
+        description: 'AI reads your manuscript and generates a hook sentence, plot paragraph, full synopsis, and complete query letter. Includes a built-in Query Confidence Scorer that rates your letter on 5 dimensions. What consultants charge $200–$800 for.',
+        color: 'var(--accent-rose)',
+        tag: 'QUERY',
+        highlights: ['AI-Generated Hook', 'Synopsis Writer', 'Query Letter', 'Confidence Scorer'],
+    },
+    {
+        icon: <HiOutlineClipboardDocumentList />,
+        title: 'Submission Tracker',
+        description: 'Track every agent query — submission dates, response times, request types, and outcomes. CSV export for spreadsheet users. See your full query campaign at a glance with stats and timelines.',
+        color: 'var(--accent-amber)',
+        tag: 'TRACK',
+        highlights: ['Agent Tracking', 'Response Times', 'Status Pipeline', 'CSV Export'],
     },
     {
         icon: <HiOutlineBeaker />,
         title: 'AI Manuscript Analysis',
-        description: 'Two-layer intelligence: structural statistics (Flesch scores, pacing, style flags) combined with AI that reads your opening, midpoint, and closing — then writes editorial commentary with direct quotes from your prose.',
+        description: 'Two-layer intelligence: structural statistics (Flesch scores, pacing, style flags) combined with AI that reads your opening, midpoint, and closing. Plus a cliché detector and opening page audit that catches the same red flags agents flag.',
         color: 'var(--accent-purple)',
         tag: 'ANALYSE',
-        highlights: ['Readability Scores', 'Pacing Profiles', 'AI Editorial Notes', 'Voice Assessment'],
+        highlights: ['Readability Scores', 'Opening Audit', 'Cliché Detection', 'Hook Analysis'],
+    },
+    {
+        icon: <HiOutlinePencilSquare />,
+        title: 'Novel Editor',
+        description: 'A distraction-free chapter-based editor built for long-form fiction. Auto-saves every 5 seconds to IndexedDB. Word count targets, focus mode, and AI writing assists — continue a scene, rewrite a paragraph, or get naming suggestions.',
+        color: 'var(--accent-blue)',
+        tag: 'EDITOR',
+        highlights: ['Auto-save', 'Chapter Manager', 'Focus Mode', 'AI Assist'],
+    },
+    {
+        icon: <HiOutlineDocumentText />,
+        title: 'Manuscript Formatter',
+        description: 'Apply any of 5 internationally recognised publishing standards — US Standard, UK Submission, Modern Agent, Literary Review, or Custom — with one click. Produces a perfectly formatted .docx with running headers, title page, and correct indent rules.',
+        color: 'var(--gold-primary)',
+        tag: 'FORMAT',
+        highlights: ['5 Templates', 'Running Headers', 'Auto Title Page', 'Custom Overrides'],
     },
     {
         icon: <HiOutlineChartBar />,
@@ -32,23 +57,7 @@ const features = [
         description: 'Genre-specific benchmarks from Publishers Marketplace, QueryTracker, and AAR data. Word count viability assessment, rejection triggers, agent expectations, comp title guidance, and publisher recommendations.',
         color: 'var(--accent-emerald)',
         tag: 'MARKET',
-        highlights: ['12+ Genres', 'Word Count Targets', 'Rejection Flags', 'Publisher Lists'],
-    },
-    {
-        icon: <HiOutlineEnvelope />,
-        title: 'Query Package Builder',
-        description: 'AI reads your manuscript and extracts protagonist, conflict, stakes, and theme — then generates a hook sentence, plot paragraph, full synopsis, and complete query letter. What consultants charge $200–$800 for.',
-        color: 'var(--accent-rose)',
-        tag: 'QUERY',
-        highlights: ['AI-Generated Hook', 'Synopsis Writer', 'Query Letter', 'Comp Suggestions'],
-    },
-    {
-        icon: <HiOutlineAcademicCap />,
-        title: 'Submission Guide',
-        description: 'A comprehensive knowledge base covering the query process, formatting rules, comp title strategy, and understanding rejections — consolidated from AAR guidelines, Publishers Marketplace data, and industry standard practice.',
-        color: 'var(--accent-amber)',
-        tag: 'GUIDE',
-        highlights: ['Query Process', 'Agent Tips', 'Comp Strategy', 'Rejection Decoder'],
+        highlights: ['13 Genres', 'Word Count Targets', 'Rejection Flags', 'Publisher Lists'],
     },
 ]
 
@@ -82,9 +91,9 @@ export default function Features() {
                     ref={ref}
                 >
                     <span className="section-label">✦ Core Modules</span>
-                    <h2 className="section-title">Five Engines. One Studio.</h2>
+                    <h2 className="section-title">Six Engines. One Studio.</h2>
                     <p className="section-subtitle">
-                        Every tool a professional author needs — from first draft formatting to agent query submission — engineered into a single, cohesive workflow.
+                        Every tool a professional author needs — from first draft to agent submission — engineered into a single, cohesive workflow.
                     </p>
                 </motion.div>
 

@@ -9,11 +9,16 @@ import FormatTab from './Tools/FormatTab.jsx'
 import AnalyseTab from './Tools/AnalyseTab.jsx'
 import QueryTab from './Tools/QueryTab.jsx'
 import MarketTab from './Tools/MarketTab.jsx'
+import SubmissionTab from './Tools/SubmissionTab.jsx'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from '../utils/keyStorage.js'
 
-export default function Tools({ settings, allowedTabs }) {
-    const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market']
-    const [tab, setTab] = useState('format')
+// Lazy load editor to avoid pulling Tiptap into the main bundle
+import { lazy, Suspense } from 'react'
+const EditorLayout = lazy(() => import('./Editor/EditorLayout.jsx'))
+
+export default function Tools({ settings, allowedTabs, initialTab }) {
+    const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
+    const [tab, setTab] = useState(initialTab || 'format')
     const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.08 })
 
     const hasKey = hasApiKey()
@@ -61,7 +66,7 @@ export default function Tools({ settings, allowedTabs }) {
                                 className={`tools-tab ${tab === t.id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
                                 onClick={() => !isLocked && setTab(t.id)}
                                 disabled={isLocked}
-                                title={isLocked ? 'Upgrade to Studio Pro to unlock' : t.label}
+                                title={isLocked ? 'Upgrade to unlock' : t.label}
                             >
                                 {isLocked ? <HiOutlineLockClosed /> : t.icon}
                                 <span>{t.label}</span>
@@ -83,6 +88,12 @@ export default function Tools({ settings, allowedTabs }) {
                         {tab === 'analyse' && <AnalyseTab key="analyse" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
                         {tab === 'query' && <QueryTab key="query" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
                         {tab === 'market' && <MarketTab key="market" />}
+                        {tab === 'submissions' && <SubmissionTab key="submissions" />}
+                        {tab === 'editor' && (
+                            <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>Loading editor...</div>}>
+                                <EditorLayout key="editor" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} settings={settings} />
+                            </Suspense>
+                        )}
                     </AnimatePresence>
                 </motion.div>
 

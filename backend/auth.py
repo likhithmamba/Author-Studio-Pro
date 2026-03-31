@@ -30,14 +30,23 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ─── JWT tokens ──────────────────────────────────────────────────────────────
+# FIX-2: In production, JWT_SECRET_KEY MUST be set. Random fallback only for dev.
+_env = os.getenv("ENVIRONMENT", "development")
 JWT_SECRET = os.getenv("JWT_SECRET_KEY")
+
 if not JWT_SECRET:
+    if _env == "production":
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set in production. "
+            'Generate one: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+        )
     JWT_SECRET = secrets.token_urlsafe(32)
     logger.warning(
         "JWT_SECRET_KEY not set — using a random ephemeral key. "
         "All tokens will be invalidated on server restart. "
         "Set JWT_SECRET_KEY in your environment for production."
     )
+
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72  # 3 days
 

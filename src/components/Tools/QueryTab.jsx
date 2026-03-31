@@ -1,9 +1,9 @@
 import React, { useState, useCallback, memo, useRef } from 'react'
 import { HiOutlineEnvelope } from 'react-icons/hi2'
 import { generateQueryManual, generateQueryAI, downloadBlob } from '../../api.js'
+import { scoreQuery } from '../../utils/queryScorer.js'
 import { GENRES } from './constants.jsx'
 import { TabPanel, Field, AIToggle, RunButton, StatusBox, FileDrop } from './SharedUI.jsx'
-
 
 const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange }) => (
     <Field label={label} required={required}>
@@ -13,6 +13,61 @@ const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area,
         }
     </Field>
 ))
+
+function QueryScorePanel({ score }) {
+    if (!score) return null;
+    const pct = Math.round((score.total / score.outOf) * 100)
+    const color = pct >= 80 ? '#4caf50' : pct >= 60 ? '#ff9800' : '#f44336'
+    const dims = [
+        { key: 'hookStrength', label: 'Hook' },
+        { key: 'conflictClarity', label: 'Conflict' },
+        { key: 'stakesExplicitness', label: 'Stakes' },
+        { key: 'compScore', label: 'Comps' },
+        { key: 'lengthScore', label: 'Length' },
+    ]
+    return (
+        <div className="query-score-panel glass-card" style={{ padding: '1.25rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{
+                    width: 56, height: 56, borderRadius: '50%',
+                    border: `3px solid ${color}`, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.25rem', fontWeight: 700, color,
+                }}>
+                    {score.total}
+                </div>
+                <div>
+                    <h4 style={{ margin: 0, color }}>Query Confidence: {pct}%</h4>
+                    <p style={{ margin: 0, opacity: 0.7, fontSize: '0.85rem' }}>{score.total}/{score.outOf} points</p>
+                </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+                {dims.map(d => (
+                    <div key={d.key} style={{ textAlign: 'center' }}>
+                        <div style={{
+                            width: '100%', height: 6, background: 'rgba(255,255,255,0.1)',
+                            borderRadius: 3, overflow: 'hidden', marginBottom: 4,
+                        }}>
+                            <div style={{
+                                width: `${(score.breakdown[d.key] / 10) * 100}%`, height: '100%',
+                                background: score.breakdown[d.key] >= 7 ? '#4caf50' : score.breakdown[d.key] >= 4 ? '#ff9800' : '#f44336',
+                                borderRadius: 3,
+                            }} />
+                        </div>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{d.label}: {score.breakdown[d.key]}/10</span>
+                    </div>
+                ))}
+            </div>
+            {score.feedback?.length > 0 && (
+                <ul style={{ margin: 0, paddingLeft: '1.25rem', listStyle: 'disc' }}>
+                    {score.feedback.map((f, i) => (
+                        <li key={i} style={{ fontSize: '0.9rem', marginBottom: '0.3rem', opacity: 0.9 }}>{f}</li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    )
+}
 
 export default function QueryTab({ apiKey, aiModel, hasKey }) {
     const [form, setForm] = useState({
@@ -27,6 +82,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
         include_synopsis_3: false, include_back_matter: true,
     })
     const [status, setStatus] = useState(null)
+    const [queryScore, setQueryScore] = useState(null)
 
     const handleSet = useCallback((k, v) => setForm(p => ({ ...p, [k]: v })), [])
 
@@ -42,6 +98,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
             setStatus({ err: 'Please upload a manuscript file for AI generation.' }); return
         }
         setStatus('loading')
+        setQueryScore(null)
         try {
             if (useAI && hasKey) {
                 const result = await generateQueryAI({
@@ -63,7 +120,28 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
         }
     }
 
+    const handleScoreQuery = () => {
+        // Construct query letter text from form
+        const queryText = [
+            `Dear Agent,`,
+            form.inciting_event ? `${form.protagonist}, ${form.inciting_event}` : '',
+            form.central_conflict || '',
+            form.stakes || '',
+            form.synopsis_plot || '',
+            form.title ? `${form.title.toUpperCase()} is a ${(form.word_count || '80,000').toLocaleString()}-word ${GENRES.find(g => g.value === form.genre)?.label || 'novel'}.` : '',
+            form.comp_1_title ? `It will appeal to fans of ${form.comp_1_title} by ${form.comp_1_author}${form.comp_2_title ? ` and ${form.comp_2_title} by ${form.comp_2_author}` : ''}.` : '',
+            form.bio_credits || '',
+            `Thank you for your time and consideration.`,
+            form.author_name,
+        ].filter(Boolean).join('\n\n');
 
+        const compYears = [form.comp_1_year, form.comp_2_year]
+            .map(y => parseInt(y))
+            .filter(y => !isNaN(y));
+
+        const result = scoreQuery(queryText, compYears);
+        setQueryScore(result);
+    }
 
     return (
         <TabPanel>
@@ -140,8 +218,20 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                 ))}
             </div>
 
-            <RunButton onClick={run} loading={status === 'loading'} label="Generate Package → Download .zip" />
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
+                <RunButton onClick={run} loading={status === 'loading'} label="Generate Package → Download .zip" />
+                <button
+                    className="btn-secondary"
+                    onClick={handleScoreQuery}
+                    disabled={!form.protagonist && !form.synopsis_plot}
+                    style={{ whiteSpace: 'nowrap' }}
+                >
+                    📊 Score My Query
+                </button>
+            </div>
             <StatusBox status={status} onClear={() => setStatus(null)} />
+
+            <QueryScorePanel score={queryScore} />
         </TabPanel>
     )
 }

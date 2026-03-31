@@ -50,7 +50,8 @@ except ImportError:
     RAZORPAY_KEY_ID = ""
     RAZORPAY_KEY_SECRET = ""
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "raw claude novel editor pro" / "author_studio"))
+# TD-1: Use os.path.join for cross-platform compatibility
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'raw claude novel editor pro', 'author_studio'))
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -90,6 +91,14 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth_router)
 app.include_router(format_router)
 app.include_router(ai_router)
+
+
+# ─── Health check ──────────────────────────────────────────────────────────────
+@app.get("/api/health", tags=["System"])
+async def health():
+    """Health check endpoint for warmup pings and uptime monitoring."""
+    return {"status": "ok", "version": "2.0.0"}
+
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 ALLOWED_ORIGINS = [
@@ -192,20 +201,19 @@ async def _shutdown():
 # RAZORPAY PAYMENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Plan amounts in paise (₹1 = 100 paise)
-# Using INR equivalents:  $19 ≈ ₹1,599  |  $49 ≈ ₹4,099
+# FIX-6: Plan amounts in paise (₹1 = 100 paise) — Indian market pricing
 PLAN_AMOUNTS = {
-    "studio_monthly":    159900,   # ₹1,599
-    "studio_annual":    1599900,   # ₹15,999  (≈ $19 × 10 months, 2 free)
-    "publisher_monthly":  409900,  # ₹4,099
-    "publisher_annual":  4099900,  # ₹40,999  (≈ $49 × 10 months, 2 free)
+    "pro_monthly":     29900,   # ₹299
+    "pro_annual":     249900,   # ₹2,499
+    "studio_monthly":  59900,   # ₹599
+    "studio_annual":  499900,   # ₹4,999
 }
 
 PLAN_LABELS = {
-    "studio_monthly": "Studio — Monthly",
-    "studio_annual": "Studio — Annual",
-    "publisher_monthly": "Publisher — Monthly",
-    "publisher_annual": "Publisher — Annual",
+    "pro_monthly":    "Pro Monthly",
+    "pro_annual":     "Pro Annual",
+    "studio_monthly": "Studio Monthly",
+    "studio_annual":  "Studio Annual",
 }
 
 

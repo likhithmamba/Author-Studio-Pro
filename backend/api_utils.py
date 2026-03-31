@@ -13,7 +13,8 @@ logger = logging.getLogger("author-studio-api")
 # ─── API key auth ─────────────────────────────────────────────────────────────
 bearer = HTTPBearer(auto_error=False)
 
-def require_api_key(
+# TD-2: Renamed to require_auth (more accurate name — verifies JWT, not API key)
+def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(bearer),
 ):
     configured = os.getenv("API_KEY", "")
@@ -23,6 +24,9 @@ def require_api_key(
         ):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return credentials
+
+# Backwards-compatible alias
+require_api_key = require_auth
 
 # ─── File limits ──────────────────────────────────────────────────────────────
 MAX_MB   = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
