@@ -116,7 +116,7 @@ export async function formatManuscript({ file, author, title, templateKey, overr
 export async function analyseManuscript({ file, genre, useAI, aiModel }) {
     const form = new FormData()
     form.append('file', file)
-    form.append('genre', genre || 'literary')
+    form.append('genre', genre || 'literary_fiction')
     form.append('use_ai', String(useAI || false))
 
     const localKey = loadApiKey(getDeviceFingerprint()) || ''
@@ -240,11 +240,33 @@ export async function analyseText({ rawText, chapters, totalWords, genre, useAI,
             raw_text: rawText,
             chapters,
             total_words: totalWords,
-            genre: genre || 'literary',
+            genre: genre || 'literary_fiction',
             use_ai: useAI || false,
             api_key: apiKey || '',
             ai_model: aiModel || 'deepseek/deepseek-chat:free',
         }),
     })
+}
+
+export async function formatText({ author, title, templateKey, overrides, chapters }) {
+    const { blob, headers } = await fetchBlob('/format-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            author,
+            title,
+            template_key: templateKey || 'us_standard',
+            overrides: overrides || {},
+            chapters,
+        }),
+    })
+
+    return {
+        blob,
+        filename: _extractFilename(headers, 'editor_export.docx'),
+        wordCount: parseInt(headers.get('x-word-count') || '0'),
+        warnings: JSON.parse(headers.get('x-warnings') || '[]'),
+        templateApplied: headers.get('x-template-applied'),
+    }
 }
 

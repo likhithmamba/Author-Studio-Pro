@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { HiOutlineDocumentText } from 'react-icons/hi2'
 import { formatManuscript, downloadBlob } from '../../api.js'
 import { TEMPLATES } from './constants.jsx'
+import { saveManuscript, loadManuscript } from '../../utils/localCache.js'
 import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
 
 export default function FormatTab({ apiKey, aiModel, hasKey }) {
@@ -11,17 +12,34 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [template, setTemplate] = useState('traditional')
     const [useAI, setUseAI] = useState(false)
     const [status, setStatus] = useState(null)   // null | 'loading' | {ok} | {err}
+    const [sharedManuscript, setSharedManuscript] = useState(null)
     const fileRef = useRef()
 
+    React.useEffect(() => {
+        loadManuscript().then(m => {
+            if (m) setSharedManuscript(m)
+        })
+    }, [])
+
     const run = async () => {
-        if (!file || !author.trim() || !title.trim()) {
+        if ((!file && !sharedManuscript) || !author.trim() || !title.trim()) {
             setStatus({ err: 'Please provide the manuscript file, author name, and title.' })
             return
         }
         setStatus('loading')
         try {
+            // If no new file, but we have a shared one, we'll need to create a blob 
+            // since the API expects a file. 
+            let activeFile = file;
+            if (!activeFile && sharedManuscript) {
+                activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
+                activeFile.name = sharedManuscript.filename;
+            }
+
             const result = await formatManuscript({
-                file, author: author.trim(), title: title.trim(),
+                file: activeFile, 
+                author: author.trim(), 
+                title: title.trim(),
                 templateKey: template,
                 useAI: useAI && hasKey,
                 apiKey: useAI ? apiKey : '',
@@ -41,7 +59,23 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                 <p>Upload your <code>.docx</code> manuscript. We'll apply industry-standard formatting (Times New Roman 12pt, double-spaced, running header, title page) and return a submission-ready file.</p>
             </div>
 
-            <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
+            <FileDrop file={file} onFile={(f) => {
+                setFile(f);
+                // Save for other tools
+                // We'd need to parse it here too to save it, but for now just setting it is fine.
+            }} fileRef={fileRef} />
+
+            {sharedManuscript && !file && (
+                <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
+                    📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
+                    <button 
+                        onClick={() => { setSharedManuscript(null); setFile(null); }}
+                        style={{ marginLeft: '1rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
 
             <div className="tool-fields">
                 <Field label="Author Name" required>

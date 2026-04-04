@@ -62,7 +62,7 @@ async def analyse_manuscript(
     GENRES = m["GENRES"]
     use_ai_bool = use_ai.lower() in ("true", "1", "yes")
     if genre not in GENRES:
-        genre = "literary"
+        genre = "literary_fiction"
     genre_name = GENRES[genre].name
 
     inp = None
@@ -215,7 +215,9 @@ async def query_manual(
             email=san(p.get("email", ""), 200),
             phone=san(p.get("phone", ""), 50),
             address=san(p.get("address", ""), 300),
+            website=san(p.get("website", ""), 300),
             bio_credits=san(p.get("bio_credits", ""), 1000),
+            bio_platform=san(p.get("bio_platform", ""), 500),
             comp_1_title=san(p.get("comp_1_title", ""), 200),
             comp_1_author=san(p.get("comp_1_author", ""), 200),
             comp_1_year=san(p.get("comp_1_year", ""), 10),
@@ -227,9 +229,14 @@ async def query_manual(
             inciting_event=san(p.get("inciting_event", ""), 500),
             central_conflict=san(p.get("central_conflict", ""), 500),
             stakes=san(p.get("stakes", ""), 500),
+            theme=san(p.get("theme", ""), 300),
             synopsis_plot=san(p.get("synopsis_plot", ""), 10000),
         )
+    except (TypeError, ValueError, KeyError) as e:
+        logger.error(f"QueryPackageData instantiation failed: {e}")
+        raise HTTPException(400, f"Invalid query data: {e}")
 
+    try:
         zip_bytes = _build_zip(
             m, qdata,
             include_query=bool(p.get("include_query", True)),
@@ -249,8 +256,8 @@ async def query_manual(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("Query manual error")
-        raise HTTPException(500, "Query generation failed due to an internal error.")
+        logger.exception(f"Query manual error: {str(e)}")
+        raise HTTPException(500, f"Query generation failed: {str(e)[:200]}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -329,7 +336,10 @@ async def query_ai(
             email=san(p.get("email", ""), 200),
             phone=san(p.get("phone", ""), 50),
             address=san(p.get("address", ""), 300),
+            website=san(p.get("website", ""), 300),
             bio_credits=san(p.get("bio_credits", ""), 1000),
+            bio_platform=san(p.get("bio_platform", ""), 500),
+            theme=generated.protagonist_summary or "", # Use AI summary as theme
             synopsis_plot=generated.synopsis_draft,
         )
 
@@ -363,9 +373,8 @@ async def query_ai(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("AI query error")
-        bg.add_task(rm, inp)
-        raise HTTPException(500, "AI query generation failed due to an internal error.")
+        logger.exception(f"AI query error: {str(e)}")
+        raise HTTPException(500, f"AI query generation failed: {str(e)[:200]}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -377,7 +386,7 @@ class AnalyseTextRequest(BaseModel):
     raw_text: str
     chapters: list  # [{title, paragraphs, word_count}, ...]
     total_words: int
-    genre: str = "literary"
+    genre: str = "literary_fiction"
     use_ai: bool = False
     api_key: str = ""
     ai_model: str = "deepseek/deepseek-chat:free"
@@ -400,7 +409,7 @@ async def analyse_text(request: Request, body: AnalyseTextRequest):
 
     m = _mods()
     GENRES = m["GENRES"]
-    genre = body.genre if body.genre in GENRES else "literary"
+    genre = body.genre if body.genre in GENRES else "literary_fiction"
     genre_name = GENRES[genre].name
 
     try:
@@ -410,14 +419,32 @@ async def analyse_text(request: Request, body: AnalyseTextRequest):
         for ch in body.chapters:
             title = ch.get("title", "Chapter")
             paragraphs = ch.get("paragraphs", [])
-            parsed.append(ParsedParagraph(type=PARA_CHAPTER, text=title))
+            # 1. Add chapter heading
+            parsed.append(ParsedParagraph(
+                index=len(parsed),
+                raw=title,
+                cleaned=title,
+                ptype=PARA_CHAPTER,
+                issues=[]
+            ))
+            # 2. Add chapter paragraphs
             for para in paragraphs:
                 if para and para.strip():
-                    parsed.append(ParsedParagraph(type=PARA_BODY, text=para.strip()))
+                    parsed.append(ParsedParagraph(
+                        index=len(parsed),
+                        raw=para.strip(),
+                        cleaned=para.strip(),
+                        ptype=PARA_BODY
+                        # issues defaults to []
+                    ))
 
         # Run structural analysis
-        analyzer = m["ManuscriptAnalyzer"]()
-        report = analyzer.analyse(parsed)
+        try:
+            analyzer = m["ManuscriptAnalyzer"]()
+            report = analyzer.analyse(parsed)
+        except Exception as e:
+            logger.exception("Structural analysis error")
+            raise HTTPException(500, f"Structural analysis failed: {str(e)[:200]}")
 
         r, s, p = report.readability, report.style, report.pacing
         result = {

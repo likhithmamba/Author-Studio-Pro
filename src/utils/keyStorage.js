@@ -2,24 +2,39 @@ import CryptoJS from 'crypto-js';
 
 // Generate a somewhat stable device fingerprint based on available browser APIs
 export function getDeviceFingerprint() {
-    const { userAgent, language, hardwareConcurrency, deviceMemory } = navigator;
-    const screenColors = screen.colorDepth;
-    const screenRes = `${screen.width}x${screen.height}`;
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+        // To prevent API key decryption failure due to minor browser property changes 
+        // (like hardwareConcurrency or deviceMemory which can fluctuate), 
+        // we use a persistent random salt stored in localStorage.
+        let salt = localStorage.getItem('device_fingerprint_salt');
+        if (!salt) {
+            // Generate a secure random salt once and persist it
+            salt = CryptoJS.lib.WordArray.random(32).toString();
+            localStorage.setItem('device_fingerprint_salt', salt);
+        }
 
-    const rawFingerprint = `${userAgent}|${language}|${hardwareConcurrency}|${deviceMemory}|${screenColors}|${screenRes}|${timezone}`;
+        const { userAgent } = navigator;
+        const rawFingerprint = [userAgent, salt].join('|');
 
-    // Hash the fingerprint to create a standard length key
-    return CryptoJS.SHA256(rawFingerprint).toString();
+        const hash = CryptoJS.SHA256(rawFingerprint).toString();
+        return hash;
+    } catch (e) {
+        console.error("[Fingerprint] Failed:", e);
+        return "stable-fallback-v1";
+    }
 }
 
 export function saveApiKey(apiKey, fingerprint) {
     if (!apiKey) return;
     try {
+        console.log("[KeyStorage] Encrypting with fingerprint:", fingerprint.substring(0, 8) + "...");
         const encrypted = CryptoJS.AES.encrypt(apiKey, fingerprint).toString();
+        console.log("[KeyStorage] Encrypted length:", encrypted.length);
         localStorage.setItem('encrypted_api_key', encrypted);
+        console.log("[KeyStorage] Saved to localStorage");
     } catch (e) {
-        console.error("Failed to encrypt API key", e);
+        console.error("[KeyStorage] Encryption/Save failed:", e);
+        throw e; // Rethrow to let UI catch it
     }
 }
 
@@ -51,5 +66,5 @@ export function saveApiProvider(provider) {
 }
 
 export function getApiProvider() {
-    return localStorage.getItem('api_provider') || 'OpenAI';
+    return localStorage.getItem('api_provider') || 'OpenRouter';
 }

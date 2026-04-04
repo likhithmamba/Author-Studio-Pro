@@ -12,9 +12,10 @@ import Typography from '@tiptap/extension-typography'
 import {
     HiOutlineBold, HiOutlineItalic, HiOutlineArrowUturnLeft,
     HiOutlineArrowUturnRight, HiOutlineSparkles, HiOutlineEyeSlash,
-    HiOutlineEye, HiOutlineListBullet,
+    HiOutlineEye, HiOutlineListBullet, HiOutlineArrowDownTray
 } from 'react-icons/hi2'
 import { continueScene, rewriteParagraph, suggestNames } from './editorAI.js'
+import { formatText, downloadBlob } from '../../api.js'
 import './EditorLayout.css'
 
 export default function NovelEditor({
@@ -28,10 +29,15 @@ export default function NovelEditor({
     onToggleFocus,
     lastSaved,
     saving,
+    projectTitle,
+    projectAuthor,
+    allChapters = []
 }) {
     const [aiLoading, setAiLoading] = useState(false)
     const [aiResult, setAiResult] = useState(null)
     const [showAiMenu, setShowAiMenu] = useState(false)
+    const [showExportMenu, setShowExportMenu] = useState(false)
+    const [exportLoading, setExportLoading] = useState(false)
 
     const editor = useEditor({
         extensions: [
@@ -129,6 +135,50 @@ export default function NovelEditor({
 
     const dismissAI = () => setAiResult(null)
 
+    // Export Handlers
+    const exportAsText = () => {
+        const title = editor.storage.heading?.level === 1 ? editor.state.doc.firstChild?.[0].content.content[0].text : 'Chapter'
+        const text = editor.getText();
+        const blob = new Blob([text], { type: 'text/plain' });
+        downloadBlob(blob, `${projectTitle || 'Manuscript'}_Chapter.txt`);
+        setShowExportMenu(false);
+    }
+
+    const exportAsMarkdown = () => {
+        // Very basic conversion: p to \n\n, h1 to #
+        let md = `# ${projectTitle || 'Untitled Novel'}\n\n`;
+        editor.state.doc.forEach((node) => {
+            if (node.type.name === 'heading') md += `${'#'.repeat(node.attrs.level)} ${node.textContent}\n\n`;
+            else if (node.type.name === 'paragraph') md += `${node.textContent}\n\n`;
+        });
+        const blob = new Blob([md], { type: 'text/markdown' });
+        downloadBlob(blob, `${projectTitle || 'Manuscript'}_Chapter.md`);
+        setShowExportMenu(false);
+    }
+
+    const exportAsDocx = async () => {
+        setExportLoading(true);
+        try {
+            // Get all chapters for a full export, or just current
+            const chapters = allChapters.map(ch => ({
+                title: ch.title,
+                paragraphs: ch.content.replace(/<[^>]*>/g, '\n').split('\n').filter(Boolean)
+            }));
+
+            const result = await formatText({
+                author: projectAuthor || 'Anonymous',
+                title: projectTitle || 'Untitled Novel',
+                chapters: chapters
+            });
+            downloadBlob(result.blob, result.filename);
+        } catch (err) {
+            alert("Export failed: " + err.message);
+        } finally {
+            setExportLoading(false);
+            setShowExportMenu(false);
+        }
+    }
+
     if (!editor) return null
 
     return (
@@ -193,6 +243,26 @@ export default function NovelEditor({
                             )}
                         </div>
                     )}
+
+                    <div className="editor-tb-divider" />
+
+                    <div className="editor-ai-menu-wrap">
+                        <button
+                            className={`editor-tb-btn ${showExportMenu ? 'active' : ''}`}
+                            onClick={() => setShowExportMenu(!showExportMenu)}
+                            disabled={exportLoading}
+                            title="Export"
+                        >
+                            <HiOutlineArrowDownTray /> {exportLoading ? '...' : ''}
+                        </button>
+                        {showExportMenu && (
+                            <div className="editor-ai-dropdown" style={{ right: 0, left: 'auto' }}>
+                                <button onClick={exportAsDocx}>📄 Professional .docx</button>
+                                <button onClick={exportAsMarkdown}>📝 Markdown .md</button>
+                                <button onClick={exportAsText}>🔡 Plain Text .txt</button>
+                            </div>
+                        )}
+                    </div>
 
                     <button
                         className={`editor-tb-btn ${focusMode ? 'active' : ''}`}

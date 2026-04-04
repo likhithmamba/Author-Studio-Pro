@@ -3,7 +3,10 @@ import { HiOutlineBeaker } from 'react-icons/hi2'
 import { analyseText } from '../../api.js'
 import { parseDocx } from '../../utils/docxParser.js'
 import { getOptimalModel } from '../../utils/modelStrategy.js'
-import { saveAnalysisResult, loadAnalysisResult } from '../../utils/localCache.js'
+import { 
+    saveAnalysisResult, loadAnalysisResult, 
+    saveManuscript, loadManuscript 
+} from '../../utils/localCache.js'
 import { detectCliches } from '../../utils/analysis/clicheDetector.js'
 import { auditOpening } from '../../utils/analysis/openingAudit.js'
 import { analyzeHooks } from '../../utils/analysis/hookAnalyzer.js'
@@ -18,29 +21,45 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
     const [status, setStatus] = useState(null)
     const [result, setResult] = useState(null)
     const [localAnalysis, setLocalAnalysis] = useState(null)
+    const [sharedManuscript, setSharedManuscript] = useState(null)
     const fileRef = useRef()
 
     // Cache restore on mount
     useEffect(() => {
+        loadManuscript().then(m => {
+            if (m) setSharedManuscript(m)
+        })
+
         if (currentProjectId) {
             loadAnalysisResult(currentProjectId).then(cached => {
                 if (cached) {
                     setResult(cached)
-                    setStatus({ ok: 'Showing previous analysis. Upload a file to re-analyse.' })
+                    setStatus({ ok: 'Showing previous analysis. Upload or use cached manuscript to re-analyse.' })
                 }
             }).catch(() => {})
         }
     }, [currentProjectId])
 
     const run = async () => {
-        if (!file) { setStatus({ err: 'Upload a manuscript file.' }); return }
+        if (!file && !sharedManuscript) { setStatus({ err: 'Please upload a manuscript file or use a cached one.' }); return }
         setStatus('loading')
         setResult(null)
         setLocalAnalysis(null)
 
         // Step 1: parse in browser
-        const parsed = await parseDocx(file)
-        if (parsed.error) { setStatus({ err: parsed.error }); return }
+        let parsed;
+        if (!file && sharedManuscript) {
+            parsed = sharedManuscript.parsed;
+        } else {
+            parsed = await parseDocx(file)
+            if (parsed.error) { setStatus({ err: parsed.error }); return }
+            // Save for other tools
+            saveManuscript({ 
+                filename: file.name, 
+                parsed, 
+                wordCount: parsed.totalWords 
+            }).catch(() => {});
+        }
 
         // Step 2: send text to backend
         try {
@@ -76,7 +95,8 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
                 })
             })
         } catch (e) {
-            setStatus({ err: e.detail || e.message || 'Analysis failed.' })
+            console.error('[AnalyseTab] Analysis failed:', e)
+            setStatus({ err: e.detail || e.message || 'Analysis failed. Please try again.' })
         }
     }
 
@@ -88,6 +108,18 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
             </div>
 
             <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
+            
+            {sharedManuscript && !file && (
+                <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
+                    📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
+                    <button 
+                        onClick={() => { setSharedManuscript(null); setFile(null); }}
+                        style={{ marginLeft: '1rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
 
             <div className="tool-fields">
                 <Field label="Genre">
@@ -105,7 +137,12 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
                 desc="3–4 API calls. Reads opening, midpoint, and closing sections; produces narrative editorial feedback with specific quotes."
             />
 
-            <RunButton onClick={run} loading={status === 'loading'} label="Analyse Manuscript →" />
+            <RunButton 
+                onClick={run} 
+                loading={status === 'loading'} 
+                label={file ? "Analyse Uploaded File →" : sharedManuscript ? "Analyse Cached Manuscript →" : "Analyse Manuscript →"} 
+                disabled={!file && !sharedManuscript}
+            />
             <StatusBox status={status} onClear={() => setStatus(null)} />
 
             {result && <AnalysisResults data={result} />}

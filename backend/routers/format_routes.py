@@ -7,6 +7,7 @@ import tempfile
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 
+from pydantic import BaseModel
 from rate_limiter import limiter
 from api_utils import (
     require_api_key, san, rm, _mods, _parse_upload
@@ -190,3 +191,74 @@ async def format_manuscript(
         bg.add_task(rm, inp)
         bg.add_task(rm, out)
         raise HTTPException(500, "Formatting failed due to an internal error.")
+
+class FormatTextRequest(BaseModel):
+    author: str
+    title: str
+    template_key: str = "us_standard"
+    overrides: dict = {}
+    chapters: list  # [{title, paragraphs}, ...]
+
+@router.post("/api/format-text", tags=["Format"])
+@limiter.limit("10/minute")
+async def format_text(request: Request, bg: BackgroundTasks, body: FormatTextRequest):
+    """
+    Format pre-extracted text from the editor → download a perfectly formatted .docx.
+    """
+    m = _mods()
+    author = san(body.author, 200)
+    title  = san(body.title, 300)
+    
+    try:
+        from parser import ParsedParagraph, PARA_CHAPTER, PARA_BODY
+        parsed = []
+        for ch in body.chapters:
+            title_text = ch.get("title", "Chapter")
+            paragraphs = ch.get("paragraphs", [])
+            parsed.append(ParsedParagraph(index=len(parsed), raw=title_text, cleaned=title_text, ptype=PARA_CHAPTER))
+            for para in paragraphs:
+                if para and para.strip():
+                    parsed.append(ParsedParagraph(index=len(parsed), raw=para.strip(), cleaned=para.strip(), ptype=PARA_BODY))
+
+        TEMPLATES = m["TEMPLATES"]
+        template_key = body.template_key
+        if template_key not in TEMPLATES:
+            template_key = "us_standard"
+            
+        tpl = copy.deepcopy(TEMPLATES[template_key])
+        ov = body.overrides
+        if ov.get("font"):    tpl.font_name    = ov["font"]
+        if ov.get("size"):    tpl.font_size_pt = int(ov["size"])
+        if ov.get("spacing"): tpl.line_spacing  = ov["spacing"]
+        if ov.get("page"):    tpl.page_size     = ov["page"]
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
+            out = f.name
+
+        # Calculate word count for cover page
+        word_count = sum(len(p.cleaned.split()) for p in parsed if p.ptype == PARA_BODY)
+        
+        fmt = m["NovelFormatter"](tpl, author=author, title=title, word_count=word_count)
+        _, warnings = fmt.build(parsed, out)
+
+        safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:50]
+        filename   = f"{safe_title}_editor_export.docx"
+
+        with open(out, "rb") as f:
+            content = f.read()
+
+        bg.add_task(rm, out)
+
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Word-Count":        str(word_count),
+                "X-Warnings":          json.dumps(warnings[:10]),
+                "X-Template-Applied":  template_key,
+            },
+        )
+    except Exception as e:
+        logger.exception(f"Format text error: {str(e)}")
+        raise HTTPException(500, f"Formatting failed: {str(e)[:200]}")

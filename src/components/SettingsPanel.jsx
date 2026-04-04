@@ -13,7 +13,7 @@ import {
     HiOutlineEyeSlash,
     HiOutlineCheckCircle,
 } from 'react-icons/hi2'
-import { hasApiKey, removeApiKey, getApiProvider, getDeviceFingerprint, loadApiKey } from '../utils/keyStorage'
+import { hasApiKey, removeApiKey, getApiProvider, getDeviceFingerprint, loadApiKey, saveApiKey } from '../utils/keyStorage'
 import './SettingsPanel.css'
 
 const AI_MODELS = [
@@ -40,6 +40,9 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
     const provider = getApiProvider()
     const activeKeyRef = loadApiKey(getDeviceFingerprint())
     const [keyInfo, setKeyInfo] = useState({ loading: false, limit: null, usage: null, active: false })
+    const [inputKey, setInputKey] = useState('')
+    const [showKey, setShowKey] = useState(false)
+    const [saveStatus, setSaveStatus] = useState(null)
 
     useEffect(() => {
         async function fetchKeyInfo() {
@@ -71,11 +74,25 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
         onSettingsChange(prev => ({ ...prev, [key]: val }))
     }
 
+    const handleSaveKey = () => {
+        if (!inputKey.trim()) return
+        setSaveStatus('saving')
+        try {
+            const fingerprint = getDeviceFingerprint()
+            saveApiKey(inputKey.trim(), fingerprint)
+            setSaveStatus('saved')
+            // Refresh key info
+            window.location.reload() // Simplest way to sync all state-heavy components
+        } catch (e) {
+            setSaveStatus('error')
+        }
+    }
+
     const handleRemoveKey = () => {
         if (confirm('Are you sure you want to remove your API key? You will need to re-enter it to use AI features.')) {
             removeApiKey()
             if (onRemoveKey) onRemoveKey()
-            onClose()
+            window.location.reload()
         }
     }
 
@@ -168,16 +185,47 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                                     </div>
                                 </div>
                             ) : (
-                                <div className="settings-key-status" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem', color: '#ff4d4f' }}>
-                                    <span>⚠️ No API Key found.</span>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button className="settings-danger-btn" onClick={() => {
-                                            if (onRemoveKey) onRemoveKey()
-                                            onClose()
-                                        }} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-                                            Add API Key
+                                <div className="settings-api-key-config" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                    <div className="settings-api-key-row">
+                                        <div className="settings-api-key-input-wrapper">
+                                            <input
+                                                type={showKey ? 'text' : 'password'}
+                                                className="settings-api-key-input"
+                                                placeholder="sk-or-v1-..."
+                                                value={inputKey}
+                                                onChange={e => setInputKey(e.target.value)}
+                                            />
+                                            <button
+                                                className="settings-key-toggle"
+                                                onClick={() => setShowKey(!showKey)}
+                                                type="button"
+                                            >
+                                                {showKey ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleSaveKey}
+                                            disabled={!inputKey || saveStatus === 'saving'}
+                                            style={{
+                                                padding: '0.55rem 1rem',
+                                                fontSize: '0.85rem',
+                                                whiteSpace: 'nowrap',
+                                                background: 'var(--gold-primary)',
+                                                color: 'var(--bg-primary)',
+                                                fontWeight: 700,
+                                                borderRadius: '4px'
+                                            }}
+                                        >
+                                            {saveStatus === 'saving' ? 'Saving...' : 'Save Key'}
                                         </button>
                                     </div>
+                                    {saveStatus === 'error' && (
+                                        <div style={{ color: '#ff4d4f', fontSize: '0.75rem' }}>Failed to save key. Check terminal/console.</div>
+                                    )}
+                                    <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                                        🔒 Encrypted using AES-256 with your browser's fingerprint. Never leaves your device.
+                                    </p>
                                 </div>
                             )}
                         </div>

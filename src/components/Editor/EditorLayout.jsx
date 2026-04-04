@@ -31,6 +31,7 @@ function createDefaultProject() {
     const ch1Id = `ch_${Date.now()}`
     return {
         id: `project_${Date.now()}`,
+        author: 'Jane Doe',
         title: 'Untitled Novel',
         targetWords: 80000,
         chapters: [
@@ -177,6 +178,15 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                                     style={{ width: '120px', marginLeft: '0.5rem' }}
                                 />
                             </label>
+                            <label style={{ fontSize: '0.85rem' }}>
+                                Author Name:
+                                <input
+                                    className="tool-input"
+                                    value={project.author}
+                                    onChange={e => setProject(prev => ({ ...prev, author: e.target.value }))}
+                                    style={{ width: '200px', marginLeft: '0.5rem' }}
+                                />
+                            </label>
                         </div>
                     </div>
                 )}
@@ -201,6 +211,9 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                     onToggleFocus={() => setFocusMode(!focusMode)}
                     lastSaved={lastSaved}
                     saving={saving}
+                    projectTitle={project.title}
+                    projectAuthor={project.author}
+                    allChapters={project.chapters}
                 />
             </div>
         </div>

@@ -125,6 +125,20 @@ export async function clearProjectCache(projectId) {
     }
 }
 
+// ─── Shared Manuscript ───────────────────────────────────────────────────────
+export async function saveManuscript(data) {
+    // data: { filename, parsed, wordCount, lastUploaded }
+    await safeSet('shared_manuscript', { 
+        ...data, 
+        lastUploaded: new Date().toISOString() 
+    });
+}
+
+export async function loadManuscript() {
+    const cached = await safeGet('shared_manuscript');
+    return cached || null;
+}
+
 // ─── Cache Size ─────────────────────────────────────────────────────────────
 export async function getCacheSize() {
     const allEntries = await safeEntries();

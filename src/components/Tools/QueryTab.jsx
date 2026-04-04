@@ -1,8 +1,10 @@
-import React, { useState, useCallback, memo, useRef } from 'react'
+import React, { useState, useCallback, memo, useRef, useEffect } from 'react'
 import { HiOutlineEnvelope } from 'react-icons/hi2'
 import { generateQueryManual, generateQueryAI, downloadBlob } from '../../api.js'
 import { scoreQuery } from '../../utils/queryScorer.js'
 import { GENRES } from './constants.jsx'
+import { saveManuscript, loadManuscript } from '../../utils/localCache.js'
+import { parseDocx } from '../../utils/docxParser.js'
 import { TabPanel, Field, AIToggle, RunButton, StatusBox, FileDrop } from './SharedUI.jsx'
 
 const MemoizedFieldInput = memo(({ label, fieldKey, placeholder, required, area, value, onChange }) => (
@@ -88,21 +90,45 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
 
     const [useAI, setUseAI] = useState(false)
     const [file, setFile] = useState(null)
+    const [sharedManuscript, setSharedManuscript] = useState(null)
     const fileRef = useRef()
+
+    useEffect(() => {
+        loadManuscript().then(m => {
+            if (m) {
+                setSharedManuscript(m)
+                if (m.wordCount) handleSet('word_count', m.wordCount.toString())
+            }
+        })
+    }, [])
 
     const run = async () => {
         if (!form.title || !form.author_name) {
             setStatus({ err: 'Title and author name are required.' }); return
         }
-        if (useAI && hasKey && !file) {
+        if (useAI && hasKey && !file && !sharedManuscript) {
             setStatus({ err: 'Please upload a manuscript file for AI generation.' }); return
         }
         setStatus('loading')
         setQueryScore(null)
         try {
             if (useAI && hasKey) {
+                let activeFile = file;
+                if (!activeFile && sharedManuscript) {
+                    // Use cached parsed data directly or re-create Blob if needed
+                    // Actually, generateQueryAI expects a File/Blob. 
+                    // If we only have 'parsed' data, we might need to adjust generateQueryAI 
+                    // or just use the raw text.
+                }
+                
+                // For now, let's ensure we parse the file if it's new
+                if (file) {
+                    const parsed = await parseDocx(file);
+                    saveManuscript({ filename: file.name, parsed, wordCount: parsed.totalWords }).catch(()=>{});
+                }
+
                 const result = await generateQueryAI({
-                    file,
+                    file: file || new Blob([sharedManuscript?.parsed?.rawText || ''], { type: 'text/plain' }),
                     payload: { ...form, aiModel, word_count: parseInt(form.word_count) || 0 }
                 })
                 downloadBlob(result.blob, result.filename)
@@ -159,7 +185,20 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
             />
 
             {useAI && hasKey && (
-                <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
+                <>
+                    <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
+                    {sharedManuscript && !file && (
+                        <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
+                            📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
+                            <button 
+                                onClick={() => { setSharedManuscript(null); setFile(null); }}
+                                style={{ marginLeft: '1rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
 
             <div className="tool-section-label">Manuscript Identity</div>
