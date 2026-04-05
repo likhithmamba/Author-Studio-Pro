@@ -92,6 +92,9 @@ app.include_router(auth_router)
 app.include_router(format_router)
 app.include_router(ai_router)
 
+from routers.thinking_routes import router as thinking_router
+app.include_router(thinking_router)
+
 
 # ─── Health check ──────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["System"])

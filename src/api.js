@@ -270,3 +270,111 @@ export async function formatText({ author, title, templateKey, overrides, chapte
     }
 }
 
+
+// ─── Thinking Layer API  ──────────────────────────────────────────────────
+
+function _authHeaders(token) {
+    return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+export async function getThinkingCaptures(projectId, token) {
+    const url = projectId ? `/thinking/captures?project_id=${projectId}` : '/thinking/captures'
+    return fetchJSON(url, { headers: _authHeaders(token) })
+}
+
+export async function createThinkingCapture(data, token) {
+    return fetchJSON('/thinking/captures', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteThinkingCapture(id, token) {
+    return fetchJSON(`/thinking/captures/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function getIdeas(projectId, token) {
+    return fetchJSON(`/thinking/ideas/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function createIdea(data, token) {
+    return fetchJSON('/thinking/ideas', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function updateIdea(id, data, token) {
+    return fetchJSON(`/thinking/ideas/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteIdea(id, token) {
+    return fetchJSON(`/thinking/ideas/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function createIdeaConnection(data, token) {
+    return fetchJSON('/thinking/connections', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function getWhatIfs(projectId, token) {
+    return fetchJSON(`/thinking/whatifs/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function createWhatIf(data, token) {
+    return fetchJSON('/thinking/whatifs', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function updateWhatIf(id, data, token) {
+    return fetchJSON(`/thinking/whatifs/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteWhatIf(id, token) {
+    return fetchJSON(`/thinking/whatifs/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function getThreads(projectId, token) {
+    return fetchJSON(`/thinking/threads/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function createThread(data, token) {
+    return fetchJSON('/thinking/threads', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function updateThread(id, data, token) {
+    return fetchJSON(`/thinking/threads/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteThread(id, token) {
+    return fetchJSON(`/thinking/threads/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function getBranches(projectId, token) {
+    return fetchJSON(`/thinking/branches/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function createBranch(data, token) {
+    return fetchJSON('/thinking/branches', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteBranch(id, token) {
+    return fetchJSON(`/thinking/branches/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function createBranchPath(data, token) {
+    return fetchJSON('/thinking/paths', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function updateBranchPath(id, data, token) {
+    return fetchJSON(`/thinking/paths/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
+export async function deleteBranchPath(id, token) {
+    return fetchJSON(`/thinking/paths/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function getGraveyard(projectId, token) {
+    return fetchJSON(`/thinking/graveyard/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function deleteGraveyardItem(id, token) {
+    return fetchJSON(`/thinking/graveyard/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function emptyGraveyard(projectId, token) {
+    return fetchJSON(`/thinking/graveyard/empty/${projectId}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+

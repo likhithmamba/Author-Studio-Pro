@@ -5,10 +5,16 @@ import LandingPage from './components/LandingPage'
 import AppWorkspace from './components/AppWorkspace'
 import SettingsPanel from './components/SettingsPanel'
 import ErrorBoundary from './components/ErrorBoundary'
+import QuickCapture from './components/QuickCapture/QuickCapture'
+import QuickCaptureInbox from './components/QuickCapture/QuickCaptureInbox'
+import GlobalSearch from './components/GlobalSearch/GlobalSearch'
 import './App.css'
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
+    const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
+    const [inboxOpen, setInboxOpen] = useState(false)
+    const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
 
     const [settings, setSettings] = useState(() => {
         try {
@@ -59,6 +65,20 @@ function App() {
         const apiUrl = import.meta.env.VITE_API_URL
         if (apiUrl) {
             fetch(`${apiUrl}/api/health`).catch(() => {})
+        }
+    }, [])
+
+    useEffect(() => {
+        const h1 = () => setQuickCaptureOpen(true);
+        const h2 = () => setGlobalSearchOpen(true);
+        const h3 = () => setInboxOpen(true);
+        window.addEventListener('openQuickCapture', h1);
+        window.addEventListener('openGlobalSearch', h2);
+        window.addEventListener('openInbox', h3);
+        return () => {
+            window.removeEventListener('openQuickCapture', h1);
+            window.removeEventListener('openGlobalSearch', h2);
+            window.removeEventListener('openInbox', h3);
         }
     }, [])
 
@@ -131,6 +151,10 @@ function App() {
                         />
                     )}
                 </AnimatePresence>
+
+                <QuickCapture open={quickCaptureOpen} onClose={() => setQuickCaptureOpen(false)} />
+                <QuickCaptureInbox open={inboxOpen} onClose={() => setInboxOpen(false)} />
+                <GlobalSearch open={globalSearchOpen} onClose={() => setGlobalSearchOpen(false)} />
             </div>
         </ErrorBoundary>
     )

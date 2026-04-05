@@ -14,6 +14,8 @@ import './AppWorkspace.css'
 const FREE_TABS = ['format', 'market', 'submissions']
 const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
 
+import { WritingSystemProvider } from '../contexts/WritingSystemContext'
+
 export default function AppWorkspace({ settings, onSettingsClick, initialTab }) {
     const { user, loading, isSubscribed, subscription, logout } = useAuth()
     const [showAuth, setShowAuth] = useState(false)
@@ -103,65 +105,67 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
     const allowedTabs = PAID_TABS // Local trial override unlocks all tabs
 
     return (
-        <div className="workspace">
-            {/* Workspace navbar */}
-            <header className="workspace-navbar">
-                <div className="workspace-navbar-inner">
-                    <Link to="/" className="workspace-back">
-                        <HiOutlineArrowLeft />
-                        <span>Back to Home</span>
-                    </Link>
-                    <div className="workspace-brand">
-                        <span className="workspace-logo">✦</span>
-                        <span className="workspace-title">Author Studio Pro</span>
-                        {isSubscribed && (
-                            <span className="workspace-plan-badge">
-                                <HiOutlineCheckBadge /> {planLabel.charAt(0).toUpperCase() + planLabel.slice(1)}
-                            </span>
-                        )}
+        <WritingSystemProvider>
+            <div className="workspace">
+                {/* Workspace navbar */}
+                <header className="workspace-navbar">
+                    <div className="workspace-navbar-inner">
+                        <Link to="/" className="workspace-back">
+                            <HiOutlineArrowLeft />
+                            <span>Back to Home</span>
+                        </Link>
+                        <div className="workspace-brand">
+                            <span className="workspace-logo">✦</span>
+                            <span className="workspace-title">Author Studio Pro</span>
+                            {isSubscribed && (
+                                <span className="workspace-plan-badge">
+                                    <HiOutlineCheckBadge /> {planLabel.charAt(0).toUpperCase() + planLabel.slice(1)}
+                                </span>
+                            )}
+                        </div>
+                        <div className="workspace-nav-actions">
+                            <span className="workspace-user-email">{user.email}</span>
+                            <button className="workspace-settings-btn" onClick={onSettingsClick} aria-label="Settings">
+                                <HiOutlineCog6Tooth />
+                            </button>
+                            <button className="workspace-logout-btn" onClick={logout} title="Sign out">
+                                <HiOutlineArrowRightOnRectangle />
+                            </button>
+                        </div>
                     </div>
-                    <div className="workspace-nav-actions">
-                        <span className="workspace-user-email">{user.email}</span>
-                        <button className="workspace-settings-btn" onClick={onSettingsClick} aria-label="Settings">
-                            <HiOutlineCog6Tooth />
-                        </button>
-                        <button className="workspace-logout-btn" onClick={logout} title="Sign out">
-                            <HiOutlineArrowRightOnRectangle />
-                        </button>
-                    </div>
-                </div>
-            </header>
+                </header>
 
-            {/* Free tier upgrade banner */}
-            {false && (
-                <motion.div
-                    className="workspace-upgrade-banner"
-                    initial={{ opacity: 0, y: -10 }}
+                {/* Free tier upgrade banner */}
+                {false && (
+                    <motion.div
+                        className="workspace-upgrade-banner"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        <span>
+                            <HiOutlineStar /> You're on the <strong>Free plan</strong> — Format and Market are free.
+                        </span>
+                        <Link to="/#pricing" className="workspace-upgrade-link">
+                            Upgrade for AI features →
+                        </Link>
+                    </motion.div>
+                )}
+
+                {/* Main workspace content */}
+                <motion.main
+                    className="workspace-main"
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
                 >
-                    <span>
-                        <HiOutlineStar /> You're on the <strong>Free plan</strong> — Format and Market are free.
-                    </span>
-                    <Link to="/#pricing" className="workspace-upgrade-link">
-                        Upgrade for AI features →
-                    </Link>
-                </motion.div>
-            )}
+                    <Tools settings={settings} allowedTabs={allowedTabs} initialTab={initialTab} />
+                </motion.main>
 
-            {/* Main workspace content */}
-            <motion.main
-                className="workspace-main"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                <Tools settings={settings} allowedTabs={allowedTabs} initialTab={initialTab} />
-            </motion.main>
-
-            {/* Workspace footer */}
-            <footer className="workspace-footer">
-                <p>© {new Date().getFullYear()} Author Studio Pro · Your manuscript never leaves your browser</p>
-            </footer>
-        </div>
+                {/* Workspace footer */}
+                <footer className="workspace-footer">
+                    <p>© {new Date().getFullYear()} Author Studio Pro · Your manuscript never leaves your browser</p>
+                </footer>
+            </div>
+        </WritingSystemProvider>
     )
 }

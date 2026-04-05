@@ -7,8 +7,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar.jsx'
 import NovelEditor from './NovelEditor.jsx'
+import StatusBar from './StatusBar.jsx'
+import ThinkingPanel from '../ThinkingPanel/ThinkingPanel.jsx'
 import { useChapterSave } from './useChapterSave.js'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
+import { useWritingSystem } from '../../contexts/WritingSystemContext.jsx'
 import './EditorLayout.css'
 
 const STORAGE_KEY = 'asp_editor_project'
@@ -47,6 +51,91 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
     const [focusMode, setFocusMode] = useState(false)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
+
+    // Context State
+    const { 
+        setActiveChapterId, 
+        thinkingPanelOpen, setThinkingPanelOpen, 
+        activeThinkingTab, setActiveThinkingTab 
+    } = useWritingSystem();
+
+    // Sync active chapter to global context for panels
+    useEffect(() => {
+        setActiveChapterId(project.activeChapterId);
+    }, [project.activeChapterId, setActiveChapterId]);
+
+    const [panelWidth, setPanelWidth] = useState(() => {
+        try {
+            const w = localStorage.getItem(`asp:project:${project.id}:panelWidth`);
+            return w ? parseInt(w, 10) : 320;
+        } catch { return 320; }
+    });
+    const [userPrefersOpen, setUserPrefersOpen] = useState(true);
+
+    // Persist Panel State
+    useEffect(() => {
+        try {
+            localStorage.setItem(`asp:project:${project.id}:panel`, JSON.stringify({ open: thinkingPanelOpen, activeTab: activeThinkingTab }));
+            if (thinkingPanelOpen) setUserPrefersOpen(true);
+        } catch {}
+    }, [thinkingPanelOpen, activeThinkingTab, project.id]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(`asp:project:${project.id}:panelWidth`, panelWidth);
+        } catch {}
+    }, [panelWidth, project.id]);
+
+    // Viewport Collapse
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 1100) {
+                if (thinkingPanelOpen) {
+                    setThinkingPanelOpen(false);
+                }
+            } else {
+                if (userPrefersOpen && !thinkingPanelOpen) {
+                    setThinkingPanelOpen(true);
+                }
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize();
+        return () => window.removeEventListener('resize', handleResize);
+    }, [userPrefersOpen, thinkingPanelOpen, setThinkingPanelOpen]);
+
+    // Resize Handle Drag
+    const isDraggingRef = useRef(false);
+    const handleResizeDragStart = useCallback((e) => {
+        e.preventDefault();
+        isDraggingRef.current = true;
+        document.body.style.cursor = 'col-resize';
+        
+        const handleDrag = (moveEvent) => {
+            if (!isDraggingRef.current) return;
+            // Calculate width from right edge of window
+            const newWidth = document.body.clientWidth - moveEvent.clientX;
+            if (newWidth >= 260 && newWidth <= 420) {
+                setPanelWidth(newWidth);
+            }
+        };
+        
+        const handleDragEnd = () => {
+            isDraggingRef.current = false;
+            document.body.style.cursor = '';
+            window.removeEventListener('mousemove', handleDrag);
+            window.removeEventListener('mouseup', handleDragEnd);
+        };
+        
+        window.addEventListener('mousemove', handleDrag);
+        window.addEventListener('mouseup', handleDragEnd);
+    }, []);
+
+    useKeyboardShortcuts({
+        onTabSwitch: setActiveThinkingTab,
+        panelOpen: thinkingPanelOpen,
+        setPanelOpen: setThinkingPanelOpen
+    });
 
     // Save project to localStorage whenever it changes
     useEffect(() => { saveProject(project) }, [project])
@@ -199,23 +288,55 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                 )}
 
                 {/* Editor */}
-                <NovelEditor
-                    key={activeChapter?.id}
-                    chapterId={activeChapter?.id}
-                    content={activeChapter?.content || ''}
-                    onChange={handleContentChange}
-                    apiKey={apiKey}
-                    aiModel={aiModel}
-                    hasKey={hasKey}
-                    focusMode={focusMode}
-                    onToggleFocus={() => setFocusMode(!focusMode)}
-                    lastSaved={lastSaved}
-                    saving={saving}
-                    projectTitle={project.title}
-                    projectAuthor={project.author}
-                    allChapters={project.chapters}
-                />
+                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    <NovelEditor
+                        key={activeChapter?.id}
+                        chapterId={activeChapter?.id}
+                        content={activeChapter?.content || ''}
+                        onChange={handleContentChange}
+                        apiKey={apiKey}
+                        aiModel={aiModel}
+                        hasKey={hasKey}
+                        focusMode={focusMode}
+                        onToggleFocus={() => setFocusMode(!focusMode)}
+                        lastSaved={lastSaved}
+                        saving={saving}
+                        projectTitle={project.title}
+                        projectAuthor={project.author}
+                        allChapters={project.chapters}
+                        projectId={project.id}
+                    />
+                </div>
+
+                {!focusMode && activeChapter && (
+                    <StatusBar
+                        chapterName={activeChapter.title}
+                        wordCount={activeChapter.wordCount}
+                        characterCount={activeChapter.content?.replace(/<[^>]*>/g, '').length || 0}
+                        saving={saving}
+                        lastSaved={lastSaved}
+                    />
+                )}
             </div>
+
+            {!focusMode && thinkingPanelOpen && (
+                <div
+                    className="panel-resize-handle"
+                    onMouseDown={handleResizeDragStart}
+                    style={{ width: '4px', cursor: 'col-resize', background: '#2a2a2a', flexShrink: 0, zIndex: 50 }}
+                />
+            )}
+
+            {!focusMode && (
+                <ThinkingPanel
+                    projectId={project.id}
+                    width={thinkingPanelOpen ? panelWidth : 0}
+                    open={thinkingPanelOpen}
+                    onToggleOpen={setThinkingPanelOpen}
+                    activeTab={activeThinkingTab}
+                    onTabChange={setActiveThinkingTab}
+                />
+            )}
         </div>
     )
 }

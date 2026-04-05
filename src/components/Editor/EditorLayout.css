@@ -376,14 +376,12 @@
     flex: 1;
     overflow-y: auto;
     padding: 2rem 3rem;
-    max-width: 800px;
     margin: 0 auto;
     width: 100%;
 }
 
 .focus-mode .editor-writing-area {
     padding: 3rem 4rem;
-    max-width: 700px;
 }
 
 .novel-editor-content {
