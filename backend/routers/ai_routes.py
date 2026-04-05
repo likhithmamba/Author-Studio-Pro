@@ -48,7 +48,7 @@ async def analyse_manuscript(
     request: Request,
     bg: BackgroundTasks,
     file:     UploadFile = File(...),
-    genre:    str = Form(default="literary"),
+    genre:    str = Form(default="literary_fiction"),
     use_ai:   str = Form(default="false"),     # "true"/"false" strings from FormData
     api_key:  str = Form(default=""),          # OpenRouter key
     ai_model: str = Form(default="mistralai/mistral-7b-instruct:free"),
@@ -201,8 +201,8 @@ async def query_manual(
         raise HTTPException(400, "title and author_name are required")
 
     GENRES    = m["GENRES"]
-    genre_id  = p.get("genre", "literary")
-    genre_name = GENRES.get(genre_id, GENRES["literary"]).name
+    genre_id  = p.get("genre", "literary_fiction")
+    genre_name = GENRES.get(genre_id, GENRES["literary_fiction"]).name
 
     try:
         # QueryPackageData.__init__ — all positional/keyword matches the actual source
@@ -293,8 +293,8 @@ async def query_ai(
         raise HTTPException(400, "title and author_name are required")
 
     GENRES    = m["GENRES"]
-    genre_id  = p.get("genre", "literary")
-    genre_name = GENRES.get(genre_id, GENRES["literary"]).name
+    genre_id  = p.get("genre", "literary_fiction")
+    genre_name = GENRES.get(genre_id, GENRES["literary_fiction"]).name
     ai_model  = san(p.get("ai_model", "mistralai/mistral-7b-instruct:free"), 200)
 
     inp = None
