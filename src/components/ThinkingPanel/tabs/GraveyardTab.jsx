@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { HiOutlineArrowUturnLeft, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineArrowUturnLeft, HiOutlineTrash, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 
 export default function GraveyardTab({ projectId }) {
     const [graveyardItems, setGraveyardItems] = useState([
         { id: 'g1', original_table: 'idea_cards', content_snapshot: { title: 'Old Idea', body: 'This was scrapped.' }, deleted_at: new Date(Date.now() - 86400000).toISOString() },
         { id: 'g2', original_table: 'story_branches', content_snapshot: { name: 'Dark ending' }, deleted_at: new Date(Date.now() - 3600000).toISOString() }
     ]);
+    const [showEmptyConfirm, setShowEmptyConfirm] = useState(false);
 
     const restoreItem = (id) => {
-        alert("Restored item back to original location.");
         setGraveyardItems(graveyardItems.filter(item => item.id !== id));
     };
 
@@ -17,9 +17,8 @@ export default function GraveyardTab({ projectId }) {
     };
 
     const emptyGraveyard = () => {
-        if (confirm("Are you sure you want to permanently delete everything in the graveyard?")) {
-            setGraveyardItems([]);
-        }
+        setGraveyardItems([]);
+        setShowEmptyConfirm(false);
     };
 
     return (
@@ -27,13 +26,21 @@ export default function GraveyardTab({ projectId }) {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <span style={{ color: '#6b6560' }}>{graveyardItems.length} items</span>
-                {graveyardItems.length > 0 && (
+                {graveyardItems.length > 0 && !showEmptyConfirm && (
                     <button 
-                        onClick={emptyGraveyard}
+                        onClick={() => setShowEmptyConfirm(true)}
                         style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
                     >
                         Empty Graveyard
                     </button>
+                )}
+                {showEmptyConfirm && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+                        <HiOutlineExclamationTriangle style={{ color: '#ef4444' }} />
+                        <span style={{ color: '#ef4444' }}>Delete all?</span>
+                        <button onClick={emptyGraveyard} style={{ background: '#ef4444', border: 'none', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '11px' }}>Yes</button>
+                        <button onClick={() => setShowEmptyConfirm(false)} style={{ background: 'none', border: '1px solid #555', color: '#aaa', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '11px' }}>No</button>
+                    </div>
                 )}
             </div>
 

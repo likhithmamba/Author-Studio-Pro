@@ -170,6 +170,25 @@ class _DocBuilder:
             run.font.size = self.SIZE
         return para
 
+    def _smart_truncate(self, text: str, word_limit: int) -> str:
+        """Truncates string to a max word limit at the last complete sentence boundary."""
+        if not text: return ""
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        result = []
+        current_words = 0
+        for s in sentences:
+            s_words = len(s.split())
+            if current_words + s_words <= word_limit:
+                result.append(s)
+                current_words += s_words
+            else:
+                break
+        if not result and sentences:
+            words = text.split()
+            return " ".join(words[:word_limit]) + "..."
+        return " ".join(result)
+
 
 # ── Query Letter Builder ──────────────────────────────────────────────────────
 
@@ -290,45 +309,68 @@ class QueryLetterBuilder(_DocBuilder):
         return output_path
 
     def _compose_hook(self, data: QueryPackageData) -> str:
-        if data.protagonist and data.central_conflict:
+        if data.protagonist and data.central_conflict and data.stakes:
+            inc = f" when {data.inciting_event}," if data.inciting_event else ","
             return (
-                f"When {data.protagonist} {data.inciting_event or '[inciting event]'}, "
-                f"they must {data.central_conflict or '[central conflict]'} — "
-                f"or {data.stakes or '[stakes: what is lost if they fail]'}."
+                f"{data.protagonist}{inc} must {data.central_conflict} "
+                f"\u2014 or {data.stakes}."
             )
+        if data.protagonist and data.central_conflict:
+            return f"{data.protagonist} must {data.central_conflict}."
+        if data.synopsis_plot and len(data.synopsis_plot.split()) > 10:
+            import re
+            for i, ch in enumerate(data.synopsis_plot):
+                if ch in '.!?' and i > 20:
+                    sentence = data.synopsis_plot[:i+1]
+                    words = sentence.split()
+                    return ' '.join(words[:40]).rstrip('.,') + ('...' if len(words) > 40 else '')
+        genre = data.genre or "Fiction"
         return (
-            f"[Write your hook sentence here. One to two sentences that capture "
-            f"the protagonist, the inciting event, and the central dramatic question. "
-            f"This is the most important sentence in the query — it must compel the agent to read on.]"
+            f"A debut {genre} novel about the collision between personal conviction "
+            f"and impossible circumstance. The complete manuscript is available upon request."
         )
 
     def _compose_plot(self, data: QueryPackageData) -> str:
-        if data.synopsis_plot and len(data.synopsis_plot) > 100:
-            # Use the first 400 chars of the author's synopsis as plot para foundation
-            trimmed = data.synopsis_plot[:500].rsplit(" ", 1)[0]
-            return trimmed + " [Continue: what is the central conflict and what are the stakes?]"
+        if (data.protagonist and data.setting and
+                data.inciting_event and data.central_conflict and data.stakes):
+            return (
+                f"{data.protagonist}, living in {data.setting}, has their world upended "
+                f"when {data.inciting_event}. Forced to {data.central_conflict}, "
+                f"the novel follows their fight through an impossible situation where "
+                f"{data.stakes}."
+            )
+        if data.synopsis_plot and len(data.synopsis_plot.split()) > 50:
+            words = data.synopsis_plot.split()
+            chunk = ' '.join(words[:200])
+            last_break = max(chunk.rfind('.'), chunk.rfind('!'), chunk.rfind('?'))
+            return chunk[:last_break+1] if last_break > 80 else chunk + '...'
+        parts = []
+        if data.protagonist:
+            parts.append(f"{data.protagonist} is at the centre of this story.")
+        if data.setting:
+            parts.append(f"Set in {data.setting}.")
+        if data.central_conflict:
+            parts.append(f"The central conflict: {data.central_conflict}.")
+        if data.stakes:
+            parts.append(f"The stakes: {data.stakes}.")
+        if parts:
+            return ' '.join(parts)
+        genre = data.genre or "Fiction"
         return (
-            f"[Write 3–5 sentences here describing: (1) your protagonist and their "
-            f"situation at the story's opening; (2) the inciting event that disrupts "
-            f"their world; (3) the central conflict and the obstacles they face; "
-            f"(4) the emotional and external stakes. Do not reveal the ending in a query letter.]"
+            f"This {genre} novel follows a protagonist navigating a conflict "
+            f"that forces them to confront who they are and what they stand to lose."
         )
 
     def _compose_bio(self, data: QueryPackageData) -> str:
-        name = data.author_name
+        name = data.author_name or "The author"
         parts = []
         if data.bio_credits:
             parts.append(data.bio_credits)
         if data.bio_platform:
             parts.append(data.bio_platform)
-
         if parts:
             return f"{name} is {'. '.join(parts)}."
-        return (
-            f"{name} [add your publishing credits, relevant professional experience, "
-            f"education, or platform here. If this is your debut novel with no prior "
-            f"credits, simply state: 'This is my debut novel.' Agents do not penalise debut authors.]"
-        )
+        return f"{name} is making their debut with this novel."
 
 
 # ── Synopsis Builder ──────────────────────────────────────────────────────────
@@ -360,19 +402,8 @@ class SynopsisBuilder(_DocBuilder):
                 align=WD_ALIGN_PARAGRAPH.CENTER, single_space=True)
         self._p(doc, "", single_space=True)
 
-        # ── Important convention note ──
-        note = doc.add_paragraph()
-        note.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-        note.paragraph_format.space_after = Pt(12)
-        note_run = note.add_run(
-            "[SYNOPSIS CONVENTION: Write in present tense, third person, "
-            "even if your novel is in first person. The synopsis must reveal "
-            "the ending — agents need to see that the story resolves. "
-            "Delete this instruction before sending.]"
-        )
-        note_run.italic   = True
-        note_run.font.name = self.FONT
-        note_run.font.size = Pt(10)
+        # ── Important convention note — REMOVED from output ──
+        # (Previously shipped instruction text into the user's file — fixed.)
 
         # ── Synopsis body ──
         if data.synopsis_plot:
@@ -393,19 +424,10 @@ class SynopsisBuilder(_DocBuilder):
                 else:
                     self._indent_p(doc, para_text)
         else:
-            # Scaffold
-            length_note = (
-                "approximately 500 words covering: opening situation → inciting event → "
-                "rising action → midpoint → darkest moment → climax → resolution"
-                if pages == 1 else
-                "approximately 1,200 words covering all major plot beats, character arcs, "
-                "and subplot threads, with the ending revealed in full"
-            )
             self._p(doc,
-                    f"[Write your synopsis here ({length_note}). "
-                    f"Paste your full plot summary — this template will format it correctly. "
-                    f"Character names should appear in CAPS on first mention only.]",
-                    italic=True, single_space=False)
+                "[Synopsis to be supplied — write the full plot in present tense, "
+                "third person, including the ending. Approximately 500 words.]",
+                italic=True)
 
         doc.save(output_path)
         return output_path
@@ -486,10 +508,8 @@ class BackMatterBuilder(_DocBuilder):
                 bold=True, single_space=True, space_after=Pt(24))
 
         bio = bio_long or (
-            f"{data.author_name} [write your author biography here — 100 to 200 words. "
-            f"Include where you live, any relevant professional background, previous publications, "
-            f"and a line about your personal life or interests that humanises you to the reader. "
-            f"Write in third person.]"
+            f"{data.author_name} is making their debut with this novel. "
+            f"[Expand with location, professional background, and one personal detail — 100 words, third person.]"
         )
 
         # Split into paragraphs
@@ -510,6 +530,36 @@ class BackMatterBuilder(_DocBuilder):
 
 # ── Convenience: Build Complete Package ──────────────────────────────────────
 
+def _write_ai_letter(letter_text: str, data: QueryPackageData, output_path: str) -> str:
+    """
+    Writes a fully AI-generated query letter string directly to a .docx.
+    Bypasses QueryLetterBuilder — the AI already wrote every paragraph.
+    """
+    import os
+    builder = QueryLetterBuilder()
+    doc = builder._new_doc()
+
+    for style in doc.styles:
+        if style.name == "Normal":
+            style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+    def sp(text="", bold=False, italic=False, after=Pt(0)):
+        return builder._p(doc, text, bold=bold, italic=italic,
+                          single_space=True, space_after=after)
+
+    # Write each line of the AI letter, preserving blank lines as spacers
+    for line in letter_text.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            sp()  # blank spacer
+        else:
+            is_italic = stripped.startswith("[") and stripped.endswith("]")
+            sp(stripped, italic=is_italic, after=Pt(0))
+
+    doc.save(output_path)
+    return output_path
+
+
 def build_full_package(
     data:           QueryPackageData,
     output_dir:     str,
@@ -517,10 +567,13 @@ def build_full_package(
     include_synopsis_1: bool = True,
     include_synopsis_3: bool = True,
     include_back_matter: bool = True,
+    ai_query_letter: str = "",   # If set, write this AI text directly (bypasses template)
 ) -> Dict[str, str]:
     """
     Generates the complete submission package.
     Returns a dict mapping document type → file path.
+    When ai_query_letter is provided, the query letter file contains the
+    fully AI-written text rather than the template-built version.
     """
     import os
     os.makedirs(output_dir, exist_ok=True)
@@ -530,7 +583,10 @@ def build_full_package(
 
     if include_query:
         path = os.path.join(output_dir, f"{safe}_query_letter.docx")
-        QueryLetterBuilder().build(data, path)
+        if ai_query_letter and ai_query_letter.strip():
+            _write_ai_letter(ai_query_letter, data, path)
+        else:
+            QueryLetterBuilder().build(data, path)
         results["query_letter"] = path
 
     if include_synopsis_1:

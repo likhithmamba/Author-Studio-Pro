@@ -109,6 +109,18 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
         if (useAI && hasKey && !file && !sharedManuscript) {
             setStatus({ err: 'Please upload a manuscript file for AI generation.' }); return
         }
+
+        const hasStoryContent =
+            (form.synopsis_plot || '').trim().length > 50 ||
+            (form.protagonist.trim() && form.central_conflict.trim() && form.stakes.trim())
+
+        if (!hasStoryContent) {
+            setStatus({
+                err: 'Add your synopsis (50+ words) or fill in Protagonist, Central Conflict, and Stakes before generating. Without story content the query letter cannot be personalised to your book.'
+            })
+            return
+        }
+
         setStatus('loading')
         setQueryScore(null)
         try {
@@ -116,12 +128,8 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                 let activeFile = file;
                 if (!activeFile && sharedManuscript) {
                     // Use cached parsed data directly or re-create Blob if needed
-                    // Actually, generateQueryAI expects a File/Blob. 
-                    // If we only have 'parsed' data, we might need to adjust generateQueryAI 
-                    // or just use the raw text.
                 }
                 
-                // For now, let's ensure we parse the file if it's new
                 if (file) {
                     const parsed = await parseDocx(file);
                     saveManuscript({ filename: file.name, parsed, wordCount: parsed.totalWords }).catch(()=>{});
@@ -132,14 +140,14 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                     payload: { ...form, aiModel, word_count: parseInt(form.word_count) || 0 }
                 })
                 downloadBlob(result.blob, result.filename)
-                setStatus({ ok: `✅ AI Package generated! Downloaded as ${result.filename}.` })
+                setStatus({ ok: `✅ AI Package generated! Downloaded as ${result.filename}.`, downloaded: true })
             } else {
                 const result = await generateQueryManual({
                     ...form,
                     word_count: parseInt(form.word_count) || 0,
                 })
                 downloadBlob(result.blob, result.filename)
-                setStatus({ ok: `✅ Package generated! Downloaded as ${result.filename}.` })
+                setStatus({ ok: `✅ Package generated! Downloaded as ${result.filename}.`, downloaded: true })
             }
         } catch (e) {
             setStatus({ err: e.detail || e.message || 'Query generation failed.' })
@@ -258,17 +266,41 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                    {(() => {
+                        const storyFieldsCount = [form.protagonist, form.setting, form.inciting_event, form.central_conflict, form.stakes].filter(v => v && v.trim()).length;
+                        const storyFieldsColor = storyFieldsCount >= 4 ? 'var(--accent-green)' : storyFieldsCount >= 2 ? 'var(--accent-amber)' : 'var(--accent-red)';
+                        return (
+                            <div style={{ fontSize: '0.85rem', color: storyFieldsColor, fontWeight: 500 }}>
+                                {storyFieldsCount} of 5 story fields complete — query letter will be {storyFieldsCount >= 4 ? 'fully' : 'partially'} generated
+                            </div>
+                        )
+                    })()}
+                </div>
                 <RunButton onClick={run} loading={status === 'loading'} label="Generate Package → Download .zip" />
                 <button
                     className="btn-secondary"
                     onClick={handleScoreQuery}
-                    disabled={!form.protagonist && !form.synopsis_plot}
+                    disabled={!form.title || !form.author_name || (!form.protagonist && !form.synopsis_plot)}
+                    title={(!form.title || !form.author_name || (!form.protagonist && !form.synopsis_plot)) ? "Fill in story elements or synopsis to score." : ""}
                     style={{ whiteSpace: 'nowrap' }}
                 >
                     📊 Score My Query
                 </button>
             </div>
             <StatusBox status={status} onClear={() => setStatus(null)} />
+            
+            {status?.downloaded && (
+                <details className="status-box success" style={{ marginTop: '1rem', cursor: 'pointer' }}>
+                    <summary style={{ fontWeight: 600 }}>Before sending your downloaded package...</summary>
+                    <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
+                        <li>✓ Replace [Agent Name] with actual name</li>
+                        <li>✓ Verify word count matches your current draft</li>
+                        <li>✓ Review and personalise the hook sentence</li>
+                        <li>✓ Confirm comp titles are published within last 3 years</li>
+                    </ul>
+                </details>
+            )}
 
             <QueryScorePanel score={queryScore} />
         </TabPanel>

@@ -26,12 +26,13 @@ export default function IdeaCard({
 }) {
     const [isDragging, setIsDragging] = useState(false);
     
-    // Internal state for optimistically driving drag
+    // Live position driven by local state — parent syncs on pointer-up
     const [localX, setLocalX] = useState(x);
     const [localY, setLocalY] = useState(y);
 
-    const dragStartRel = useRef({ x: 0, y: 0 });
+    const dragStart = useRef({ clientX: 0, clientY: 0, baseX: 0, baseY: 0 });
 
+    // Sync from parent only when not dragging
     useEffect(() => {
         if (!isDragging) {
             setLocalX(x);
@@ -40,18 +41,15 @@ export default function IdeaCard({
     }, [x, y, isDragging]);
 
     const handlePointerDown = (e) => {
-        // Prevent pan on canvas
         e.stopPropagation();
-        
+
         if (e.button === 2) {
             onContextMenu(e, id);
             return;
         }
 
         onSelect(id);
-        
-        // Don't drag if we're in connecting mode and tapping on a card to connect TO it
-        // Or if we clicked on the connect handle
+
         if (e.target.closest('.connect-handle')) {
             onConnectStart(id);
             return;
@@ -60,38 +58,23 @@ export default function IdeaCard({
         if (isConnecting) return;
 
         setIsDragging(true);
-        // We need e.clientX/Y to be calculated relative to zoom/pan.
-        // We'll calculate the offset relative to the card's current localX, localY
-        // But since standard React dnd without a complex library can be tricky with zoom,
-        // we emit standard screen events and let the parent handle the scaled delta, 
-        // OR we handle it locally. Handling it in parent is often easier for scaled contexts.
-        
-        // We'll emit onMove on drag end/interval, but parents handle the active dragging.
-        // Let's rely on standard HTML5 Drag & Drop or pointer events.
-        
-        // For simplicity without parent doing everything:
-        dragStartRel.current = {
-            x: e.clientX,
-            y: e.clientY,
-            baseX: localX,
-            baseY: localY
-        };
+        dragStart.current = { clientX: e.clientX, clientY: e.clientY, baseX: localX, baseY: localY };
+        e.currentTarget.setPointerCapture(e.pointerId);
 
         const handlePointerMove = (moveEvent) => {
-            // Need the scale factor here? If component doesn't know scale, it drags 1:1 screen pixels,
-            // which looks wrong when zoomed.
-            // Best to let parent handle the actual delta application if we need perfection,
-            // but for now, we'll request motion from parent.
-            if (onMove) {
-                onMove(id, moveEvent.clientX - dragStartRel.current.x, moveEvent.clientY - dragStartRel.current.y, true);
-            }
+            const dx = moveEvent.clientX - dragStart.current.clientX;
+            const dy = moveEvent.clientY - dragStart.current.clientY;
+            const newX = dragStart.current.baseX + dx;
+            const newY = dragStart.current.baseY + dy;
+            setLocalX(newX);
+            setLocalY(newY);
+            if (onMove) onMove(id, dx, dy, true);
         };
 
         const handleWindowPointerUp = () => {
             setIsDragging(false);
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handleWindowPointerUp);
-            // Parent handles final persist on setIsDragging=false / final onMove
             if (onMove) onMove(id, 0, 0, false);
         };
 
@@ -114,9 +97,8 @@ export default function IdeaCard({
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, id); }}
             style={{
                 position: 'absolute',
-                left: isDragging ? undefined : x, // If parent manages transform, we just use absolute positioning
-                top: isDragging ? undefined : y,
-                transform: isDragging ? `translate(${localX}px, ${localY}px)` : `translate(${x}px, ${y}px)`,
+                left: localX,
+                top: localY,
                 width: width || 220,
                 minHeight: height || 120,
                 backgroundColor: COLORS[color] || COLORS.white,
@@ -128,8 +110,9 @@ export default function IdeaCard({
                 cursor: isDragging ? 'grabbing' : 'grab',
                 userSelect: 'none',
                 overflow: 'hidden',
-                zIndex: selected ? 100 : 10,
+                zIndex: isDragging ? 200 : selected ? 100 : 10,
                 transition: isDragging ? 'none' : 'box-shadow 0.2s',
+                willChange: isDragging ? 'left, top' : 'auto',
             }}
         >
             <div style={{

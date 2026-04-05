@@ -190,7 +190,6 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
 
     const handleDeleteChapter = (id) => {
         if (project.chapters.length <= 1) return
-        if (!confirm('Delete this chapter? This cannot be undone.')) return
         setProject(prev => {
             const newChapters = prev.chapters.filter(ch => ch.id !== id)
             const newActive = prev.activeChapterId === id ? newChapters[0]?.id : prev.activeChapterId

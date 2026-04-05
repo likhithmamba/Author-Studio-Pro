@@ -164,12 +164,10 @@ async def analyse_manuscript(
 # QUERY — Manual mode
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _build_zip(m, qdata, **kwargs) -> bytes:
+def _build_zip(m, qdata, ai_query_letter="", **kwargs) -> bytes:
     """Call build_full_package and bundle the results into a .zip."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        # build_full_package(data, output_dir, include_query, include_synopsis_1,
-        #                    include_synopsis_3, include_back_matter) → Dict[str, str]
-        files = m["build_full_package"](qdata, tmpdir, **kwargs)
+        files = m["build_full_package"](qdata, tmpdir, ai_query_letter=ai_query_letter, **kwargs)
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             for _, path in files.items():
@@ -345,6 +343,7 @@ async def query_ai(
 
         zip_bytes = _build_zip(
             m, qdata,
+            ai_query_letter=generated.query_letter_draft or "",
             include_query=True,
             include_synopsis_1=True,
             include_synopsis_3=False,

@@ -64,6 +64,9 @@ class LearnedPatterns:
     # Regex strings (as strings, not compiled — stored for display/debugging)
     chapter_regexes:     List[str]
     scene_break_regexes: List[str]
+    scene_break_canonical: str = "***"
+    first_para_markers:  List[str] = field(default_factory=list)
+    chapter_epigraph_markers: List[str] = field(default_factory=list)
     # Human-readable summary of what was found
     summary:             str = ""
     # Whether these came from AI or universal fallbacks
@@ -216,6 +219,9 @@ class ManuscriptParser:
             return LearnedPatterns(
                 chapter_regexes=UNIVERSAL_CHAPTER_PATTERNS,
                 scene_break_regexes=UNIVERSAL_SCENE_BREAK_PATTERNS,
+                scene_break_canonical="***",
+                first_para_markers=[],
+                chapter_epigraph_markers=[],
                 summary="Using universal pattern library (no API key provided).",
                 source="universal",
             )
@@ -281,6 +287,9 @@ class ManuscriptParser:
             "{\n"
             '  "chapter_patterns": ["regex1", "regex2"],\n'
             '  "scene_break_patterns": ["regex1", "regex2"],\n'
+            '  "scene_break_canonical": "***",\n'
+            '  "first_para_markers": ["regex1", "regex2"],\n'
+            '  "chapter_epigraph_markers": ["regex1", "regex2"],\n'
             '  "summary": "one sentence describing what you found"\n'
             "}\n"
             "Rules for regexes:\n"
@@ -340,6 +349,9 @@ class ManuscriptParser:
             return LearnedPatterns(
                 chapter_regexes=merged_chapter,
                 scene_break_regexes=merged_scene,
+                scene_break_canonical=data.get("scene_break_canonical", "***"),
+                first_para_markers=data.get("first_para_markers", []),
+                chapter_epigraph_markers=data.get("chapter_epigraph_markers", []),
                 summary=data.get("summary", "AI pattern learning completed."),
                 source="ai",
             )

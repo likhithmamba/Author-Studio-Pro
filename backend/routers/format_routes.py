@@ -160,10 +160,28 @@ async def format_manuscript(
         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
             out = f.name
 
+        # Extra AI Metadata
+        learned_scene_break = None
+        first_para_markers = []
+        chapter_epigraph_markers = []
+        if api_key and ai_model and hasattr(m, 'parser') and getattr(m['parser'], 'patterns', None):
+            pat = getattr(m['parser'], 'patterns')
+            learned_scene_break = getattr(pat, 'scene_break_canonical', None)
+            first_para_markers = getattr(pat, 'first_para_markers', [])
+            chapter_epigraph_markers = getattr(pat, 'chapter_epigraph_markers', [])
+
         # NovelFormatter(template, author, title, word_count)
-        fmt = m["NovelFormatter"](tpl, author=author, title=title, word_count=word_count)
-        # .build(paragraphs, output_path) → (output_path, warnings)
-        _, warnings = fmt.build(parsed, out)
+        fmt = m["NovelFormatter"](
+            tpl, 
+            author=author, 
+            title=title, 
+            word_count=word_count,
+            learned_scene_break=learned_scene_break,
+            first_para_markers=first_para_markers,
+            chapter_epigraph_markers=chapter_epigraph_markers
+        )
+        # .build(paragraphs, output_path) → (output_path, warnings, ai_fixes)
+        _, warnings, ai_fixes = fmt.build(parsed, out)
 
         safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:50]
         filename   = f"{safe_title}_{template_key}_formatted.docx"
@@ -182,6 +200,7 @@ async def format_manuscript(
                 "X-Word-Count":        str(word_count),
                 "X-Warnings":          json.dumps(warnings[:10]),
                 "X-Template-Applied":  template_key,
+                "X-AI-Fixes":          json.dumps(ai_fixes[:10]),
             },
         )
     except HTTPException:
@@ -238,8 +257,22 @@ async def format_text(request: Request, bg: BackgroundTasks, body: FormatTextReq
         # Calculate word count for cover page
         word_count = sum(len(p.cleaned.split()) for p in parsed if p.ptype == PARA_BODY)
         
-        fmt = m["NovelFormatter"](tpl, author=author, title=title, word_count=word_count)
-        _, warnings = fmt.build(parsed, out)
+        # Extra AI Metadata
+        learned_scene_break = None
+        first_para_markers = []
+        chapter_epigraph_markers = []
+        # If ai feature is needed for text format, pass them here. For now, empty.
+
+        fmt = m["NovelFormatter"](
+            tpl, 
+            author=author, 
+            title=title, 
+            word_count=word_count,
+            learned_scene_break=learned_scene_break,
+            first_para_markers=first_para_markers,
+            chapter_epigraph_markers=chapter_epigraph_markers
+        )
+        _, warnings, ai_fixes = fmt.build(parsed, out)
 
         safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:50]
         filename   = f"{safe_title}_editor_export.docx"
@@ -257,6 +290,7 @@ async def format_text(request: Request, bg: BackgroundTasks, body: FormatTextReq
                 "X-Word-Count":        str(word_count),
                 "X-Warnings":          json.dumps(warnings[:10]),
                 "X-Template-Applied":  template_key,
+                "X-AI-Fixes":          json.dumps(ai_fixes[:10]),
             },
         )
     except Exception as e:

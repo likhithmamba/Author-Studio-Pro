@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
+sys.stdout.reconfigure(encoding='utf-8')
 
 RED = "\033[91m"
 GREEN = "\033[92m"

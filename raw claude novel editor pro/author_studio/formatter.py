@@ -53,11 +53,18 @@ class NovelFormatter:
         author:      str,
         title:       str,
         word_count:  Optional[int] = None,
+        learned_scene_break: Optional[str] = None,
+        first_para_markers: Optional[List[str]] = None,
+        chapter_epigraph_markers: Optional[List[str]] = None,
     ):
         self.template   = template
         self.author     = author.strip()
         self.title      = title.strip()
         self.word_count = word_count
+        self.learned_scene_break = learned_scene_break
+        self.first_para_markers = first_para_markers or []
+        self.chapter_epigraph_markers = chapter_epigraph_markers or []
+        self._ai_fixes: List[str] = []
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
@@ -65,10 +72,10 @@ class NovelFormatter:
         self,
         paragraphs:  List[ParsedParagraph],
         output_path: str,
-    ) -> Tuple[str, List[str]]:
+    ) -> Tuple[str, List[str], List[str]]:
         """
         Builds and saves the formatted document.
-        Returns (output_path, list_of_warnings).
+        Returns (output_path, list_of_warnings, ai_fixes).
         """
         warnings: List[str] = []
         t = self.template
@@ -84,7 +91,7 @@ class NovelFormatter:
         self._add_body(doc, paragraphs, warnings)
 
         doc.save(output_path)
-        return output_path, warnings
+        return output_path, warnings, self._ai_fixes
 
     # ── Page Configuration ────────────────────────────────────────────────────
 
@@ -286,6 +293,27 @@ class NovelFormatter:
                 if not text:
                     continue
                 opener = is_first_body_after_chapter
+                
+                # Check epigraphs
+                is_epigraph = False
+                for ep in self.chapter_epigraph_markers:
+                    if re.search(ep, text, re.IGNORECASE):
+                        is_epigraph = True
+                        break
+                        
+                if is_epigraph:
+                    if "Formatted chapter epigraph" not in self._ai_fixes:
+                        self._ai_fixes.append("Formatted chapter epigraph")
+                    self._add_epigraph(doc, text)
+                    continue
+
+                for fp in self.first_para_markers:
+                    if re.search(fp, text, re.IGNORECASE):
+                        opener = True
+                        if "Detected prose-aware first-paragraph dropcaps/no-indent" not in self._ai_fixes:
+                            self._ai_fixes.append("Detected prose-aware first-paragraph dropcaps/no-indent")
+                        break
+
                 self._add_body_paragraph(doc, text, is_chapter_opener=opener)
                 is_first_body_after_chapter = False
 
@@ -346,9 +374,32 @@ class NovelFormatter:
         p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
         p.paragraph_format.first_line_indent = Inches(0)
 
-        run = p.add_run(t.scene_break_text)
+        run_text = t.scene_break_text
+        if self.learned_scene_break:
+            run_text = self.learned_scene_break
+            if t.scene_break_text != run_text and "Preserved author's scene break pattern" not in self._ai_fixes:
+                self._ai_fixes.append(f"Preserved author's scene break pattern '{run_text}'")
+
+        run = p.add_run(run_text)
         run.font.name = t.font_name
         run.font.size = Pt(t.font_size_pt)
+
+    def _add_epigraph(self, doc: Document, text: str):
+        t = self.template
+        gap = Pt(t.font_size_pt)
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = gap
+        p.paragraph_format.space_after  = gap
+        p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p.paragraph_format.first_line_indent = Inches(0)
+        p.paragraph_format.left_indent = Inches(1.0)
+        p.paragraph_format.right_indent = Inches(1.0)
+        
+        run = p.add_run(text)
+        run.font.name = t.font_name
+        run.font.size = Pt(t.font_size_pt - 1)
+        run.italic = True
 
     # ── Body Paragraph ────────────────────────────────────────────────────────
 

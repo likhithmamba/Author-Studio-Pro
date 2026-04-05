@@ -108,6 +108,7 @@ export async function formatManuscript({ file, author, title, templateKey, overr
         filename: _extractFilename(headers, 'formatted.docx'),
         wordCount: parseInt(headers.get('x-word-count') || '0'),
         warnings: JSON.parse(headers.get('x-warnings') || '[]'),
+        aiFixes: JSON.parse(headers.get('x-ai-fixes') || '[]'),
         templateApplied: headers.get('x-template-applied'),
     }
 }
@@ -266,6 +267,7 @@ export async function formatText({ author, title, templateKey, overrides, chapte
         filename: _extractFilename(headers, 'editor_export.docx'),
         wordCount: parseInt(headers.get('x-word-count') || '0'),
         warnings: JSON.parse(headers.get('x-warnings') || '[]'),
+        aiFixes: JSON.parse(headers.get('x-ai-fixes') || '[]'),
         templateApplied: headers.get('x-template-applied'),
     }
 }

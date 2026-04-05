@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useCallback, useState, useRef } from 'react'
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import CharacterCount from '@tiptap/extension-character-count'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -46,6 +46,7 @@ export default function NovelEditor({
 
     // Focus mode two-press escape state
     const [escapePressed, setEscapePressed] = useState(false)
+    const [menuStyle, setMenuStyle] = useState({ display: 'none' })
 
     const editor = useEditor({
         extensions: [
@@ -78,6 +79,27 @@ export default function NovelEditor({
                         domAtPos.node.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 }, 800);
+            }
+        },
+        onSelectionUpdate: ({ editor }) => {
+            const { from, to } = editor.state.selection;
+            if (from !== to) {
+                const { view } = editor;
+                const { state } = view;
+                const { selection } = state;
+                const start = view.coordsAtPos(selection.from);
+                const end = view.coordsAtPos(selection.to);
+                const top = Math.min(start.top, end.top) - 40;
+                const left = (start.left + end.left) / 2;
+                setMenuStyle({
+                    display: 'flex',
+                    position: 'fixed',
+                    top: `${top}px`,
+                    left: `${left}px`,
+                    transform: 'translateX(-50%)'
+                });
+            } else {
+                setMenuStyle({ display: 'none' });
             }
         },
         editorProps: {
@@ -322,13 +344,11 @@ export default function NovelEditor({
                     />
                 )}
                 
-                {editor && (
-                    <BubbleMenu 
-                        editor={editor} 
-                        tippyOptions={{ duration: 100 }} 
+                {editor && menuStyle.display !== 'none' && (
+                    <div 
                         className="bubble-menu-container"
                         style={{
-                            display: 'flex',
+                            ...menuStyle,
                             background: '#1a1a1a',
                             border: '1px solid #2a2a2a',
                             borderRadius: '6px',
@@ -355,7 +375,7 @@ export default function NovelEditor({
                         >
                             Bury this
                         </button>
-                    </BubbleMenu>
+                    </div>
                 )}
 
             {/* Editor Area */}

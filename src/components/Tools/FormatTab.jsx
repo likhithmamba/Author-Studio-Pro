@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { HiOutlineDocumentText } from 'react-icons/hi2'
-import { formatManuscript, downloadBlob } from '../../api.js'
+import { formatManuscript, formatText, downloadBlob } from '../../api.js'
 import { TEMPLATES } from './constants.jsx'
 import { saveManuscript, loadManuscript } from '../../utils/localCache.js'
 import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
@@ -28,25 +28,42 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
         }
         setStatus('loading')
         try {
-            // If no new file, but we have a shared one, we'll need to create a blob 
-            // since the API expects a file. 
-            let activeFile = file;
-            if (!activeFile && sharedManuscript) {
-                activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
-                activeFile.name = sharedManuscript.filename;
+            let result;
+            if (!file && sharedManuscript?.parsed?.chapters) {
+                result = await formatText({
+                    author: author.trim(),
+                    title: title.trim(),
+                    templateKey: template,
+                    chapters: sharedManuscript.parsed.chapters
+                })
+            } else {
+                let activeFile = file;
+                if (!activeFile && sharedManuscript) {
+                    activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
+                    activeFile.name = sharedManuscript.filename;
+                }
+                result = await formatManuscript({
+                    file: activeFile, 
+                    author: author.trim(), 
+                    title: title.trim(),
+                    templateKey: template,
+                    useAI: useAI && hasKey,
+                    apiKey: useAI ? apiKey : '',
+                    aiModel,
+                })
             }
-
-            const result = await formatManuscript({
-                file: activeFile, 
-                author: author.trim(), 
-                title: title.trim(),
-                templateKey: template,
-                useAI: useAI && hasKey,
-                apiKey: useAI ? apiKey : '',
-                aiModel,
-            })
             downloadBlob(result.blob, result.filename)
-            setStatus({ ok: `✅ Formatted! ${result.wordCount?.toLocaleString() || '—'} words. Downloaded as ${result.filename}.`, warnings: result.warnings })
+            
+            let wcMsg = `${result.wordCount?.toLocaleString() || '—'} words`;
+            let wcDiff = file ? null : (sharedManuscript?.wordCount && result.wordCount !== sharedManuscript.wordCount);
+            if (wcDiff) {
+                wcMsg = `${sharedManuscript.wordCount.toLocaleString()} → ${result.wordCount.toLocaleString()} words`;
+            }
+            
+            setStatus({ 
+                ok: `✅ Formatted! ${wcMsg}. Downloaded as ${result.filename}.`, 
+                warnings: [...(result.warnings || []), ...(result.aiFixes || [])]
+            })
         } catch (e) {
             setStatus({ err: e.detail || e.message || 'Formatting failed.' })
         }
@@ -88,6 +105,13 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                     <select className="tool-select" value={template} onChange={e => setTemplate(e.target.value)}>
                         {TEMPLATES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                        {template === 'traditional' ? "Times New Roman • 12pt • Double Spaced • 1-inch margins" : 
+                         template === 'modern' ? "Garamond • 12pt • 1.5 Spaced • 1-inch margins" :
+                         template === 'uk_standard' ? "Times New Roman • 12pt • Double Spaced • A4 Size" :
+                         template === 'self_pub_ready' ? "Garamond • 11pt • 1.5 Spaced • 0.5-inch indent" :
+                         ""}
+                    </div>
                 </Field>
             </div>
 
@@ -99,7 +123,7 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                 desc="Uses 1 API call to learn your manuscript's chapter heading style — improves detection accuracy by ~30%."
             />
 
-            <RunButton onClick={run} loading={status === 'loading'} label="Format Manuscript →" />
+            <RunButton onClick={run} loading={status === 'loading'} label={useAI && hasKey ? "⚡ AI-Assisted Format →" : "Format Manuscript →"} />
             <StatusBox status={status} onClear={() => setStatus(null)} />
         </TabPanel>
     )
