@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -16,19 +16,31 @@ const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions', 'edito
 
 import { WritingSystemProvider } from '../contexts/WritingSystemContext'
 import StoreSyncManager from './StoreSyncManager'
+import { useStoryStore } from '../store/storyStore'
 
 export default function AppWorkspace({ settings, onSettingsClick, initialTab }) {
-    const { user, loading, isSubscribed, subscription, logout } = useAuth()
+    const { user, loading, isSubscribed, subscription, token, logout } = useAuth()
     const [showAuth, setShowAuth] = useState(false)
     const navigate = useNavigate()
 
+    const { isRehydrating, initializeProject } = useStoryStore()
+
+    // ─── Project Rehydration ─────────────────────────────────────────────────
+    useEffect(() => {
+        if (user && token && !isSubscribed && !isRehydrating) {
+            // In trial mode, we use a fixed demo project ID if one isn't set
+            const demoProjectId = 'demo-project-1'
+            initializeProject(demoProjectId, token)
+        }
+    }, [user, token, isSubscribed, initializeProject])
+
     // ─── Loading state ──────────────────────────────────────────────────────
-    if (loading) {
+    if (loading || isRehydrating) {
         return (
             <div className="workspace">
                 <div className="workspace-loading">
                     <div className="workspace-loading-spinner" />
-                    <p>Loading your workspace…</p>
+                    <p>{isRehydrating ? 'Restoring your story engine…' : 'Loading your workspace…'}</p>
                 </div>
             </div>
         )

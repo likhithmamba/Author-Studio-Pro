@@ -14,7 +14,10 @@ export default function StoreSyncManager() {
     const projectId = useStoryStore(state => state.projectId)
     const nodes = useStoryStore(state => state.nodes)
     const edges = useStoryStore(state => state.edges)
+    const chapters = useStoryStore(state => state.chapters)
+    const chapterOrder = useStoryStore(state => state.chapterOrder)
     const syncGraph = useStoryStore(state => state.syncGraph)
+    const syncManuscript = useStoryStore(state => state.syncManuscript)
 
     // Debounced Graph Sync
     useEffect(() => {
@@ -22,10 +25,21 @@ export default function StoreSyncManager() {
 
         const timer = setTimeout(() => {
             syncGraph(token)
-        }, 3000) // 3s debounce for background sync
+        }, 3000)
 
         return () => clearTimeout(timer)
     }, [nodes, edges, projectId, token, syncGraph])
+
+    // Debounced Manuscript Sync
+    useEffect(() => {
+        if (!projectId || !token || Object.keys(chapters).length === 0) return
+
+        const timer = setTimeout(() => {
+            syncManuscript(token)
+        }, 5000) // 5s debounce for heavier manuscript sync
+
+        return () => clearTimeout(timer)
+    }, [chapters, chapterOrder, projectId, token, syncManuscript])
 
     return null // Invisible background component
 }

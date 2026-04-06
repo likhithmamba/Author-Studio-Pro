@@ -414,3 +414,17 @@ export async function deleteEdge(edgeId, token) {
     return fetchJSON(`/thinking/edges/${edgeId}`, { method: 'DELETE', headers: _authHeaders(token) })
 }
 
+// ─── Manuscript API ───────────────────────────────────────────────────────
+
+export async function loadManuscript(projectId, token) {
+    return fetchJSON(`/thinking/manuscript/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function saveManuscript(projectId, content, token) {
+    return fetchJSON('/thinking/manuscript', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({ project_id: projectId, content }),
+    })
+}
+

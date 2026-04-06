@@ -393,3 +393,28 @@ async def delete_edge(request: Request, edge_id: str):
     sb = get_supabase()
     sb.table("story_edges").delete().eq("id", edge_id).eq("user_id", uid).execute()
     return {"status": "deleted"}
+
+# --- Manuscript (Content) ---
+
+class ManuscriptPayload(BaseModel):
+    project_id: str
+    content: Dict[str, Any]
+
+@router.get("/api/thinking/manuscript/{project_id}", tags=["Thinking"])
+async def get_manuscript(request: Request, project_id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    res = sb.table("manuscripts").select("content").eq("project_id", project_id).eq("user_id", uid).execute()
+    return res.data[0]["content"] if res.data else {"chapters": {}, "chapterOrder": []}
+
+@router.post("/api/thinking/manuscript", tags=["Thinking"])
+async def upsert_manuscript(request: Request, body: ManuscriptPayload):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    data = {
+        "project_id": body.project_id,
+        "user_id": str(uid),
+        "content": body.content,
+    }
+    res = sb.table("manuscripts").upsert(data, on_conflict="project_id").execute()
+    return {"status": "ok"}

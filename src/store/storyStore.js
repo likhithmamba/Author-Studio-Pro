@@ -36,6 +36,8 @@ export const useStoryStore = create(
       pendingChanges: 0,
     },
 
+    isRehydrating: false,
+
     // ─── Actions ──────────────────────────────────────────────────────
 
     setProject: (id, title) => set({ projectId: id, projectTitle: title }),
@@ -158,6 +160,57 @@ export const useStoryStore = create(
         }))
       } catch (err) {
         console.error("Graph sync failed:", err)
+        set(state => ({ sync: { ...state.sync, status: 'error' } }))
+      }
+    },
+
+    initializeProject: async (projectId, token) => {
+      if (!projectId || !token) return
+      set({ isRehydrating: true, projectId })
+      
+      try {
+        const { loadNodes, loadManuscript } = await import('../api.js')
+        const [graphData, manuscriptData] = await Promise.all([
+          loadNodes(projectId, token),
+          loadManuscript(projectId, token)
+        ])
+        
+        const byId = {}
+        if (graphData.nodes) graphData.nodes.forEach(n => { byId[n.id] = n })
+        
+        set({ 
+          nodes: byId, 
+          edges: graphData.edges || [],
+          chapters: manuscriptData.chapters || {},
+          chapterOrder: manuscriptData.chapterOrder || [],
+          isRehydrating: false 
+        })
+      } catch (err) {
+        console.error("Project initialization failed:", err)
+        set({ isRehydrating: false })
+      }
+    },
+
+    syncManuscript: async (token) => {
+      const state = get()
+      if (!state.projectId || !token) return
+      
+      set(state => ({ sync: { ...state.sync, status: 'saving' } }))
+      
+      try {
+        const { saveManuscript } = await import('../api.js')
+        const content = {
+          chapters: state.chapters,
+          chapterOrder: state.chapterOrder
+        }
+        
+        await saveManuscript(state.projectId, content, token)
+        
+        set(state => ({ 
+          sync: { ...state.sync, status: 'idle', lastSaved: new Date().toISOString() } 
+        }))
+      } catch (err) {
+        console.error("Manuscript sync failed:", err)
         set(state => ({ sync: { ...state.sync, status: 'error' } }))
       }
     }
