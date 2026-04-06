@@ -10,9 +10,13 @@ import NovelEditor from './NovelEditor.jsx'
 import StatusBar from './StatusBar.jsx'
 import ThinkingPanel from '../ThinkingPanel/ThinkingPanel.jsx'
 import { useChapterSave } from './useChapterSave.js'
+import { useSyncEngine } from './useChapterSave.js'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
 import { useWritingSystem } from '../../contexts/WritingSystemContext.jsx'
+import { useStoryStore } from '../../store/storyStore.js'
+import { loadNodes } from '../../api.js'
+import { useAuth } from '../../contexts/AuthContext.jsx'
 import './EditorLayout.css'
 
 const STORAGE_KEY = 'asp_editor_project'
@@ -58,6 +62,41 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
         thinkingPanelOpen, setThinkingPanelOpen, 
         activeThinkingTab, setActiveThinkingTab 
     } = useWritingSystem();
+    const { token } = useAuth();
+
+    // ─── Hydrate Zustand store from localStorage project ──────────
+    useEffect(() => {
+        const store = useStoryStore.getState()
+        store.setProject(project.id, project.title)
+        store.loadChapters(project.chapters)
+        store.setActiveChapter(project.activeChapterId)
+    }, []) // Only on mount
+
+    // Sync project changes to Zustand store (keep both in sync)
+    useEffect(() => {
+        useStoryStore.getState().loadChapters(project.chapters)
+        useStoryStore.getState().setActiveChapter(project.activeChapterId)
+    }, [project.chapters.length, project.activeChapterId])
+
+    // Hydrate nodes from API when authenticated
+    useEffect(() => {
+        if (!token || !project.id) return
+        loadNodes(project.id, token).then(data => {
+            if (data?.nodes) {
+                data.nodes.forEach(n => useStoryStore.getState().upsertNode({
+                    id: n.id, type: n.type, label: n.label,
+                    position: { x: n.position_x || 0, y: n.position_y || 0 },
+                    chapterRefs: n.chapter_refs || [],
+                }))
+            }
+            if (data?.edges) {
+                data.edges.forEach(e => useStoryStore.getState().addEdge(e))
+            }
+        }).catch(() => { /* API unavailable - nodes will be local only */ })
+    }, [project.id, token])
+
+    // Activate sync engine
+    useSyncEngine(project.id)
 
     // Sync active chapter to global context for panels
     useEffect(() => {
@@ -115,7 +154,7 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
             if (!isDraggingRef.current) return;
             // Calculate width from right edge of window
             const newWidth = document.body.clientWidth - moveEvent.clientX;
-            if (newWidth >= 260 && newWidth <= 420) {
+            if (newWidth >= 260 && newWidth <= 600) {
                 setPanelWidth(newWidth);
             }
         };
@@ -329,7 +368,7 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
             {!focusMode && (
                 <ThinkingPanel
                     projectId={project.id}
-                    width={thinkingPanelOpen ? panelWidth : 0}
+                    width={thinkingPanelOpen ? (activeThinkingTab === 'graph' ? Math.max(panelWidth, 500) : panelWidth) : 0}
                     open={thinkingPanelOpen}
                     onToggleOpen={setThinkingPanelOpen}
                     activeTab={activeThinkingTab}

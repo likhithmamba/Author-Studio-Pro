@@ -9,11 +9,15 @@ import StarterKit from '@tiptap/starter-kit'
 import CharacterCount from '@tiptap/extension-character-count'
 import Placeholder from '@tiptap/extension-placeholder'
 import Typography from '@tiptap/extension-typography'
+import { CharacterMention } from './extensions/CharacterMention.js'
+import { PlotMention } from './extensions/PlotMention.js'
 import { continueScene, rewriteParagraph, suggestNames } from './editorAI.js'
 import { formatText, downloadBlob, createIdea, createThread } from '../../api.js'
+import { useStoryStore } from '../../store/storyStore.js'
 import Toolbar from './Toolbar.jsx'
 import { useWritingSystem } from '../../contexts/WritingSystemContext.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import 'tippy.js/dist/tippy.css'
 import './EditorLayout.css'
 
 export default function NovelEditor({
@@ -43,6 +47,7 @@ export default function NovelEditor({
     // Typewriter state
     const [typewriterMode, setTypewriterMode] = useState(false)
     const typingTimerRef = useRef(null)
+    const parseTimerRef = useRef(null)
 
     // Focus mode two-press escape state
     const [escapePressed, setEscapePressed] = useState(false)
@@ -53,9 +58,11 @@ export default function NovelEditor({
             StarterKit.configure({
                 heading: { levels: [1, 2, 3] },
             }),
+            CharacterMention,
+            PlotMention,
             CharacterCount,
             Placeholder.configure({
-                placeholder: 'Start writing your chapter...',
+                placeholder: 'Start writing... Use @Name for characters, #Plot for plot points',
             }),
             Typography,
         ],
@@ -65,7 +72,14 @@ export default function NovelEditor({
             onChange(html)
             
             // Sync word count to context
-            setEditorWordCount(editor.storage.characterCount.words())
+            const wc = editor.storage.characterCount.words()
+            setEditorWordCount(wc)
+
+            // Debounced sync to Zustand store
+            if (parseTimerRef.current) clearTimeout(parseTimerRef.current)
+            parseTimerRef.current = setTimeout(() => {
+                useStoryStore.getState().updateChapterContent(chapterId, html, wc)
+            }, 300)
 
             if (typewriterMode && window.innerWidth >= 768) {
                 if (typingTimerRef.current) clearTimeout(typingTimerRef.current);

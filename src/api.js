@@ -380,3 +380,29 @@ export async function emptyGraveyard(projectId, token) {
     return fetchJSON(`/thinking/graveyard/empty/${projectId}`, { method: 'DELETE', headers: _authHeaders(token) })
 }
 
+// ─── Story Graph API ──────────────────────────────────────────────────────
+
+export async function loadNodes(projectId, token) {
+    return fetchJSON(`/thinking/nodes/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function saveNodes(projectId, nodes, token) {
+    return fetchJSON('/thinking/nodes', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({ project_id: projectId, nodes }),
+    })
+}
+
+export async function saveEdges(projectId, edges, token) {
+    return fetchJSON('/thinking/edges', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({ project_id: projectId, edges }),
+    })
+}
+
+export async function deleteEdge(edgeId, token) {
+    return fetchJSON(`/thinking/edges/${edgeId}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+

@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import IdeasTab from './tabs/IdeasTab';
 import WhatIfTab from './tabs/WhatIfTab';
 import ThreadsTab from './tabs/ThreadsTab';
 import BranchesTab from './tabs/BranchesTab';
 import GraveyardTab from './tabs/GraveyardTab';
+
+const StoryGraph = lazy(() => import('../Editor/StoryGraph'));
 
 export default function ThinkingPanel({ 
     projectId, 
@@ -14,7 +16,7 @@ export default function ThinkingPanel({
     onTabChange 
 }) {
     const scrollPositions = useRef({
-        ideas: 0, whatif: 0, threads: 0, branches: 0, graveyard: 0
+        ideas: 0, whatif: 0, threads: 0, branches: 0, graveyard: 0, graph: 0
     });
     
     const panelBodyRef = useRef(null);
@@ -78,7 +80,8 @@ export default function ThinkingPanel({
         { id: 'whatif', label: 'What-If' },
         { id: 'threads', label: 'Threads' },
         { id: 'branches', label: 'Branches' },
-        { id: 'graveyard', label: 'Graveyard' }
+        { id: 'graveyard', label: 'Graveyard' },
+        { id: 'graph', label: 'Graph' }
     ];
 
     return (
@@ -167,6 +170,24 @@ export default function ThinkingPanel({
                 {activeTab === 'threads' && <ThreadsTab projectId={projectId} />}
                 {activeTab === 'branches' && <BranchesTab projectId={projectId} />}
                 {activeTab === 'graveyard' && <GraveyardTab projectId={projectId} />}
+                {activeTab === 'graph' && (
+                    <Suspense fallback={
+                        <div style={{ 
+                            padding: '20px', 
+                            color: 'rgba(255,255,255,0.3)', 
+                            fontSize: '12px',
+                            fontFamily: '"DM Sans", sans-serif',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                        }}>
+                            Loading graph...
+                        </div>
+                    }>
+                        <StoryGraph />
+                    </Suspense>
+                )}
             </div>
         </div>
     );

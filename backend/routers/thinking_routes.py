@@ -311,3 +311,77 @@ async def empty_graveyard(request: Request, project_id: str):
     sb = get_supabase()
     sb.table("graveyard").delete().eq("project_id", project_id).eq("user_id", uid).execute()
     return {"status": "emptied"}
+
+# --- Story Nodes & Edges (Graph) ---
+
+class StoryNodeUpsert(BaseModel):
+    id: str
+    type: str  # 'character', 'plot', 'chapter', 'event'
+    label: str
+    position_x: float = 0
+    position_y: float = 0
+    chapter_refs: List[str] = []
+
+class StoryNodesPayload(BaseModel):
+    project_id: str
+    nodes: List[Dict[str, Any]]
+
+class StoryEdgesPayload(BaseModel):
+    project_id: str
+    edges: List[Dict[str, Any]]
+
+@router.get("/api/thinking/nodes/{project_id}", tags=["Thinking"])
+async def get_nodes(request: Request, project_id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    nodes = sb.table("story_nodes").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+    edges = sb.table("story_edges").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+    return {"nodes": nodes.data, "edges": edges.data}
+
+@router.post("/api/thinking/nodes", tags=["Thinking"])
+async def upsert_nodes(request: Request, body: StoryNodesPayload):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    for node in body.nodes:
+        node_data = {
+            "id": node.get("id"),
+            "project_id": body.project_id,
+            "user_id": str(uid),
+            "type": node.get("type", "character"),
+            "label": node.get("label", ""),
+            "position_x": node.get("position_x", node.get("position", {}).get("x", 0)),
+            "position_y": node.get("position_y", node.get("position", {}).get("y", 0)),
+            "chapter_refs": node.get("chapter_refs", node.get("chapterRefs", [])),
+        }
+        sb.table("story_nodes").upsert(node_data, on_conflict="id").execute()
+    return {"status": "ok", "count": len(body.nodes)}
+
+@router.post("/api/thinking/edges", tags=["Thinking"])
+async def upsert_edges(request: Request, body: StoryEdgesPayload):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    for edge in body.edges:
+        edge_data = {
+            "id": edge.get("id"),
+            "project_id": body.project_id,
+            "user_id": str(uid),
+            "source": edge.get("source"),
+            "target": edge.get("target"),
+        }
+        sb.table("story_edges").upsert(edge_data, on_conflict="id").execute()
+    return {"status": "ok", "count": len(body.edges)}
+
+@router.delete("/api/thinking/nodes/{node_id}", tags=["Thinking"])
+async def delete_node(request: Request, node_id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    # Cascade will handle edges
+    sb.table("story_nodes").delete().eq("id", node_id).eq("user_id", uid).execute()
+    return {"status": "deleted"}
+
+@router.delete("/api/thinking/edges/{edge_id}", tags=["Thinking"])
+async def delete_edge(request: Request, edge_id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    sb.table("story_edges").delete().eq("id", edge_id).eq("user_id", uid).execute()
+    return {"status": "deleted"}
