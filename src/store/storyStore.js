@@ -65,20 +65,23 @@ export const useStoryStore = create(
         sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
       })),
 
-    addChapter: (chapter) =>
-      set(state => ({
-        chapters: { ...state.chapters, [chapter.id]: { ...chapter, isDirty: false } },
-        chapterOrder: [...state.chapterOrder, chapter.id]
-      })),
+    addChapter: (title) => set(state => {
+      const id = `ch_${Date.now()}`
+      const newOrder = state.chapterOrder.length
+      return {
+        chapters: { ...state.chapters, [id]: { id, title, content: '', wordCount: 0, order: newOrder } },
+        chapterOrder: [...state.chapterOrder, id],
+        editor: { ...state.editor, activeChapterId: id }
+      }
+    }),
 
-    removeChapter: (id) =>
-      set(state => {
-        const { [id]: _, ...rest } = state.chapters
-        return {
-          chapters: rest,
-          chapterOrder: state.chapterOrder.filter(cid => cid !== id)
-        }
-      }),
+    removeChapter: (id) => set(state => {
+      if (state.chapterOrder.length <= 1) return state
+      const { [id]: removed, ...remain } = state.chapters
+      const newOrder = state.chapterOrder.filter(cid => cid !== id)
+      const newActive = state.editor.activeChapterId === id ? newOrder[0] : state.editor.activeChapterId
+      return { chapters: remain, chapterOrder: newOrder, editor: { ...state.editor, activeChapterId: newActive } }
+    }),
 
     reorderChapters: (newOrder) => set({ chapterOrder: newOrder }),
 

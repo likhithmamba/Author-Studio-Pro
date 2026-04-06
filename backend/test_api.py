@@ -104,3 +104,25 @@ def test_update_branch_endpoint(mock_sb, mock_supabase):
     response = client.put("/api/thinking/branches/b1", json={"name": "Updated Branch"}, headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
     assert response.json()["name"] == "Updated Branch"
+
+@patch("routers.thinking_routes.get_supabase")
+def test_manuscript_endpoints(mock_sb, mock_supabase):
+    """Verify manuscript save and load endpoints."""
+    mock_sb.return_value = mock_supabase
+    
+    # Test Save
+    payload = {
+        "project_id": "proj-1",
+        "content": {"chapters": {"c1": {"title": "Ch 1"}}, "chapterOrder": ["c1"]}
+    }
+    response = client.post("/api/thinking/manuscript", json=payload, headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    
+    # Test Load
+    mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        {"content": payload["content"]}
+    ]
+    response = client.get("/api/thinking/manuscript/proj-1", headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert response.json()["chapterOrder"][0] == "c1"

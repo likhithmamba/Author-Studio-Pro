@@ -4,6 +4,7 @@ import { formatManuscript, formatText, downloadBlob } from '../../api.js'
 import { TEMPLATES } from './constants.jsx'
 import { saveManuscript, loadManuscript } from '../../utils/localCache.js'
 import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox } from './SharedUI.jsx'
+import { useStoryStore } from '../../store/storyStore.js'
 
 export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [file, setFile] = useState(null)
@@ -14,6 +15,12 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
     const [status, setStatus] = useState(null)   // null | 'loading' | {ok} | {err}
     const [sharedManuscript, setSharedManuscript] = useState(null)
     const fileRef = useRef()
+
+    const { projectTitle, chapters, chapterOrder } = useStoryStore();
+
+    React.useEffect(() => {
+        if (projectTitle) setTitle(projectTitle);
+    }, [projectTitle]);
 
     React.useEffect(() => {
         loadManuscript().then(m => {
@@ -29,14 +36,19 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
         setStatus('loading')
         try {
             let result;
-            if (!file && sharedManuscript?.parsed?.chapters) {
+            const store = useStoryStore.getState();
+            if (!file && store.chapterOrder.length > 0) {
+                const chapterData = store.chapterOrder.map(id => ({
+                    title: store.chapters[id].title,
+                    paragraphs: [store.chapters[id].content?.replace(/<[^>]*>/g, '') || '']
+                }));
                 result = await formatText({
                     author: author.trim(),
                     title: title.trim(),
                     templateKey: template,
-                    chapters: sharedManuscript.parsed.chapters
+                    chapters: chapterData
                 })
-            } else {
+            } else if (!file && sharedManuscript?.parsed?.chapters) {
                 let activeFile = file;
                 if (!activeFile && sharedManuscript) {
                     activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
@@ -76,13 +88,26 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                 <p>Upload your <code>.docx</code> manuscript. We'll apply industry-standard formatting (Times New Roman 12pt, double-spaced, running header, title page) and return a submission-ready file.</p>
             </div>
 
-            <FileDrop file={file} onFile={(f) => {
-                setFile(f);
-                // Save for other tools
-                // We'd need to parse it here too to save it, but for now just setting it is fine.
-            }} fileRef={fileRef} />
+            <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
 
-            {sharedManuscript && !file && (
+            {useStoryStore.getState().chapterOrder.length > 0 && !file && (
+                <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 1, background: 'rgba(201,145,90,0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(201,145,90,0.3)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <span style={{ color: '#c9915a', fontWeight: 'bold' }}>✦ Editor Ready:</span> Using <strong>{useStoryStore.getState().projectTitle || 'Untitled Novel'}</strong> 
+                            <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{Object.values(useStoryStore.getState().chapters).reduce((s,c)=>s+c.wordCount,0).toLocaleString()} words across {useStoryStore.getState().chapterOrder.length} chapters</div>
+                        </div>
+                        <button 
+                            onClick={() => { setFile(null); setSharedManuscript(null); }}
+                            style={{ fontSize: '0.75rem', color: '#6b6560', background: 'none', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                            Upload Different File
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {sharedManuscript && !file && !useStoryStore.getState().chapterOrder.length && (
                 <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
                     📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
                     <button 

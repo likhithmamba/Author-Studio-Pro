@@ -13,6 +13,7 @@ import { analyzeHooks } from '../../utils/analysis/hookAnalyzer.js'
 import { loadApiKey, getDeviceFingerprint } from '../../utils/keyStorage.js'
 import { GENRES } from './constants.jsx'
 import { TabPanel, FileDrop, Field, AIToggle, RunButton, StatusBox, AnalysisResults } from './SharedUI.jsx'
+import { useStoryStore } from '../../store/storyStore.js'
 
 export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }) {
     const [file, setFile] = useState(null)
@@ -48,7 +49,18 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
 
         // Step 1: parse in browser
         let parsed;
-        if (!file && sharedManuscript) {
+        const store = useStoryStore.getState();
+        if (!file && store.chapterOrder.length > 0) {
+            const rawText = store.chapterOrder.map(id => {
+                const ch = store.chapters[id];
+                return `${ch.title}\n\n${ch.content?.replace(/<[^>]*>/g, '') || ''}`;
+            }).join('\n\n');
+            const chapters = store.chapterOrder.map(id => ({
+                title: store.chapters[id].title,
+                paragraphs: [store.chapters[id].content?.replace(/<[^>]*>/g, '') || '']
+            }));
+            parsed = { rawText, chapters, totalWords: Object.values(store.chapters).reduce((s,c)=>s+c.wordCount,0) };
+        } else if (!file && sharedManuscript) {
             parsed = sharedManuscript.parsed;
         } else {
             parsed = await parseDocx(file)
@@ -109,7 +121,19 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
 
             <FileDrop file={file} onFile={setFile} fileRef={fileRef} />
             
-            {sharedManuscript && !file && (
+            {useStoryStore.getState().chapterOrder.length > 0 && !file && (
+                <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8, background: 'rgba(201,145,90,0.05)', padding: '8px', borderRadius: '4px', border: '1px solid rgba(201,145,90,0.2)' }}>
+                    <span style={{ color: '#c9915a' }}>✦ Cloud Sync:</span> Using <strong>{useStoryStore.getState().projectTitle || 'Current Manuscript'}</strong> ({Object.values(useStoryStore.getState().chapters).reduce((s,c)=>s+c.wordCount,0).toLocaleString()} words)
+                    <button 
+                        onClick={() => { setFile(null); setSharedManuscript(null); }}
+                        style={{ marginLeft: '1rem', color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                        Switch to File Upload
+                    </button>
+                </div>
+            )}
+
+            {sharedManuscript && !file && !useStoryStore.getState().chapterOrder.length && (
                 <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
                     📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
                     <button 

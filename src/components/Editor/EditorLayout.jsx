@@ -51,220 +51,65 @@ function createDefaultProject() {
 }
 
 export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
-    const [project, setProject] = useState(() => loadProject() || createDefaultProject())
     const [focusMode, setFocusMode] = useState(false)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
 
-    // Context State
+    // Context & Store State
     const { 
-        setActiveChapterId, 
         thinkingPanelOpen, setThinkingPanelOpen, 
         activeThinkingTab, setActiveThinkingTab 
     } = useWritingSystem();
+    
     const { token } = useAuth();
+    
+    // Store Actions & State
+    const { 
+        projectTitle, setProject, 
+        chapters, chapterOrder, 
+        editor, setActiveChapter,
+        addChapter, removeChapter, updateChapterTitle, reorderChapters,
+        updateChapterContent,
+        isRehydrating,
+        sync
+    } = useStoryStore();
 
-    // ─── Hydrate Zustand store from localStorage project ──────────
-    useEffect(() => {
-        const store = useStoryStore.getState()
-        store.setProject(project.id, project.title)
-        store.loadChapters(project.chapters)
-        store.setActiveChapter(project.activeChapterId)
-    }, []) // Only on mount
+    const activeChapterId = editor.activeChapterId;
+    const activeChapter = chapters[activeChapterId] || chapters[chapterOrder[0]];
 
-    // Sync project changes to Zustand store (keep both in sync)
-    useEffect(() => {
-        useStoryStore.getState().loadChapters(project.chapters)
-        useStoryStore.getState().setActiveChapter(project.activeChapterId)
-    }, [project.chapters.length, project.activeChapterId])
+    const totalWords = Object.values(chapters).reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
 
-    // Hydrate nodes from API when authenticated
-    useEffect(() => {
-        if (!token || !project.id) return
-        loadNodes(project.id, token).then(data => {
-            if (data?.nodes) {
-                data.nodes.forEach(n => useStoryStore.getState().upsertNode({
-                    id: n.id, type: n.type, label: n.label,
-                    position: { x: n.position_x || 0, y: n.position_y || 0 },
-                    chapterRefs: n.chapter_refs || [],
-                }))
-            }
-            if (data?.edges) {
-                data.edges.forEach(e => useStoryStore.getState().addEdge(e))
-            }
-        }).catch(() => { /* API unavailable - nodes will be local only */ })
-    }, [project.id, token])
+    // Sidebar Handlers
+    const handleAddChapter = () => addChapter('New Chapter');
+    const handleDeleteChapter = (id) => removeChapter(id);
+    const handleRenameChapter = (id, title) => updateChapterTitle(id, title);
+    const handleReorderChapters = (newIds) => reorderChapters(newIds);
+    const handleSelectChapter = (id) => setActiveChapter(id);
 
-    // Activate sync engine
-    useSyncEngine(project.id)
-
-    // Sync active chapter to global context for panels
-    useEffect(() => {
-        setActiveChapterId(project.activeChapterId);
-    }, [project.activeChapterId, setActiveChapterId]);
-
-    const [panelWidth, setPanelWidth] = useState(() => {
-        try {
-            const w = localStorage.getItem(`asp:project:${project.id}:panelWidth`);
-            return w ? parseInt(w, 10) : 320;
-        } catch { return 320; }
-    });
-    const [userPrefersOpen, setUserPrefersOpen] = useState(true);
-
-    // Persist Panel State
-    useEffect(() => {
-        try {
-            localStorage.setItem(`asp:project:${project.id}:panel`, JSON.stringify({ open: thinkingPanelOpen, activeTab: activeThinkingTab }));
-            if (thinkingPanelOpen) setUserPrefersOpen(true);
-        } catch {}
-    }, [thinkingPanelOpen, activeThinkingTab, project.id]);
-
-    useEffect(() => {
-        try {
-            localStorage.setItem(`asp:project:${project.id}:panelWidth`, panelWidth);
-        } catch {}
-    }, [panelWidth, project.id]);
-
-    // Viewport Collapse
-    useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth < 1100) {
-                if (thinkingPanelOpen) {
-                    setThinkingPanelOpen(false);
-                }
-            } else {
-                if (userPrefersOpen && !thinkingPanelOpen) {
-                    setThinkingPanelOpen(true);
-                }
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize();
-        return () => window.removeEventListener('resize', handleResize);
-    }, [userPrefersOpen, thinkingPanelOpen, setThinkingPanelOpen]);
-
-    // Resize Handle Drag
-    const isDraggingRef = useRef(false);
-    const handleResizeDragStart = useCallback((e) => {
-        e.preventDefault();
-        isDraggingRef.current = true;
-        document.body.style.cursor = 'col-resize';
-        
-        const handleDrag = (moveEvent) => {
-            if (!isDraggingRef.current) return;
-            // Calculate width from right edge of window
-            const newWidth = document.body.clientWidth - moveEvent.clientX;
-            if (newWidth >= 260 && newWidth <= 600) {
-                setPanelWidth(newWidth);
-            }
-        };
-        
-        const handleDragEnd = () => {
-            isDraggingRef.current = false;
-            document.body.style.cursor = '';
-            window.removeEventListener('mousemove', handleDrag);
-            window.removeEventListener('mouseup', handleDragEnd);
-        };
-        
-        window.addEventListener('mousemove', handleDrag);
-        window.addEventListener('mouseup', handleDragEnd);
-    }, []);
-
-    useKeyboardShortcuts({
-        onTabSwitch: setActiveThinkingTab,
-        panelOpen: thinkingPanelOpen,
-        setPanelOpen: setThinkingPanelOpen
-    });
-
-    // Save project to localStorage whenever it changes
-    useEffect(() => { saveProject(project) }, [project])
-
-    const activeChapter = project.chapters.find(ch => ch.id === project.activeChapterId) || project.chapters[0]
-    const totalWords = project.chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0)
-
-    // Chapter content change handler
+    // Editor Handler
     const handleContentChange = useCallback((html) => {
-        setProject(prev => ({
-            ...prev,
-            chapters: prev.chapters.map(ch =>
-                ch.id === prev.activeChapterId
-                    ? { ...ch, content: html, wordCount: html ? html.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length : 0 }
-                    : ch
-            ),
-        }))
-    }, [])
+        const wc = html ? html.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length : 0;
+        updateChapterContent(activeChapterId, html, wc);
+    }, [activeChapterId, updateChapterContent]);
 
-    // Chapter auto-save
-    const { lastSaved, saving, forceSave } = useChapterSave(
-        activeChapter?.id,
-        activeChapter?.content || '',
-        (restoredContent) => {
-            // Only restore if current content is empty
-            if (!activeChapter?.content && restoredContent) {
-                handleContentChange(restoredContent)
-            }
-        }
-    )
-
-    // Chapter management
-    const handleSelectChapter = (id) => {
-        setProject(prev => ({ ...prev, activeChapterId: id }))
-    }
-
-    const handleAddChapter = () => {
-        const newId = `ch_${Date.now()}`
-        const newOrder = project.chapters.length
-        setProject(prev => ({
-            ...prev,
-            chapters: [...prev.chapters, {
-                id: newId,
-                title: `Chapter ${newOrder + 1}`,
-                content: '',
-                wordCount: 0,
-                order: newOrder,
-            }],
-            activeChapterId: newId,
-        }))
-    }
-
-    const handleDeleteChapter = (id) => {
-        if (project.chapters.length <= 1) return
-        setProject(prev => {
-            const newChapters = prev.chapters.filter(ch => ch.id !== id)
-            const newActive = prev.activeChapterId === id ? newChapters[0]?.id : prev.activeChapterId
-            return { ...prev, chapters: newChapters, activeChapterId: newActive }
-        })
-    }
-
-    const handleRenameChapter = (id, newTitle) => {
-        setProject(prev => ({
-            ...prev,
-            chapters: prev.chapters.map(ch => ch.id === id ? { ...ch, title: newTitle } : ch),
-        }))
-    }
-
-    const handleReorderChapters = (newChapters) => {
-        setProject(prev => ({
-            ...prev,
-            chapters: newChapters.map((ch, i) => ({ ...ch, order: i })),
-        }))
-    }
+    // UI Configuration Persistence (Panel Width etc.)
+    const [panelWidth, setPanelWidth] = useState(320);
 
     return (
         <div className={`editor-layout ${focusMode ? 'focus-mode' : ''}`}>
             {!focusMode && (
                 <Sidebar
-                    chapters={project.chapters}
-                    activeChapterId={project.activeChapterId}
+                    chapters={chapterOrder.map(id => chapters[id])}
+                    activeChapterId={activeChapterId}
                     onSelectChapter={handleSelectChapter}
                     onAddChapter={handleAddChapter}
                     onDeleteChapter={handleDeleteChapter}
                     onRenameChapter={handleRenameChapter}
-                    onReorderChapters={handleReorderChapters}
+                    onReorderChapters={(newList) => handleReorderChapters(newList.map(c => c.id))}
                     collapsed={sidebarCollapsed}
                     onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
                     totalWords={totalWords}
-                    targetWords={project.targetWords}
+                    targetWords={settings?.targetWords || 80000}
                 />
             )}
 
@@ -274,8 +119,8 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                     <div className="editor-project-header">
                         <input
                             className="editor-project-title-input"
-                            value={project.title}
-                            onChange={e => setProject(prev => ({ ...prev, title: e.target.value }))}
+                            value={projectTitle}
+                            onChange={e => setProject(useStoryStore.getState().projectId, e.target.value)}
                             placeholder="Untitled Novel"
                         />
                         <div className="editor-project-actions">
@@ -290,34 +135,6 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                     </div>
                 )}
 
-                {/* Project Settings Panel */}
-                {showSettings && !focusMode && (
-                    <div className="editor-settings-panel glass-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                        <h4 style={{ margin: '0 0 0.75rem' }}>Project Settings</h4>
-                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                            <label style={{ fontSize: '0.85rem' }}>
-                                Word Count Target:
-                                <input
-                                    type="number"
-                                    className="tool-input"
-                                    value={project.targetWords}
-                                    onChange={e => setProject(prev => ({ ...prev, targetWords: parseInt(e.target.value) || 0 }))}
-                                    style={{ width: '120px', marginLeft: '0.5rem' }}
-                                />
-                            </label>
-                            <label style={{ fontSize: '0.85rem' }}>
-                                Author Name:
-                                <input
-                                    className="tool-input"
-                                    value={project.author}
-                                    onChange={e => setProject(prev => ({ ...prev, author: e.target.value }))}
-                                    style={{ width: '200px', marginLeft: '0.5rem' }}
-                                />
-                            </label>
-                        </div>
-                    </div>
-                )}
-
                 {/* Chapter title */}
                 {!focusMode && activeChapter && (
                     <div className="editor-chapter-title">
@@ -328,8 +145,8 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                 {/* Editor */}
                 <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <NovelEditor
-                        key={activeChapter?.id}
-                        chapterId={activeChapter?.id}
+                        key={activeChapterId}
+                        chapterId={activeChapterId}
                         content={activeChapter?.content || ''}
                         onChange={handleContentChange}
                         apiKey={apiKey}
@@ -337,12 +154,10 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                         hasKey={hasKey}
                         focusMode={focusMode}
                         onToggleFocus={() => setFocusMode(!focusMode)}
-                        lastSaved={lastSaved}
-                        saving={saving}
-                        projectTitle={project.title}
-                        projectAuthor={project.author}
-                        allChapters={project.chapters}
-                        projectId={project.id}
+                        lastSaved={sync.lastSaved}
+                        saving={sync.status === 'saving'}
+                        projectTitle={projectTitle}
+                        projectId={useStoryStore.getState().projectId}
                     />
                 </div>
 
@@ -351,24 +166,16 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
                         chapterName={activeChapter.title}
                         wordCount={activeChapter.wordCount}
                         characterCount={activeChapter.content?.replace(/<[^>]*>/g, '').length || 0}
-                        saving={saving}
-                        lastSaved={lastSaved}
+                        saving={sync.status === 'saving'}
+                        lastSaved={sync.lastSaved}
                     />
                 )}
             </div>
 
             {!focusMode && thinkingPanelOpen && (
-                <div
-                    className="panel-resize-handle"
-                    onMouseDown={handleResizeDragStart}
-                    style={{ width: '4px', cursor: 'col-resize', background: '#2a2a2a', flexShrink: 0, zIndex: 50 }}
-                />
-            )}
-
-            {!focusMode && (
                 <ThinkingPanel
-                    projectId={project.id}
-                    width={thinkingPanelOpen ? (activeThinkingTab === 'graph' ? Math.max(panelWidth, 500) : panelWidth) : 0}
+                    projectId={useStoryStore.getState().projectId}
+                    width={activeThinkingTab === 'graph' ? Math.max(panelWidth, 500) : panelWidth}
                     open={thinkingPanelOpen}
                     onToggleOpen={setThinkingPanelOpen}
                     activeTab={activeThinkingTab}
