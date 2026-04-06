@@ -60,3 +60,35 @@ def test_register_endpoint(mock_create, mock_get_email):
     assert response.status_code == 200
     assert "token" in response.json()
     assert response.json()["user"]["email"] == "test@example.com"
+
+# ─── Story Graph (Thinking Layer) ─────────────────────────
+
+@patch("routers.thinking_routes.get_supabase")
+def test_get_nodes_endpoint(mock_sb, mock_supabase):
+    """Verify nodes retrieval endpoint."""
+    # Use the mock_supabase fixture (from conftest) for the database result
+    mock_sb.return_value = mock_supabase 
+    mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        {"id": "node-1", "label": "Character A", "type": "character"}
+    ]
+    
+    response = client.get("/api/thinking/nodes/project-123", headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert len(response.json()["nodes"]) == 1
+    assert response.json()["nodes"][0]["label"] == "Character A"
+
+@patch("routers.thinking_routes.get_supabase")
+def test_upsert_nodes_endpoint(mock_sb, mock_supabase):
+    """Verify bulk node upsert endpoint."""
+    mock_sb.return_value = mock_supabase
+    
+    payload = {
+        "project_id": "project-123",
+        "nodes": [
+            {"id": "n1", "label": "New Node", "type": "plot", "position_x": 100, "position_y": 200}
+        ]
+    }
+    response = client.post("/api/thinking/nodes", json=payload, headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["count"] == 1

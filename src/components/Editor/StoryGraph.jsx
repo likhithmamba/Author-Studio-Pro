@@ -16,7 +16,9 @@ import ReactFlow, {
   Position,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import 'reactflow/dist/style.css'
 import { useStoryStore } from '../../store/storyStore.js'
+import { useAuth } from '../../contexts/AuthContext.jsx'
 
 const NODE_COLORS = {
   character: '#8b5cf6',
@@ -70,9 +72,19 @@ export default function StoryGraph() {
   const storeEdges = useStoryStore(state => state.edges)
   const upsertNode = useStoryStore(state => state.upsertNode)
   const addStoreEdge = useStoryStore(state => state.addEdge)
+  const syncStatus = useStoryStore(state => state.sync.status)
+  const syncGraph = useStoryStore(state => state.syncGraph)
+  const { token } = useAuth()
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+
+  // Debounced Sync Effect
+  useEffect(() => {
+    if (Object.keys(storeNodes).length === 0) return
+    const timer = setTimeout(() => syncGraph(token), 2000)
+    return () => clearTimeout(timer)
+  }, [storeNodes, storeEdges, token, syncGraph])
 
   // Sync from store → React Flow
   useEffect(() => {
@@ -163,6 +175,28 @@ export default function StoryGraph() {
           maskColor="rgba(0,0,0,0.6)"
         />
       </ReactFlow>
+
+      {/* Sync Indicator */}
+      <div style={{
+        position: 'absolute',
+        bottom: '12px',
+        right: '12px',
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(4px)',
+        padding: '4px 10px',
+        borderRadius: '4px',
+        fontSize: '10px',
+        color: syncStatus === 'saving' ? '#c9915a' : 'rgba(255,255,255,0.4)',
+        fontFamily: '"DM Sans", sans-serif',
+        zIndex: 10,
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px'
+      }}>
+        {syncStatus === 'saving' && <div className="spinner-small" />}
+        {syncStatus === 'saving' ? 'Syncing to cloud...' : 'Syncing paused'}
+      </div>
     </div>
   )
 }

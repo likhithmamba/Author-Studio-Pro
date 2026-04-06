@@ -135,5 +135,31 @@ export const useStoryStore = create(
           [id]: { ...state.chapters[id], isDirty: false }
         }
       })),
+
+    // ─── Debounced Graph Sync ──────────────────────────────────────────
+    
+    syncGraph: async (token) => {
+      const state = get()
+      if (!state.projectId || !token) return
+      
+      set(state => ({ sync: { ...state.sync, status: 'saving' } }))
+      
+      try {
+        const { saveNodes, saveEdges } = await import('../api.js')
+        const nodes = Object.values(state.nodes)
+        
+        await Promise.all([
+          saveNodes(state.projectId, nodes, token),
+          saveEdges(state.projectId, state.edges, token)
+        ])
+        
+        set(state => ({ 
+          sync: { ...state.sync, status: 'idle', lastSaved: new Date().toISOString() } 
+        }))
+      } catch (err) {
+        console.error("Graph sync failed:", err)
+        set(state => ({ sync: { ...state.sync, status: 'error' } }))
+      }
+    }
   }))
 )
