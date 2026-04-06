@@ -258,6 +258,14 @@ async def create_branch(request: Request, body: BranchCreate):
     res = sb.table("story_branches").insert(data).execute()
     return res.data[0]
 
+@router.put("/api/thinking/branches/{id}", tags=["Thinking"])
+async def update_branch(request: Request, id: str, body: BranchUpdate):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    data = {k: v for k, v in body.dict().items() if v is not None}
+    res = sb.table("story_branches").update(data).eq("id", id).eq("user_id", uid).execute()
+    return res.data[0] if res.data else None
+
 @router.delete("/api/thinking/branches/{id}", tags=["Thinking"])
 async def delete_branch(request: Request, id: str):
     uid = get_user_id(request)

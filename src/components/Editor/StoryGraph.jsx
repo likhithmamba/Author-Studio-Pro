@@ -79,13 +79,6 @@ export default function StoryGraph() {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
 
-  // Debounced Sync Effect
-  useEffect(() => {
-    if (Object.keys(storeNodes).length === 0) return
-    const timer = setTimeout(() => syncGraph(token), 2000)
-    return () => clearTimeout(timer)
-  }, [storeNodes, storeEdges, token, syncGraph])
-
   // Sync from store → React Flow
   useEffect(() => {
     const rfNodes = Object.values(storeNodes).map(n => ({
@@ -117,6 +110,24 @@ export default function StoryGraph() {
       upsertNode({ ...existing, position: node.position })
     }
   }, [upsertNode])
+
+  const onNodesDelete = useCallback((deleted) => {
+    deleted.forEach(node => {
+      import('../../api.js').then(api => {
+        api.deleteNode(node.id, token).catch(err => console.error("Node deletion failed:", err))
+      })
+      useStoryStore.getState().removeNode(node.id)
+    })
+  }, [token])
+
+  const onEdgesDelete = useCallback((deleted) => {
+    deleted.forEach(edge => {
+      import('../../api.js').then(api => {
+        api.deleteEdge(edge.id, token).catch(err => console.error("Edge deletion failed:", err))
+      })
+      useStoryStore.getState().removeEdge(edge.id)
+    })
+  }, [token])
 
   const nodeCount = Object.keys(storeNodes).length
 
@@ -153,6 +164,8 @@ export default function StoryGraph() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        onNodesDelete={onNodesDelete}
+        onEdgesDelete={onEdgesDelete}
         fitView
         proOptions={{ hideAttribution: true }}
         style={{ background: '#07050A' }}

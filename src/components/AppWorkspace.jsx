@@ -15,6 +15,7 @@ const FREE_TABS = ['format', 'market', 'submissions']
 const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
 
 import { WritingSystemProvider } from '../contexts/WritingSystemContext'
+import StoreSyncManager from './StoreSyncManager'
 
 export default function AppWorkspace({ settings, onSettingsClick, initialTab }) {
     const { user, loading, isSubscribed, subscription, logout } = useAuth()
@@ -106,6 +107,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
 
     return (
         <WritingSystemProvider>
+            <StoreSyncManager />
             <div className="workspace">
                 {/* Workspace navbar */}
                 <header className="workspace-navbar">

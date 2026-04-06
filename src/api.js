@@ -352,6 +352,10 @@ export async function createBranch(data, token) {
     return fetchJSON('/thinking/branches', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
 }
 
+export async function updateBranch(id, data, token) {
+    return fetchJSON(`/thinking/branches/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+
 export async function deleteBranch(id, token) {
     return fetchJSON(`/thinking/branches/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
 }
@@ -400,6 +404,10 @@ export async function saveEdges(projectId, edges, token) {
         headers: _authHeaders(token),
         body: JSON.stringify({ project_id: projectId, edges }),
     })
+}
+
+export async function deleteNode(nodeId, token) {
+    return fetchJSON(`/thinking/nodes/${nodeId}`, { method: 'DELETE', headers: _authHeaders(token) })
 }
 
 export async function deleteEdge(edgeId, token) {

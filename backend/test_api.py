@@ -92,3 +92,15 @@ def test_upsert_nodes_endpoint(mock_sb, mock_supabase):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["count"] == 1
+
+@patch("routers.thinking_routes.get_supabase")
+def test_update_branch_endpoint(mock_sb, mock_supabase):
+    """Verify branch update endpoint."""
+    mock_sb.return_value = mock_supabase
+    mock_supabase.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        {"id": "b1", "name": "Updated Branch"}
+    ]
+    
+    response = client.put("/api/thinking/branches/b1", json={"name": "Updated Branch"}, headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated Branch"

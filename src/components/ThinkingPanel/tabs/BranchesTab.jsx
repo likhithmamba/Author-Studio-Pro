@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineBars3 } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBranches, createBranch, deleteBranch as apiDeleteBranch, createBranchPath, updateBranchPath, deleteBranchPath } from '../../../api';
+import { getBranches, createBranch, updateBranch, deleteBranch as apiDeleteBranch, createBranchPath, updateBranchPath, deleteBranchPath } from '../../../api';
 
 export default function BranchesTab({ projectId }) {
     const { token } = useAuth();
@@ -32,7 +32,9 @@ export default function BranchesTab({ projectId }) {
 
     const updateBranchName = (id, name) => {
         setBranches(branches.map(b => b.id === id ? { ...b, name } : b));
-        // TODO: Backend route for updating branch names if required; omitted in MVP assuming paths carry bulk of edit
+        if (token && !String(id).startsWith('b_')) {
+            updateBranch(id, { name }, token).catch(err => console.error(err));
+        }
     };
 
     const deleteBranch = (id) => {
