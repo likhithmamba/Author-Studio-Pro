@@ -85,20 +85,21 @@ export default function Sidebar({
 
     if (collapsed) {
         return (
-            <div className="editor-sidebar collapsed" style={{ paddingTop: '16px', alignItems: 'center' }}>
-                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Expand sidebar" style={{ marginBottom: '16px' }}>
+            <div className="editor-sidebar collapsed">
+                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Expand sidebar" style={{ marginTop: '1rem' }}>
                     <HiOutlineChevronRight />
                 </button>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
-                    {chapters.map((ch, idx) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center', marginTop: '2rem' }}>
+                    {chapters.map((ch) => (
                         <div 
                             key={ch.id}
                             title={ch.title}
                             onClick={() => handleChapterClick(ch.id)}
                             style={{
-                                width: '10px', height: '10px', borderRadius: '50%',
-                                background: ch.id === activeChapterId ? '#c9915a' : '#444',
-                                cursor: 'pointer'
+                                width: '8px', height: '8px', borderRadius: '50%',
+                                background: ch.id === activeChapterId ? 'var(--gold-primary)' : 'rgba(255,255,255,0.1)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
                             }}
                         />
                     ))}
@@ -110,8 +111,8 @@ export default function Sidebar({
     return (
         <div className="editor-sidebar">
             <div className="sidebar-header">
-                <h3 className="sidebar-title">Chapters</h3>
-                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Collapse sidebar">
+                <h3 className="sidebar-title">Manuscript</h3>
+                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Collapse sidebar" style={{ background: 'none', color: 'var(--text-muted)' }}>
                     <HiOutlineChevronLeft />
                 </button>
             </div>
@@ -119,15 +120,12 @@ export default function Sidebar({
             {/* Word Count Progress */}
             <div className="sidebar-progress">
                 <div className="sidebar-progress-label">
-                    <span>{totalWords.toLocaleString()} words</span>
-                    {targetWords > 0 && <span>{progressPct}% of {targetWords.toLocaleString()}</span>}
+                    <span style={{ fontWeight: 600 }}>{totalWords.toLocaleString()} <span style={{ opacity: 0.5, fontWeight: 400 }}>words</span></span>
+                    {targetWords > 0 && <span style={{ opacity: 0.6 }}>{progressPct}%</span>}
                 </div>
                 {targetWords > 0 && (
                     <div className="sidebar-progress-bar">
-                        <div className="sidebar-progress-fill" style={{
-                            width: `${progressPct}%`,
-                            background: progressPct >= 100 ? '#22c55e' : progressPct >= 75 ? '#3b82f6' : 'var(--gold-primary)',
-                        }} />
+                        <div className="sidebar-progress-fill" style={{ width: `${progressPct}%` }} />
                     </div>
                 )}
             </div>
@@ -136,89 +134,58 @@ export default function Sidebar({
                 {chapters.map((ch, idx) => {
                     const threads = chapterThreadsMap[ch.id] || [];
                     const visibleThreads = threads.slice(0, 3);
-                    const overflow = threads.length - 3;
                     
                     return (
                         <div
                             key={ch.id}
                             className={`sidebar-chapter ${ch.id === activeChapterId ? 'active' : ''}`}
-                            style={{ flexDirection: 'column', alignItems: 'stretch' }}
                             draggable
                             onDragStart={() => handleDragStart(idx)}
                             onDragOver={(e) => handleDragOver(e, idx)}
                             onDragEnd={handleDragEnd}
                             onClick={() => handleChapterClick(ch.id)}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                <HiOutlineBars3 className="sidebar-drag-handle" />
-                                {editingId === ch.id ? (
-                                    <input
-                                        className="sidebar-rename-input"
-                                        value={editTitle}
-                                        onChange={e => setEditTitle(e.target.value)}
-                                        onBlur={handleFinishRename}
-                                        onKeyDown={e => e.key === 'Enter' && handleFinishRename()}
-                                        autoFocus
-                                        onClick={e => e.stopPropagation()}
-                                    />
-                                ) : (
-                                    <span className="sidebar-chapter-title">{ch.title}</span>
+                            <div style={{ width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: threads.length > 0 ? '0.5rem' : 0 }}>
+                                    {editingId === ch.id ? (
+                                        <input
+                                            className="sidebar-rename-input"
+                                            value={editTitle}
+                                            onChange={e => setEditTitle(e.target.value)}
+                                            onBlur={handleFinishRename}
+                                            onKeyDown={e => e.key === 'Enter' && handleFinishRename()}
+                                            autoFocus
+                                            onClick={e => e.stopPropagation()}
+                                            style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--gold-primary)', color: '#fff', borderRadius: '4px', padding: '2px 4px', fontSize: '0.9rem', width: '100%' }}
+                                        />
+                                    ) : (
+                                        <span className="sidebar-chapter-title">{ch.title}</span>
+                                    )}
+                                    <span className="sidebar-chapter-words">
+                                        {((ch.wordCount || 0) / 1000).toFixed(1)}k
+                                    </span>
+                                </div>
+                                
+                                {threads.length > 0 && (
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                        {visibleThreads.map(thread => {
+                                            const color = TYPE_COLORS[thread.type] || TYPE_COLORS['subplot'];
+                                            return (
+                                                <div 
+                                                    key={thread.threadId}
+                                                    onClick={(e) => handlePillClick(e, thread.threadId)}
+                                                    style={{
+                                                        height: '4px', width: '20px', borderRadius: '2px',
+                                                        background: color.border, opacity: 0.6,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title={thread.threadTitle}
+                                                />
+                                            );
+                                        })}
+                                    </div>
                                 )}
-                                <span className="sidebar-chapter-words">
-                                    {(ch.wordCount || 0).toLocaleString()}
-                                </span>
-                                <div className="sidebar-chapter-actions">
-                                    <button
-                                        className="sidebar-action-btn"
-                                        onClick={e => { e.stopPropagation(); handleStartRename(ch) }}
-                                        title="Rename"
-                                    >
-                                        <HiOutlinePencil />
-                                    </button>
-                                    {chapters.length > 1 && (
-                                        <button
-                                            className="sidebar-action-btn sidebar-action-delete"
-                                            onClick={e => { e.stopPropagation(); onDeleteChapter(ch.id) }}
-                                            title="Delete chapter"
-                                        >
-                                            <HiOutlineTrash />
-                                        </button>
-                                    )}
-                                </div>
                             </div>
-                            
-                            {threads.length > 0 && (
-                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', paddingLeft: '24px', marginTop: '4px' }}>
-                                    {visibleThreads.map(thread => {
-                                        const color = TYPE_COLORS[thread.type] || TYPE_COLORS['subplot'];
-                                        return (
-                                            <div 
-                                                key={thread.threadId}
-                                                onClick={(e) => handlePillClick(e, thread.threadId)}
-                                                style={{
-                                                    height: '16px', padding: '2px 6px', borderRadius: '3px',
-                                                    fontSize: '10px', fontFamily: '"DM Sans", sans-serif',
-                                                    background: color.bg, border: `1px solid ${color.border}`,
-                                                    color: '#e8e0d5', cursor: 'pointer',
-                                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                                    maxWidth: '120px'
-                                                }}
-                                            >
-                                                {thread.threadTitle.length > 12 ? thread.threadTitle.substring(0, 12) + '...' : thread.threadTitle}
-                                            </div>
-                                        );
-                                    })}
-                                    {overflow > 0 && (
-                                        <div style={{
-                                            height: '16px', padding: '2px 6px', borderRadius: '3px',
-                                            fontSize: '10px', fontFamily: '"DM Sans", sans-serif',
-                                            color: '#6b6560', cursor: 'default'
-                                        }}>
-                                            +{overflow}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     );
                 })}
@@ -226,7 +193,7 @@ export default function Sidebar({
 
             {/* Add Chapter */}
             <button className="sidebar-add-btn" onClick={onAddChapter}>
-                <HiOutlinePlusCircle /> New Chapter
+                <HiOutlinePlusCircle /> <span>New Chapter</span>
             </button>
         </div>
     )

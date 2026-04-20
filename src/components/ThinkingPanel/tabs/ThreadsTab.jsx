@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getThreads, createThread, updateThread, deleteThread } from '../../../api';
+import { useStoryStore } from '../../../store/storyStore';
 
 export default function ThreadsTab({ projectId }) {
     const { token } = useAuth();
+    const { editor, addEdge, edges, removeEdge } = useStoryStore();
     const [cards, setCards] = useState([]);
     const [draggingId, setDraggingId] = useState(null);
 
@@ -47,6 +49,20 @@ export default function ThreadsTab({ projectId }) {
             if (token && !String(droppedId).startsWith('t_')) {
                 updateThread(droppedId, { status }, token).catch(err => console.error(err));
             }
+            // SSO Sync
+            if (status === 'resolved') {
+                const edge = edges.find(ed => ed.id === `edge_${droppedId}`);
+                if (edge) {
+                    removeEdge(edge.id);
+                    addEdge({ ...edge, resolved: true, edge_type: 'causality' });
+                }
+            } else if (status === 'in_progress') {
+                const card = cards.find(c => c.id === droppedId);
+                const edgeExists = edges.find(ed => ed.id === `edge_${droppedId}`);
+                if (!edgeExists && editor.activeChapterId) {
+                     addEdge({ id: `edge_${droppedId}`, source: editor.activeChapterId, target: `thread_${droppedId}`, edge_type: 'causality', label: card?.title || 'Thread' });
+                }
+            }
         }
     };
 
@@ -58,6 +74,9 @@ export default function ThreadsTab({ projectId }) {
                 .then(res => {
                     if (res && res.id) setCards(prev => prev.map(c => c.id === optimisticId ? { ...c, id: res.id } : c));
                 }).catch(err => console.error(err));
+        }
+        if (status === 'in_progress' && editor.activeChapterId) {
+             addEdge({ id: `edge_${optimisticId}`, source: editor.activeChapterId, target: `thread_${optimisticId}`, edge_type: 'causality', label: 'New Thread' });
         }
     };
 
@@ -71,6 +90,14 @@ export default function ThreadsTab({ projectId }) {
             }
             updateThread(id, apiUpdates, token).catch(err => console.error(err));
         }
+        // SSO Sync
+        if (updates.title) {
+            const edgeExists = edges.find(ed => ed.id === `edge_${id}`);
+            if (edgeExists) {
+                removeEdge(edgeExists.id);
+                addEdge({ ...edgeExists, label: updates.title });
+            }
+        }
     };
 
     const deleteCard = (id) => {
@@ -78,6 +105,7 @@ export default function ThreadsTab({ projectId }) {
         if (token && !String(id).startsWith('t_')) {
             deleteThread(id, token).catch(err => console.error(err));
         }
+        removeEdge(`edge_${id}`);
     };
 
     return (

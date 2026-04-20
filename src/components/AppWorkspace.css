@@ -112,6 +112,57 @@
     font-size: 0.75rem;
 }
 
+/* ─── Workspace Mode Toggle ──────────────────────────────────────────────── */
+.workspace-mode-toggle {
+    display: flex;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.workspace-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.workspace-mode-btn:hover {
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.workspace-mode-btn.active {
+    color: var(--bg-primary);
+    background: var(--gold-gradient);
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+}
+
+.workspace-mode-btn svg {
+    font-size: 1rem;
+}
+
+/* ─── Editor-specific main area ──────────────────────────────────────────── */
+.workspace-main-editor {
+    padding: 0;
+    overflow: hidden;
+}
+
+.workspace-main-tools {
+    padding: 0;
+}
+
 .workspace-nav-actions {
     display: flex;
     align-items: center;

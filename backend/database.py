@@ -12,10 +12,17 @@ def get_supabase() -> Client:
     if _client is None:
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-        if not url or not key:
+        is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
+
+        if not (url and key) and not is_mock:
             raise RuntimeError(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
             )
+        
+        if is_mock and not (url and key):
+            # Return a dummy object in mock mode if keys are missing to avoid crash
+            return None
+
         _client = create_client(url, key)
     return _client
 
@@ -38,14 +45,34 @@ def create_user(email: str, password_hash: str) -> dict:
 
 def get_user_by_email(email: str) -> Optional[dict]:
     """Fetch a user by email. Returns None if not found."""
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
+        if email.lower() == "demo@example.com":
+            return {
+                "id": "00000000-0000-0000-0000-000000000000",
+                "email": "demo@example.com",
+                # bcrypt hash of 'password123'
+                "password_hash": "$2b$12$rmoaMSqN5lT2OPA1gddlUMOmGG6xHYgwXWthXeiOROibsGzU",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+
     sb = get_supabase()
+    if not sb: return None
     result = sb.table("users").select("*").eq("email", email).execute()
     return result.data[0] if result.data else None
 
 
 def get_user_by_id(user_id: str) -> Optional[dict]:
     """Fetch a user by UUID."""
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
+        if user_id == "00000000-0000-0000-0000-000000000000":
+            return {
+                "id": "00000000-0000-0000-0000-000000000000",
+                "email": "demo@example.com",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+
     sb = get_supabase()
+    if not sb: return None
     result = sb.table("users").select("*").eq("id", user_id).execute()
     return result.data[0] if result.data else None
 
@@ -78,7 +105,18 @@ def create_subscription(
 
 def get_active_subscription(user_id: str) -> Optional[dict]:
     """Get the active subscription for a user (if any)."""
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
+        if user_id == "00000000-0000-0000-0000-000000000000":
+            return {
+                "id": "mock-sub-id",
+                "user_id": user_id,
+                "plan": "studio",
+                "status": "active",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+
     sb = get_supabase()
+    if not sb: return None
     result = (
         sb.table("subscriptions")
         .select("*")

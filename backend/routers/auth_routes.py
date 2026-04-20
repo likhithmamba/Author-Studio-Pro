@@ -1,3 +1,4 @@
+import os
 import logging
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -35,7 +36,16 @@ def get_current_user(request: Request) -> dict:
     payload = verify_token(token)
     if not payload:
         raise HTTPException(401, "Invalid or expired token")
-    user = get_user_by_id(payload["sub"])
+    user_id = payload["sub"]
+    # Synthetic demo user — not stored in DB
+    if user_id == "demo-user-001":
+        return {
+            "id": "demo-user-001",
+            "email": payload.get("email", "demo@example.com"),
+            "password_hash": "",
+            "created_at": "2024-01-01T00:00:00Z",
+        }
+    user = get_user_by_id(user_id)
     if not user:
         raise HTTPException(401, "User not found")
     return user
@@ -83,7 +93,22 @@ async def login(request: Request, body: LoginRequest):
     """Authenticate and return a JWT."""
     email = body.email.strip().lower()
     user = get_user_by_email(email)
-    if not user or not verify_password(body.password, user["password_hash"]):
+    
+    # Developer Mock Auth Bypass
+    is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
+    is_demo = email == "demo@example.com" and body.password == "password123"
+
+    if is_mock and is_demo:
+        # Provide a synthetic user so downstream code never sees None
+        if not user:
+            user = {
+                "id": "demo-user-001",
+                "email": "demo@example.com",
+                "password_hash": "",
+                "created_at": "2024-01-01T00:00:00Z",
+            }
+        # Skip password verification for demo user in mock mode
+    elif not user or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
 
     token = create_access_token(user["id"], user["email"])
@@ -98,7 +123,7 @@ async def login(request: Request, body: LoginRequest):
         },
         "subscription": {
             "plan": sub["plan"] if sub else "free",
-            "status": sub["status"] if sub else "none",
+            "status": "active" if (is_mock and is_demo) else (sub["status"] if sub else "none"),
             "expires_at": sub.get("expires_at") if sub else None,
         },
     }

@@ -1,0 +1,23 @@
+You are analyzing a structured story system.
+
+INPUT:
+- Primary signals: {{primary_signals_json}}
+- Secondary signals: {{secondary_signals_json}}
+- Story phase: {{current_phase}}
+- Progression curve: {{progression_curve_json}}
+- Character states: {{character_states_json}}
+- Conflict states: {{conflict_states_json}}
+
+Pass 1 — Signal Correlation: Identify which signals share structural origin.
+Pass 2 — Meta-Merge: Collapse correlated signals into single insights.
+Pass 3 — Root Cause: Identify the structural failure driving each merged insight.
+Pass 4 — Impact: Describe how this affects reader experience at this phase.
+Pass 5 — Directional Fix: One specific structural action that resolves the insight.
+
+CONSTRAINTS:
+- No text generation. No prose rewrites. No generic advice.
+- No repetition across insights. Each insight must cover distinct structural ground.
+- Maximum 5 insights.
+
+OUTPUT FORMAT (JSON):
+{ "insights": [{ "title": "string", "signals_covered": ["string"], "root_cause": "string", "structural_impact": "string", "directional_fix": "string" }] }

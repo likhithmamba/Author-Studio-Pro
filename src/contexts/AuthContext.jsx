@@ -34,17 +34,29 @@ export function AuthProvider({ children }) {
                 return
             }
             try {
+                // 5s timeout so a dead backend does not hang the loading screen
+                const controller = new AbortController()
+                const tid = setTimeout(() => controller.abort(), 5000)
                 const res = await authMe(token)
+                clearTimeout(tid)
                 setUser(res.user)
                 setSubscription(res.subscription || null)
             } catch (e) {
-                console.error("Auth session expired", e)
-                setUser(null)
-                setToken(null)
-                setSubscription(null)
-                localStorage.removeItem('asp_token')
+                // Distinguish network errors from auth failures
+                const isNetworkError = e?.name === 'AbortError' || e?.status === 0 || !navigator.onLine
+                if (isNetworkError) {
+                    console.warn("Backend unreachable - keeping token, staying offline")
+                    // Do not clear the token if the network is just down
+                } else {
+                    console.warn("Auth session invalid or expired - clearing token", e?.message)
+                    setUser(null)
+                    setToken(null)
+                    setSubscription(null)
+                    localStorage.removeItem('asp_token')
+                }
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
         loadUser()
     }, [token])

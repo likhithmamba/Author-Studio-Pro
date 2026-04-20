@@ -4,7 +4,7 @@
  * Nodes are created by @character and #plot mentions in the editor.
  */
 
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -19,6 +19,7 @@ import 'reactflow/dist/style.css'
 import 'reactflow/dist/style.css'
 import { useStoryStore } from '../../store/storyStore.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import { calculateProgressionCurve } from '../../utils/progressionCurve.js'
 
 const NODE_COLORS = {
   character: '#8b5cf6',
@@ -28,6 +29,17 @@ const NODE_COLORS = {
 }
 
 function StoryNode({ data }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(data.label);
+  const [editType, setEditType] = useState(data.type);
+
+  const handleSave = (e) => {
+      e.stopPropagation();
+      data.onConfirm(data.id, { label: editLabel, node_type: editType });
+      setIsEditing(false);
+  };
+
   return (
     <div style={{
       background: data.type === 'character'
@@ -48,6 +60,7 @@ function StoryNode({ data }) {
       textAlign: 'center',
       cursor: 'pointer',
       boxShadow: `0 2px 8px ${NODE_COLORS[data.type] || 'rgba(0,0,0,0.3)'}22`,
+      position: 'relative'
     }}>
       <Handle type="target" position={Position.Top} style={{ background: NODE_COLORS[data.type], width: 6, height: 6, border: 'none' }} />
       <div style={{
@@ -61,6 +74,66 @@ function StoryNode({ data }) {
       </div>
       {data.label}
       <Handle type="source" position={Position.Bottom} style={{ background: NODE_COLORS[data.type], width: 6, height: 6, border: 'none' }} />
+      
+      {/* Confidence Pill */}
+      {data.confidence_score !== undefined && data.confidence_score < 0.8 && !isEditing && (
+         <div 
+           onMouseEnter={() => setIsHovered(true)}
+           onMouseLeave={() => setIsHovered(false)}
+           style={{
+             position: 'absolute', bottom: -10, right: -10,
+             background: isHovered ? '#1a1a1a' : '#c9915a',
+             color: '#111',
+             fontSize: '9px', padding: '2px 6px', borderRadius: '10px',
+             border: '1px solid #c9915a',
+             cursor: 'pointer', display: 'flex', zIndex: 10,
+             minWidth: '34px', justifyContent: 'center'
+           }}
+           title="AI Extracted. Is this accurate?"
+          >
+             {isHovered ? (
+                 <>
+                     <span onClick={(e) => { e.stopPropagation(); data.onConfirm(data.id, {}); }} style={{color:'#5AAD7F', marginRight:'4px'}}>✓ Yes</span>
+                     <span onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} style={{color:'#D4614A'}}>✗ Fix</span>
+                 </>
+             ) : (
+                 `? ${Math.round(data.confidence_score * 100)}%`
+             )}
+         </div>
+      )}
+
+      {/* Edit Popover */}
+      {isEditing && (
+          <div style={{
+              position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)',
+              background: '#111', border: '1px solid #333', padding: '12px',
+              borderRadius: '8px', zIndex: 20, width: '180px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
+              display: 'flex', flexDirection: 'column', gap: '8px'
+          }}>
+              <div style={{ fontSize: '10px', color: '#6b6560', textAlign: 'left', marginBottom: '4px' }}>Fix Extraction</div>
+              <input 
+                  value={editLabel} 
+                  onChange={e => setEditLabel(e.target.value)} 
+                  style={{ width: '100%', background: '#000', border: '1px solid #222', color: '#fff', padding: '6px', borderRadius: '4px', fontSize: '11px' }}
+              />
+              <select 
+                  value={editType} 
+                  onChange={e => setEditType(e.target.value)}
+                  style={{ width: '100%', background: '#000', border: '1px solid #222', color: '#fff', padding: '6px', borderRadius: '4px', fontSize: '11px' }}
+              >
+                  <option value="character">character</option>
+                  <option value="plot">plot</option>
+                  <option value="event">event</option>
+                  <option value="scene">scene</option>
+              </select>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(false); }} style={{ flex: 1, background: 'transparent', border: '1px solid #333', color: '#ccc', borderRadius: '4px', padding: '4px', fontSize: '10px', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={handleSave} style={{ flex: 1, background: '#c9915a', border: 'none', color: '#000', borderRadius: '4px', padding: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+              </div>
+          </div>
+      )}
+
     </div>
   )
 }
@@ -85,17 +158,39 @@ export default function StoryGraph() {
       id: n.id,
       type: 'storyNode',
       position: n.position || { x: Math.random() * 500, y: Math.random() * 400 },
-      data: { label: n.label, type: n.type },
+      data: { 
+          label: n.label, 
+          type: n.type || n.node_type || 'event',
+          confidence_score: n.confidence_score !== undefined ? n.confidence_score : 0.72,
+          id: n.id,
+          onConfirm: (id, updates = {}) => upsertNode({...n, ...updates, confidence_score: 1.0}),
+          onFix: (id) => upsertNode({...n, confidence_score: 0.95}) 
+      },
     }))
     const rfEdges = storeEdges.map(e => ({
       id: e.id || `${e.source}-${e.target}`,
       source: e.source,
       target: e.target,
-      style: { stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1 },
+      style: { stroke: e.edge_type === 'conflict' ? '#D4614A' : 'rgba(255,255,255,0.2)', strokeWidth: e.edge_type === 'conflict' ? 2 : 1 },
       animated: true,
+      label: e.label || '',
+      labelStyle: { fill: '#9B7EC8', fontSize: 10 }
     }))
     setNodes(rfNodes)
     setEdges(rfEdges)
+  }, [storeNodes, storeEdges, upsertNode])
+
+  const [progressionCurveData, setProgressionCurveData] = React.useState(null);
+  const [showProgression, setShowProgression] = React.useState(true);
+
+  useEffect(() => {
+    try {
+        const snap = useStoryStore.getState();
+        const pData = calculateProgressionCurve(snap);
+        if(pData && pData.chapterCurves && pData.chapterCurves.length > 0) {
+            setProgressionCurveData(pData);
+        }
+    } catch(e) { console.warn("Progression Error: ", e) }
   }, [storeNodes, storeEdges])
 
   const onConnect = useCallback((params) => {
@@ -192,7 +287,7 @@ export default function StoryGraph() {
       {/* Sync Indicator */}
       <div style={{
         position: 'absolute',
-        bottom: '12px',
+        top: '12px',
         right: '12px',
         background: 'rgba(0,0,0,0.6)',
         backdropFilter: 'blur(4px)',
@@ -210,6 +305,32 @@ export default function StoryGraph() {
         {syncStatus === 'saving' && <div className="spinner-small" />}
         {syncStatus === 'saving' ? 'Syncing to cloud...' : 'Syncing paused'}
       </div>
+
+      {/* Progression Curve Strip */}
+      {showProgression && progressionCurveData && (
+          <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '100px',
+              background: 'linear-gradient(180deg, rgba(12,12,14,0) 0%, rgba(12,12,14,0.95) 100%)',
+              zIndex: 10, borderTop: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', padding: '16px', gap: '2px', alignItems: 'flex-end',
+          }}>
+              {progressionCurveData.chapterCurves.map((curve, idx) => (
+                  <div key={idx} style={{
+                      flex: 1, 
+                      height: `${Math.max(10, curve.conflict_intensity * 100)}%`,
+                      background: curve.conflict_intensity > 0.8 ? '#D4614A' : curve.conflict_intensity > 0.4 ? '#C9915A' : '#5A8FC9',
+                      opacity: 0.8,
+                      borderRadius: '4px 4px 0 0',
+                      transition: 'height 0.3s ease',
+                      position: 'relative',
+                  }} title={`Conflict: ${Math.round(curve.conflict_intensity*100)}%`}>
+                      <span style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', fontSize: '8px', color: '#6b6560' }}>
+                          {idx+1}
+                      </span>
+                  </div>
+              ))}
+          </div>
+      )}
     </div>
   )
 }

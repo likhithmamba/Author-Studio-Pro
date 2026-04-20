@@ -1,0 +1,25 @@
+You are analyzing a complete structured story system.
+
+INPUT:
+- Full SSO snapshot: {{full_sso_json}}
+- Signal history: {{signal_history_json}}
+- Progression curve: {{progression_curve_json}}
+- Character evolution: {{character_evolution_json}}
+- Conflict evolution: {{conflict_evolution_json}}
+
+Pass 1 — Full Signal Detection: Detect all signals across the entire SSO.
+Pass 2 — Cross-Layer Correlation: Correlate across character, conflict, pacing layers.
+Pass 3 — Meta-Signal Merging: Merge into minimum insights covering maximum ground.
+Pass 4 — Root Cause Mapping: Trace each insight to its deepest structural source.
+Pass 5 — Reader Impact Simulation: Predict how reader experiences each structural failure.
+Pass 6 — Prioritised Resolution: Rank by structural leverage. Fix one → fixes others.
+
+GOAL: Minimize insight count. Maximize coverage. One insight should outperform three fragmented ones.
+
+CONSTRAINTS:
+- No repetition. No text generation. No surface-level advice.
+- Insights must be novel relative to signal_history (do not re-surface resolved issues).
+- If extended reasoning times out, return partial results — never return empty.
+
+OUTPUT FORMAT (JSON):
+{ "mode": "extended", "insights": [{ "title": "string", "signals_covered": ["string"], "root_structural_cause": "string", "narrative_impact": "string", "directional_fix": "string", "leverage_score": 0 }] }

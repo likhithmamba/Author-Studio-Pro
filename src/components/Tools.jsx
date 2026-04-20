@@ -12,12 +12,11 @@ import MarketTab from './Tools/MarketTab.jsx'
 import SubmissionTab from './Tools/SubmissionTab.jsx'
 import { hasApiKey, loadApiKey, getDeviceFingerprint } from '../utils/keyStorage.js'
 
-// Lazy load editor to avoid pulling Tiptap into the main bundle
-import { lazy, Suspense } from 'react'
-const EditorLayout = lazy(() => import('./Editor/EditorLayout.jsx'))
+// Filter: only show publishing tools, not the editor tab
+const TOOL_TABS = TABS.filter(t => t.id !== 'editor')
 
 export default function Tools({ settings, allowedTabs, initialTab }) {
-    const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
+    const allTabs = allowedTabs || ['format', 'analyse', 'query', 'market', 'submissions']
     const [tab, setTab] = useState(initialTab || 'format')
     const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.08 })
 
@@ -34,8 +33,8 @@ export default function Tools({ settings, allowedTabs, initialTab }) {
                     animate={inView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.7 }}
                 >
-                    <span className="tools-eyebrow">Interactive Tools</span>
-                    <h2 className="tools-title">Try the Studio</h2>
+                    <span className="tools-eyebrow">Publishing Suite</span>
+                    <h2 className="tools-title">Author Studio Pro Tools</h2>
                     <p className="tools-subtitle">
                         Upload your manuscript and process it right here.
                         Formatting and market data work without any API key.{' '}
@@ -58,7 +57,7 @@ export default function Tools({ settings, allowedTabs, initialTab }) {
                     animate={inView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6, delay: 0.15 }}
                 >
-                    {TABS.map(t => {
+                    {TOOL_TABS.map(t => {
                         const isLocked = !allTabs.includes(t.id)
                         return (
                             <button
@@ -89,11 +88,6 @@ export default function Tools({ settings, allowedTabs, initialTab }) {
                         {tab === 'query' && <QueryTab key="query" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} />}
                         {tab === 'market' && <MarketTab key="market" />}
                         {tab === 'submissions' && <SubmissionTab key="submissions" />}
-                        {tab === 'editor' && (
-                            <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>Loading editor...</div>}>
-                                <EditorLayout key="editor" apiKey={apiKey} aiModel={aiModel} hasKey={hasKey} settings={settings} />
-                            </Suspense>
-                        )}
                     </AnimatePresence>
                 </motion.div>
 

@@ -95,6 +95,13 @@ app.include_router(ai_router)
 from routers.thinking_routes import router as thinking_router
 app.include_router(thinking_router)
 
+from routers.sso_routes import router as sso_router
+app.include_router(sso_router)
+
+from routers.editor_routes import router as editor_router
+app.include_router(editor_router)
+
+
 
 # ─── Health check ──────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["System"])
@@ -432,13 +439,27 @@ async def validate_ai_key(request: Request, body: ValidateKeyRequest):
         raise HTTPException(400, f"Unsupported provider: {body.provider}")
 
 
-# ─── Entry ────────────────────────────────────────────────────────────────────
+# ─── Final Startup ──────────────────────────────────────────
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global error handler caught: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred.", "error": str(exc)},
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    # RELOAD is true by default for developer experience
+    should_reload = os.getenv("RELOAD", "true").lower() == "true"
+    
     uvicorn.run(
         "main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", "8000")),
-        reload=os.getenv("RELOAD", "true").lower() == "true",
+        host="0.0.0.0",
+        port=8000,
+        reload=should_reload,
         log_level="info",
     )

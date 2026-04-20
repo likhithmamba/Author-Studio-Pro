@@ -7,10 +7,17 @@
   --bg-primary: #050810;
   --bg-secondary: #0a0f1c;
   --bg-tertiary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.6);
-  --bg-glass: rgba(255, 255, 255, 0.03);
-  --bg-glass-hover: rgba(255, 255, 255, 0.06);
+  --bg-studio: #0d1117;
+  --bg-card: rgba(17, 24, 39, 0.4);
   
+  /* ─── Glassmorphism ─── */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-bright: rgba(255, 255, 255, 0.15);
+  --glass-blur: blur(20px);
+  
+  /* ─── Brand Colors ─── */
   --gold-primary: #d4a853;
   --gold-light: #e8c97a;
   --gold-dark: #b8860b;
@@ -29,26 +36,30 @@
   --accent-amber: #f59e0b;
   --accent-cyan: #06b6d4;
   
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-gold: rgba(212, 168, 83, 0.2);
-  --border-glow: rgba(212, 168, 83, 0.4);
-  
   /* ─── Spacing ─── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
   --section-padding: clamp(4rem, 8vw, 8rem);
   --container-max: 1280px;
   --container-padding: clamp(1rem, 4vw, 2rem);
   
   /* ─── Typography ─── */
-  --font-display: 'Playfair Display', 'Georgia', serif;
+  --font-display: 'Outfit', 'Playfair Display', serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-writing: 'Charter', 'Merriweather', 'Georgia', serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   
   /* ─── Shadows ─── */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 40px rgba(212, 168, 83, 0.1);
-  --shadow-gold: 0 0 30px rgba(212, 168, 83, 0.15);
+  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--glass-border);
   
   /* ─── Transitions ─── */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -58,10 +69,11 @@
   --transition-slow: 500ms var(--ease-out-expo);
   
   /* ─── Border Radius ─── */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
   --radius-full: 9999px;
 }
 

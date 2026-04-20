@@ -1,0 +1,2217 @@
+SENIOR ENGINEERING REVIEW  ·  ARCHITECTURE AUDIT
+Author Studio Pro
+What's Built. What's Missing. What to Build Next.
+CODEBASE
+React + FastAPI
+STACK
+Vite / Supabase / OpenRouter
+SPEC VERSION
+FINAL — Apr 2026
+OVERALL COMPLETION
+~38% of Spec
+A full-stack audit of the novel formatter codebase against the final architecture specification. This report documents every gap between what exists in source and what the spec mandates — with precise build prompts, UI design specifications, security requirements, and layout guidelines for each missing system.
+✗
+CRITICAL TRUTH — The Brain Was Designed. The Face Was Not.
+You designed the intelligence backend, but did not build the UI layer that exposes it to users. Every core system — Signal Engine, Meta-Signal Layer, Progression Curve, Confidence Loop, AI Modes — has zero or near-zero implementation. The application currently functions as a formatter and basic text analyser. The entire intelligence proposition described in the spec does not exist in any source file.
+00 — System Scorecard
+System
+Score
+Status Summary
+Backend / API
+90%
+Routes, auth, payment, rate limiting all solid. Minor issues only.
+Editor Core
+85%
+TipTap editor, chapter CRUD, Zustand store, sync all functional.
+Thinking Panel
+50%
+All tabs exist. Two-way SSO sync, signal-driven Ideas, and arc/edge mapping are missing.
+Graph Engine
+45%
+Nodes and edges stored. Signal overlays, progression curve, node-type semantics absent.
+Signal Engine
+0%
+Spec mandates 6-stage pipeline. Only 3 unconnected utility files exist in src/utils/analysis/.
+AI Modes System
+5%
+Only a free/paid model toggle exists. Normal / Depth / Extended with multi-pass pipelines absent.
+SSO — Full Spec
+35%
+Chapters, nodes, edges in store. character_states, conflict_states, progression_markers not implemented.
+Progression Curve
+0%
+No density/intensity metrics, no curve calculation, no pacing detection.
+Confidence Layer
+0%
+No confidence_score on nodes, no correction UI, no extraction-bias feedback loop.
+Intent Layer
+0%
+No story-type or phase-awareness system modifying signal severity anywhere in the codebase.
+UI — Signal Display
+0%
+No placement rules, no interaction design, no visual hierarchy for signal output.
+UI — Meta-Signal
+0%
+No merged insight display, no grouping interface.
+UI — AI Modes
+0%
+No mode switch UX, no cost/latency signalling, no explanation of mode differences.
+✗
+The Entire Intelligence Stack Is Missing
+The spec's core value proposition — SSO-driven signal detection, meta-signal merging, three AI modes with multi-pass reasoning — has zero implementation. The critical architectural shift required is: stop passing raw text to the AI and start passing the SSO snapshot. Build P0 (SSO extension) first. Everything else is blocked behind it.
+01 — SSO: Single Source of Truth
+The SSO is the architectural foundation. Every downstream system reads from it. Until the missing fields are in place, no intelligence feature can be correctly built.
+Current Status vs Spec
+Component
+Status
+Location
+Gap
+story_nodes (scenes, events)
+⚬ Partial
+storyStore.js → nodes{}
+No type field (scene/event/character). No confidence_score.
+story_edges (causality, relationships)
+⚬ Partial
+storyStore.js → edges[]
+Edges carry no semantic type. Causality vs relationship vs conflict is untyped.
+character_states
+✗ Missing
+—
+Not in storyStore, not in Supabase schema. Required for signal detection.
+conflict_states
+✗ Missing
+—
+Not defined anywhere. Signal engine cannot function without it.
+progression_markers
+✗ Missing
+—
+No setup/escalation/peak/resolution markers in store or DB.
+⚠
+Architecture Risk
+Every downstream system — Signal Engine, Analyzer, Thinking Panel sync, Graph overlays — reads from the SSO. Until character_states, conflict_states, and progression_markers are added to storyStore.js and the Supabase schema, none of those systems can be built correctly.
+Character States — Full Specification
+Character states track per-character timeline evolution. Each state record captures the character's role, arc phase, and emotional/functional position at a specific chapter. This is what allows the Signal Engine to detect flat arcs, orphan characters, and missing character development.
+Data Schema
+characterStates: { [charId]: { name, role, arc_phase, current_state, chapter_id } }
+arc_phase values: 'introduction' | 'development' | 'conflict' | 'transformation' | 'resolution'
+current_state: free-text snapshot of character's emotional/situational status
+chapter_id: the chapter where this state snapshot was recorded
+confidence_score: 0-1 (AI-extracted = 0.70, user-created = 1.00, user-confirmed = 1.00)
+Supabase Table: character_states
+id (uuid, PK), project_id (FK → projects), user_id (FK → auth.users)
+character_id (text), character_name (text), role (text)
+arc_phase (enum: introduction/development/conflict/transformation/resolution)
+current_state (text), chapter_id (text), confidence_score (float4, default 0.70)
+created_at (timestamptz), updated_at (timestamptz)
+RLS Policy: project owner and collaborators can SELECT/INSERT/UPDATE/DELETE
+Conflict States — Full Specification
+Conflict states track the lifecycle and intensity of each conflict. The Signal Engine uses these to detect unresolved conflicts, missing escalation, and premature resolution.
+Data Schema
+conflictStates: { [confId]: { type, intensity: 0-1, parties, status, chapter_id } }
+type values: 'internal' | 'interpersonal' | 'societal' | 'environmental'
+intensity: float 0-1 representing conflict pressure level at this chapter
+parties: string[] — character IDs involved in the conflict
+status: 'active' | 'escalating' | 'resolved' | 'dormant'
+Progression Markers — Full Specification
+progressionMarkers: [{ id, chapter_id, phase: 'setup'|'escalation'|'peak'|'resolution', confidence }]
+These drive the Progression Curve Engine and the graph overlay colour system
+phase coloring: setup(blue) → escalation(amber) → peak(red) → resolution(green)
+Node and Edge Typing — Full Specification
+Node Types
+scene — represents a narrative scene with chapter reference and word count
+event — represents a plot event connected to a chapter
+character — represents a character node with arc_phase badge
+Each node must carry: node_type, confidence_score, chapter_id
+Edge Types
+causality — solid line with directional arrow. A causes B.
+relationship — dashed line. Character A relates to Character B.
+conflict — red animated line. Conflict between parties.
+PROMPT TEMPLATE — SSO Extension
+Target: src/store/storyStore.js + supabase/migrations/005_sso_extension.sql
+// Extend Zustand storyStore with these top-level state fields:
+characterStates: {},     // { [charId]: { name, role, arc_phase, current_state, chapter_id } }
+conflictStates: {},      // { [confId]: { type, intensity: 0-1, parties, status, chapter_id } }
+progressionMarkers: [],  // [{ id, chapter_id, phase: setup|escalation|peak|resolution, confidence }]
+// Extend each node in nodes{} to include:
+//   node_type: 'scene' | 'event' | 'character'
+//   confidence_score: number (0-1, default 0.8)
+//   chapter_id: string
+// Extend each edge in edges[] to include:
+//   edge_type: 'causality' | 'relationship' | 'conflict'
+// Add CRUD actions: upsertCharacterState, upsertConflictState,
+//   addProgressionMarker, removeProgressionMarker
+// Supabase migration 005_sso_extension.sql:
+//   Add columns to story_nodes: node_type, confidence_score, chapter_id
+//   Add columns to story_edges: edge_type
+//   New tables: character_states, conflict_states, progression_markers
+//   All tables: project_id FK, user_id, created_at, updated_at
+//   All tables: RLS enabled, owner-only policies
+// CRITICAL: All downstream systems must read ONLY from the store.
+//           No raw text access in any downstream component.
+02 — Signal Engine: Full 6-Stage Pipeline
+✗
+Status: Entirely Missing — 0%
+The spec defines a 6-stage pipeline: Detection → Intent Adjustment → Scoring → Suppression → Ranking → Output (max 3). The codebase contains only clicheDetector.js, hookAnalyzer.js, and openingAudit.js in src/utils/analysis/ — none of which are wired together or connected to the SSO. There is no pipeline, no intent layer, no scoring schema, no suppression logic.
+Pipeline Stage Status
+Pipeline Stage
+Status
+Detail
+Stage 1 — Detection
+✗ Missing
+3 unconnected utility files are NOT a detection system. Needs SSO-reading detection logic.
+Stage 2 — Intent Adjustment
+✗ Missing
+No intent layer exists anywhere in the codebase.
+Stage 3 — Scoring
+✗ Missing
+No scoring schema or scoring function defined.
+Stage 4 — Suppression
+✗ Missing
+No deduplication or suppression logic.
+Stage 5 — Ranking
+✗ Missing
+No ranked output system.
+Stage 6 — Output (max 3)
+✗ Missing
+The "top 3 signals" rule from the spec is completely absent.
+Signal Schema
+id: string — unique signal identifier
+type: 'pacing' | 'character' | 'conflict' | 'structure' | 'arc'
+region: { chapterIds: string[] } — chapters affected
+characters: string[] — character IDs implicated
+progression_phase: string — which phase this signal fires in
+raw_score: number (0-100) — pre-intent score
+intent_adjusted_score: number — after intentLayer modifiers
+suppressed: boolean + suppression_reason: string | null
+severity: 'low' | 'medium' | 'high'
+issue, cause, directional_fix: string — human-readable output fields
+PROMPT TEMPLATE — Signal Engine
+Target: src/utils/signalEngine.js + src/utils/intentLayer.js
+// Build a 6-stage signal engine that reads EXCLUSIVELY from the SSO store.
+Stage 1 — DETECTION:
+// Read character_states, conflict_states, progression_markers, nodes, edges from SSO
+// Emit raw signals for:
+//   flat arcs (arc_phase unchanged across 3+ consecutive chapters)
+//   unresolved conflicts (status='active' with no downstream resolution marker)
+//   orphan characters (no character_state records for 2+ consecutive chapters)
+//   missing escalation (conflict_intensity flat across setup→escalation boundary)
+//   setup without payoff ('setup' marker with no subsequent 'peak' or 'resolution')
+//   peak without setup ('peak' marker appearing before 'setup')
+Stage 2 — INTENT ADJUSTMENT (intentLayer.js):
+// For each signal, apply phase-aware modifiers:
+//   If story is in 'setup' phase and conflict_intensity is low → lower severity
+//   If multiple signals share the same characters → flag for clustering
+// Returns intent_adjusted_score per signal. Reduces false positives.
+Stage 3 — SCORING:
+// weight = (severity * 0.4) + (structural_impact * 0.4) + (frequency * 0.2)
+// Normalise to 0-100
+Stage 4 — SUPPRESSION:
+// Suppress if: score < 30, or signal is a subset of a higher-scored signal
+// Mark suppressed = true with suppression_reason — do NOT remove from array
+Stage 5 — RANKING:
+// Sort non-suppressed signals by intent_adjusted_score descending
+Stage 6 — OUTPUT:
+// Return top 3 non-suppressed signals ONLY. Never return more than 3.
+// Export: runSignalEngine(storeSnapshot) → Signal[]
+03 — Meta-Signal Layer
+✗
+Status: Entirely Missing — 0%
+The spec mandates that signals sharing region, characters, and progression phase be clustered and merged into a single high-quality meta-signal. No clustering, merging, or meta-signal schema exists anywhere in the codebase.
+Meta-Signal Schema
+id: string — unique meta-signal identifier
+source_signals: string[] — IDs of signals that were merged into this
+title: string — synthesized from merged signals
+region: { chapterIds: string[] }
+characters: string[] — union of all merged signal characters
+progression_phase: string — dominant phase of merged signals
+composite_score: number — max(individual scores) * 1.2, capped at 100
+root_cause: string — common structural cause across merged signals
+narrative_impact: string — reader-facing consequence of the cluster
+directional_fix: string — single fix that addresses all merged signals
+PROMPT TEMPLATE — Meta-Signal Layer
+Target: src/utils/metaSignalLayer.js
+// Build the meta-signal merger that runs AFTER the signal engine output.
+// Input: Signal[] from signalEngine (pre-filter, may receive more than 3)
+// Output: MetaSignal[] (always fewer than input count)
+CLUSTERING RULE:
+// Cluster if 2+ signals share ANY 2 of:
+//   (region overlap, character overlap, same progression_phase)
+// Merge cluster → single MetaSignal
+// composite_score = max(individual scores) * 1.2 (capped at 100)
+// Prefer 1 high-quality insight over 3 fragmented ones — MANDATORY
+MERGE STRATEGY:
+// root_cause: find common structural cause across merged signals
+// directional_fix: synthesize single fix addressing all merged signals
+// narrative_impact: describe reader-facing consequence of the cluster
+// Export: mergeToMetaSignals(signals: Signal[]) → MetaSignal[]
+04 — Intent Layer
+✗
+Status: Entirely Missing — 0%
+The Intent Layer makes the Signal Engine story-type and phase-aware. Without it, the engine produces false positives on intentional structure choices (e.g. slow burns, literary fiction). It modifies signal severity based on declared story type and current progression phase.
+Intent Layer Specification
+Reads: current_phase from progressionMarkers + story intent settings (stored in project metadata)
+Story types: 'literary' | 'genre' | 'thriller' | 'romance' | 'slow_burn' | 'action'
+Each story type defines expected conflict_intensity ranges per phase
+If actual metrics fall within expected range → do NOT fire severity signals
+If actual metrics deviate significantly → elevate signal severity
+Phase-Aware Modifiers
+setup phase + conflict_intensity < 0.3 → lower pacing signal severity by 2 levels
+setup phase + flat arc → suppress arc signal (intentional in setup)
+escalation phase + flat middle detection → HIGH severity (critical signal)
+peak phase + missing peak marker → CRITICAL severity
+resolution phase + unresolved conflicts → HIGH severity
+PROMPT TEMPLATE — Intent Layer
+Target: src/utils/intentLayer.js
+// Reads project intent settings from storyStore.projectMeta.storyType and current phase.
+// Applied as Stage 2 of the Signal Engine pipeline.
+// INTENT CONFIG SCHEMA:
+intentConfig = {
+  storyType: 'literary' | 'genre' | 'thriller' | 'romance' | 'slow_burn' | 'action',
+  expectedConflictByPhase: {
+    setup: { min: 0.1, max: 0.4 },
+    escalation: { min: 0.4, max: 0.8 },
+    peak: { min: 0.7, max: 1.0 },
+    resolution: { min: 0.0, max: 0.5 },
+  }
+}
+// applyIntentAdjustment(signal, storeSnapshot, intentConfig) → signal with adjusted severity
+// If signal metrics fall within expected range → downgrade or suppress
+// If signal metrics deviate significantly → maintain or elevate
+// Export: buildIntentConfig(projectMeta) → IntentConfig
+// Export: applyIntentAdjustment(signal, snapshot, config) → Signal
+05 — AI Modes System
+✗
+Status: 5% Implemented
+The spec defines three distinct modes — Normal, Depth, Extended — each with different context expansion, multi-pass reasoning pipelines, token allocations, and guardrails. What exists: a model selector dropdown in SettingsPanel.jsx (free vs paid models). There are no mode toggles, no multi-pass pipelines, no per-mode prompts, and no Extended Reasoning path.
+Mode Status Matrix
+Mode
+Status
+What's Missing
+Normal Mode
+⚬ Partial
+Basic AI call exists via analyseText. No structured Normal-mode prompt, no top-3 signal constraint, no context bounding.
+Depth Mode
+✗ Missing
+Multi-pass pipeline (5 passes) not implemented. No signal correlation pass, no root-cause detection pass.
+Extended Reasoning
+✗ Missing
+6-pass pipeline entirely absent. No user toggle. No high-token model routing. No fallback to Depth on timeout.
+Mode Toggle UI
+✗ Missing
+SettingsPanel.jsx has no "Enable Deep Analysis Mode" or "Enable Extended Reasoning" toggles.
+Token Allocation
+✗ Missing
+Context/Reasoning/Output token budgets not enforced in any prompt construction.
+Mode Indicators
+✗ Missing
+No "Deep Mode Active" or "Extended Mode Active" status indicators anywhere in the editor.
+Auto-Fallback
+✗ Missing
+No latency/token overflow detection. No fallback routing logic (Extended → Depth).
+AI Mode Schema
+NORMAL: contextPct 30%, reasoningPct 40%, outputPct 30%, maxSignals 3, multiPass false
+DEPTH: contextPct 60%, reasoningPct 70%, outputPct 40%, maxSignals 5, multiPass true, passes 5
+EXTENDED: contextPct 75%, reasoningPct 90%, outputPct 50%, maxSignals 10, multiPass true, passes 6, requiresHighTokenModel true, fallback 'depth'
+PROMPT TEMPLATE — AI Modes System
+Target: backend/routers/ai_routes.py + src/utils/aiModes.js + src/components/SettingsPanel.jsx
+// 1. MODE SCHEMA (src/utils/aiModes.js)
+export const AI_MODES = {
+  NORMAL: { id: 'normal', contextPct: 0.30, reasoningPct: 0.40, outputPct: 0.30, maxSignals: 3, multiPass: false },
+  DEPTH: { id: 'depth', contextPct: 0.60, reasoningPct: 0.70, outputPct: 0.40, maxSignals: 5, multiPass: true, passes: 5 },
+  EXTENDED: { id: 'extended', contextPct: 0.75, reasoningPct: 0.90, outputPct: 0.50, maxSignals: 10,
+    multiPass: true, passes: 6, requiresHighTokenModel: true, fallback: 'depth' }
+}
+// 2. SETTINGS PANEL — add under "AI Configuration":
+//   Toggle: "Enable Deep Analysis Mode" → settings.aiMode = 'depth'
+//   Toggle: "Enable Extended Reasoning Mode" → settings.aiMode = 'extended'
+//   Extended requires model NOT ending in ':free' — show warning if free model selected
+//   Show badge in AppWorkspace top bar when mode !== 'normal'
+// 3. BACKEND — extend AnalyseTextRequest:
+//   ai_mode: Literal['normal','depth','extended'] = 'normal'
+//   Normal: single AI call with NORMAL MODE prompt
+//   Depth: 5 sequential passes (signal detect → correlate → meta-merge → root cause → directional fix)
+//   Extended: 6 passes (same + structural impact simulation)
+//   Auto-fallback: if Extended times out > 30s or token overflow → run Depth instead
+// 4. GUARDRAILS injected into all mode system prompts:
+//   "Do not repeat insights. Do not generate story text. No generic advice. No filler."
+// 5. PROMPT TEMPLATES:
+//   Store in: backend/prompt_templates/normal.txt, depth.txt, extended.txt
+//   Load at request time — do NOT hardcode in route handler
+06 — Thinking Panel: SSO Sync Gap
+Tab Status Matrix
+Tab / Feature
+Status
+Gap vs Spec
+Ideas Tab — signal-driven
+✗ Missing
+Spec: "Ideas → signal-driven." Current: static card creation with no signal input. IdeasTab does not call signalEngine.
+Threads → story_edges sync
+✗ Missing
+ThreadsTab writes to thinking_routes.py but never syncs to storyStore.edges.
+Arcs → progression_markers
+✗ Missing
+No arc tracking. BranchesTab manages alternate story paths, not arc markers.
+Two-Way SSO Sync
+✗ Missing
+Spec: "UI edits update SSO. SSO updates UI." Panel writes to separate DB tables only. No round-trip to Zustand store.
+Auto-sync with SSO
+✗ Missing
+WritingSystemContext has no connection to storyStore nodes/edges. Two stores fully isolated.
+Strategist Tab — Query gen
+⚬ Partial
+Button renders but onClick handler is absent. generateQueryAPI imported and never called.
+Analyst Tab — SSO input
+⚬ Partial
+Calls analyseText with raw HTML-stripped content. Should pass SSO snapshot to backend.
+PROMPT TEMPLATE — Two-Way SSO Sync
+Target: src/components/ThinkingPanel/tabs/ThreadsTab.jsx + IdeasTab.jsx + storyStore.js
+// 1. ThreadsTab → story_edges:
+//   When thread created with status='in_progress' or type='subplot':
+//   → storyStore.addEdge({ id, source: chapterId, target: nextChapterId, edge_type: 'causality', label: thread.title })
+//   When thread marked 'resolved' → update corresponding edge with resolved: true
+//   Reverse: subscribeWithSelector to storyStore.edges
+//   If new causality edge added from graph → surface as thread card in panel
+// 2. IdeasTab → signal-driven surface:
+//   On tab open: call runSignalEngine(storeSnapshot) → top 3 signals
+//   Render "Signal Surfaced Ideas" section above manual cards
+//   Each signal → 1 suggested idea card with issue + directional_fix pre-filled
+//   User can Accept (saves to idea_cards) or Dismiss (suppresses signal for session)
+// 3. Progression Markers → ArcsTab (new tab or BranchesTab):
+//   For each progressionMarker: show timeline strip [setup]→[escalation]→[peak]→[resolution]
+//   Clicking a phase opens that chapter in the editor
+// 4. WritingSystemContext bridge:
+//   Subscribe to storyStore using subscribeWithSelector
+//   When storyStore.nodes changes → set(derivedInsights) for UI display
+//   WritingSystemContext = UI state; storyStore = SSO; this is the bridge.
+07 — Graph Engine: Overlay Gaps
+Findings
+G-01  Node type differentiation is absent. Spec requires nodes typed as scenes, events, characters. storyStore.nodes{} stores arbitrary objects with no enforced node_type field. ReactFlow renders all nodes identically.
+G-02  Signal and meta-signal overlays are missing. Spec requires signal overlays on nodes and edges. StoryGraph.jsx has no hooks or data paths for receiving signal data even once signals are built.
+G-03  Progression curve overlay absent. No curve rendering, no phase coloring, no density heatmap on graph nodes.
+PROMPT TEMPLATE — Graph Engine Overlays
+Target: src/components/Editor/StoryGraph.jsx
+// Extend StoryGraph for typed nodes, signal overlays, and progression curve display.
+// 1. Custom Node Types:
+//   Register nodeTypes in ReactFlow: { scene: SceneNode, event: EventNode, character: CharacterNode }
+//   SceneNode: blue border, chapter reference, word count chip
+//   EventNode: amber border, event label, connected chapter
+//   CharacterNode: purple border, character name, arc_phase badge
+// 2. Signal Overlays:
+//   Accept signals prop: MetaSignal[]
+//   For each signal, highlight affected nodes with red/amber glow (severity-based)
+//   Signal badge on affected node/edge: icon + severity dot
+//   Hovering badge opens popover: issue, root_cause, directional_fix
+// 3. Progression Curve Overlay (toggleable strip below graph canvas):
+//   X-axis: chapters in order; Y-axis: conflict_intensity from conflict_states
+//   Color: setup(blue)→escalation(amber)→peak(red)→resolution(green)
+//   Clicking a curve point navigates to that chapter in the editor
+// 4. Edge Type Rendering:
+//   causality: solid line with directional arrow
+//   relationship: dashed line
+//   conflict: red animated line
+08 — Progression Curve Engine
+✗
+Status: Entirely Missing — 0%
+The spec defines four metrics (setup_density, conflict_intensity, event_frequency, resolution_pressure) and a curve shape (setup → escalation → peak → resolution) used to detect flat middles, pacing imbalances, and weak escalation. None of these metrics are calculated anywhere, and there is no curve visualisation.
+Metric Definitions
+setup_density: count of progression_markers with phase='setup' in chapter / total markers
+conflict_intensity: avg(conflictStates[].intensity) for conflicts active in chapter (0-1)
+event_frequency: count of event-type nodes in chapter / avg events across all chapters
+resolution_pressure: count of unresolved conflicts / total conflicts at chapter point
+Curve Shape Detection Rules
+flatMiddle: chapters 30-70% of novel where conflict_intensity delta < 0.1 across 3+ consecutive chapters
+weakEscalation: conflict_intensity at chapter 75% < conflict_intensity at chapter 50%
+missingPeak: no chapter with conflict_intensity > 0.8 in the entire novel
+earlyResolution: resolution_pressure drops to 0 before chapter 85%
+PROMPT TEMPLATE — Progression Curve Engine
+Target: src/utils/progressionCurve.js
+// Build the progression curve calculator and detection system.
+// For each chapter in chapterOrder:
+setup_density = count(progressionMarkers where phase='setup' and chapter_id=chapter.id) / total markers
+conflict_intensity = avg(conflictStates filtered to chapter) range 0-1
+event_frequency = count(nodes where node_type='event' and chapter_id=chapter.id) / avg across all chapters
+resolution_pressure = count(conflictStates where status='active') / total conflicts at chapter point
+// CURVE SHAPE DETECTION:
+flatMiddle: chapters 30-70% where conflict_intensity delta < 0.1 across 3+ consecutive chapters
+weakEscalation: conflict_intensity at ch75% < conflict_intensity at ch50%
+missingPeak: no chapter with conflict_intensity > 0.8
+earlyResolution: resolution_pressure drops to 0 before chapter 85%
+// OUTPUT: progressionCurve(storeSnapshot) → {
+//   chapterCurves: [{ chapterId, setup_density, conflict_intensity, event_frequency, resolution_pressure }],
+//   detectedIssues: ['flat_middle' | 'weak_escalation' | 'missing_peak' | 'early_resolution'],
+//   phaseAssignments: { setup: chapterId[], escalation: chapterId[], peak: chapterId[], resolution: chapterId[] }
+// }
+// This output feeds: Graph overlay, Signal Engine Stage 1, Analyzer input
+09 — SSO Confidence Layer
+✗
+Status: Entirely Missing — 0%
+The spec requires a confidence_score: 0-1 on every SSO node, a UI feedback loop ("Is this accurate? Yes / Fix"), and a backend correction mechanism that updates the node and adjusts extraction bias. No node has a confidence field, and no feedback UI exists anywhere.
+Confidence Defaults
+AI-extracted nodes: confidence_score = 0.70
+User-created nodes: confidence_score = 1.00
+User-confirmed nodes (clicked ✓): confidence_score = 1.00
+User-corrected nodes (fixed): confidence_score = 0.95
+Show confidence pill ONLY for score < 0.80 — do not clutter high-confidence nodes
+PROMPT TEMPLATE — SSO Confidence Layer
+Target: src/components/Editor/StoryGraph.jsx + backend/routers/ai_routes.py
+// FRONTEND:
+// 1. Every node in StoryGraph shows confidence pill if confidence_score < 0.75
+//    Pill: "Is this accurate?" with [Yes ✓] [Fix ✗] buttons
+// 2. [Yes] → storyStore.upsertNode({ ...node, confidence_score: 1.0 })
+// 3. [Fix] → opens inline edit popover for node fields
+//    On save: storyStore.upsertNode({ ...corrected, confidence_score: 0.95 })
+//    POST /api/sso/node-correction with { node_id, correction, original }
+// BACKEND — POST /api/sso/node-correction:
+// Logs correction to corrections table in Supabase
+// Derives extraction_bias adjustment:
+//   if node.type='character' was wrong → lower confidence default for character extraction
+//   in future passes for this project
+// Returns: { updated_node, extraction_bias_delta }
+10 — Backend / API: Issues and Missing Endpoints
+✓
+Backend is Production-Ready for Current Feature Set
+FastAPI structure, CORS, security headers, rate limiting (SlowAPI), Razorpay payment flow, JWT auth, Supabase integration, and all thinking routes are correctly implemented and well-structured.
+Issues Found
+Issue
+Severity
+Fix
+Double @app.exception_handler(Exception) registration in main.py
+⚠ Medium
+Line 97 and 438 both register a global exception handler. Second silently overwrites first. Remove duplicate at line 438.
+No /api/sso/nodes or /api/sso/conflicts endpoints
+✗ High
+Once SSO is extended, backend endpoints for CRUD on character_states and conflict_states tables are needed. Currently absent.
+Prompt templates hardcoded in route handler
+⚠ Low
+AI prompts should live in backend/prompt_templates/ and be loaded at startup, not embedded in Python strings.
+story_graph.sql migration not sequenced
+⚠ Low
+supabase/migrations/story_graph.sql exists but lacks number prefix. Risk of running out of order.
+No /api/sso/node-correction endpoint
+✗ High
+Required by Confidence Layer. POST endpoint must log corrections and return extraction_bias_delta.
+Missing SSO API Endpoints
+GET /api/sso/nodes — list all nodes for a project with node_type and confidence_score
+POST /api/sso/nodes — create node with required fields (node_type, confidence_score, chapter_id)
+PATCH /api/sso/nodes/{id} — update node fields, log change to audit table
+DELETE /api/sso/nodes/{id} — soft delete (set is_deleted = true)
+GET /api/sso/character-states/{project_id} — full character state history
+POST /api/sso/character-states — upsert character state record
+GET /api/sso/conflict-states/{project_id} — full conflict state history
+POST /api/sso/conflict-states — upsert conflict state record
+GET /api/sso/progression-markers/{project_id} — ordered markers with phase
+POST /api/sso/progression-markers — add marker, auto-assign phase
+DELETE /api/sso/progression-markers/{id} — remove a specific marker
+POST /api/sso/node-correction — log correction, return extraction_bias_delta
+Security Requirements for SSO APIs
+All endpoints: JWT auth via Supabase (existing pattern)
+All endpoints: project_id must match authenticated user's ownership — no cross-project reads
+RLS (Row-Level Security) enabled on all new tables in Supabase
+Rate limiting: apply existing SlowAPI limiter — 100 req/min per user on read endpoints, 30 req/min on write endpoints
+Input validation: Pydantic models for all request bodies — no raw dicts
+Confidence score: validate range 0.0-1.0 on all inputs
+node_type: use Enum, not freeform string — reject invalid values at validation layer
+edge_type: same — Enum, reject invalid values
+No direct Supabase admin key usage in endpoint handlers — use authenticated client
+CORS: existing config already correct — no changes needed
+HMAC webhook verification: existing Razorpay pattern is correct — apply same pattern to any future webhooks
+11 — AI Mode Prompt Templates
+These are the exact prompt templates required by the spec. They are not present in any file in the codebase. Save each as a file in backend/prompt_templates/ and load them at startup.
+PROMPT TEMPLATE — Normal Mode Prompt
+Target: backend/prompt_templates/normal.txt
+You are analyzing a structured story system using SSO.
+INPUT:
+- Top signals (max 3): {{signals_json}}
+- Story phase: {{current_phase}}
+TASK: For each signal, provide:
+  1. The specific structural issue
+  2. The root structural cause (not surface symptoms)
+  3. A directional fix (what to do, not how to write it)
+CONSTRAINTS:
+- Do not generate story text or suggest dialogue
+- Do not rewrite prose or scenes
+- Do not give generic writing advice ("add more tension")
+- Maximum 3 insights. If signals overlap, merge them.
+- Be concise. One insight must not exceed 80 words.
+OUTPUT FORMAT (JSON):
+{ "insights": [{ "title": string, "issue": string, "cause": string, "directional_fix": string }] }
+PROMPT TEMPLATE — Depth Mode Prompt (Multi-Pass)
+Target: backend/prompt_templates/depth.txt
+You are analyzing a structured story system.
+INPUT:
+- Primary signals: {{primary_signals_json}}
+- Secondary signals: {{secondary_signals_json}}
+- Story phase: {{current_phase}}
+- Progression curve: {{progression_curve_json}}
+- Character states: {{character_states_json}}
+- Conflict states: {{conflict_states_json}}
+Pass 1 — Signal Correlation: Identify which signals share structural origin.
+Pass 2 — Meta-Merge: Collapse correlated signals into single insights.
+Pass 3 — Root Cause: Identify the structural failure driving each merged insight.
+Pass 4 — Impact: Describe how this affects reader experience at this phase.
+Pass 5 — Directional Fix: One specific structural action that resolves the insight.
+CONSTRAINTS:
+- No text generation. No prose rewrites. No generic advice.
+- No repetition across insights. Each insight must cover distinct structural ground.
+- Maximum 5 insights.
+OUTPUT FORMAT (JSON):
+{ "insights": [{ "title": string, "signals_covered": string[], "root_cause": string, "structural_impact": string, "directional_fix": string }] }
+PROMPT TEMPLATE — Extended Reasoning Mode Prompt
+Target: backend/prompt_templates/extended.txt
+You are analyzing a complete structured story system.
+INPUT:
+- Full SSO snapshot: {{full_sso_json}}
+- Signal history: {{signal_history_json}}
+- Progression curve: {{progression_curve_json}}
+- Character evolution: {{character_evolution_json}}
+- Conflict evolution: {{conflict_evolution_json}}
+Pass 1 — Full Signal Detection: Detect all signals across the entire SSO.
+Pass 2 — Cross-Layer Correlation: Correlate across character, conflict, pacing layers.
+Pass 3 — Meta-Signal Merging: Merge into minimum insights covering maximum ground.
+Pass 4 — Root Cause Mapping: Trace each insight to its deepest structural source.
+Pass 5 — Reader Impact Simulation: Predict how reader experiences each structural failure.
+Pass 6 — Prioritised Resolution: Rank by structural leverage. Fix one → fixes others.
+GOAL: Minimize insight count. Maximize coverage. One insight should outperform three fragmented ones.
+CONSTRAINTS:
+- No repetition. No text generation. No surface-level advice.
+- Insights must be novel relative to signal_history (do not re-surface resolved issues).
+- If extended reasoning times out, return partial results — never return empty.
+OUTPUT FORMAT (JSON):
+{ "mode": "extended", "insights": [{ "title": string, "signals_covered": string[], "root_structural_cause": string, "narrative_impact": string, "directional_fix": string, "leverage_score": number }] }
+12 — UX & UI Design Specifications
+This section provides design-level specifications for every UI component that is missing or incomplete. Each item covers: what the component is, where it lives, what it renders, how users interact with it, and what it must communicate.
+12.1 — Signal Display UI
+✗
+Missing: No clear placement rules, no interaction design, no visual hierarchy
+The application has no UI for displaying signal output from the Signal Engine. When the engine is built, the output needs a proper rendering surface — not a raw JSON dump.
+Placement
+Primary location: AnalystTab in the Thinking Panel (right panel of editor)
+Secondary location: Inline signal badges on the graph canvas (see Graph Overlays)
+NOT in the editor toolbar — signals are output, not controls
+Visual Hierarchy
+Section header: "Structural Signals" with mode indicator pill (NORMAL / DEPTH / EXTENDED)
+Each signal: card with left-border color keyed to severity (red = high, amber = medium, gray = low)
+Card header row: signal type tag + severity dot + region label (e.g. "Ch. 3-7")
+Card body: "Issue" → "Cause" → "Directional Fix" — three distinct text blocks with micro labels
+Collapsed by default if score < 50. User can expand. Do not flood with low-confidence output.
+Maximum 3 cards rendered (matching the top-3 engine constraint)
+Empty state: "Run analysis to surface structural signals" — do not show blank space
+Interaction Design
+[Accept] → saves signal to project notes + suppresses from future runs until user clears
+[Dismiss] → suppresses signal for session. Does not save. Reappears next session if still present.
+[Details ▾] → expands card to show characters involved, chapter region, raw score, suppression history
+Clicking a chapter region label → navigates editor to that chapter
+12.2 — Meta-Signal UI
+✗
+Missing: No grouping interface, no merged insight display
+When multiple signals are merged into a single meta-signal, the UI must clearly communicate that consolidation happened — not just show the merged result as if it were a single signal.
+Placement
+Above individual signal cards in AnalystTab
+Rendered only when meta-signals exist (i.e. 2+ raw signals were merged)
+Visual Design
+Meta-signal card: visually distinct from raw signal cards — wider border, "META-SIGNAL" eyebrow label
+Header: composite score + "X signals merged" chip (e.g. "3 signals merged")
+[Expand] reveals the source_signals list with individual signal summaries
+Card accent color: always amber (composite = elevated severity by definition)
+Narrative Impact field rendered in a distinct background panel within the card
+12.3 — Progression Curve UI
+✗
+Missing: No visual graph, no timeline representation
+The progression curve is the most visually important output of the intelligence system. It must be a graph, not a text report.
+Placement
+Toggle strip below the Story Graph canvas in the editor — collapsible
+Also available as a full-view tab: "Story Curve" accessible from main nav
+Visual Specification
+Line chart — X: chapters in narrative order, Y: conflict_intensity (0-1 scale)
+Color gradient under the curve: setup(blue) → escalation(amber) → peak(red) → resolution(green)
+Phase boundary markers: dashed vertical lines at phase transitions
+Detected issue annotations: small flag icons at problematic regions (flat_middle, weak_escalation, etc.)
+Hover tooltip: chapter title, conflict_intensity value, active conflicts count
+Click on any point: opens that chapter in editor
+Width: full content width; height: 120px in strip mode, full-page in tab mode
+12.4 — Intent UI
+✗
+Missing: No place to set or adjust story intent, no visibility into how it affects results
+The Intent Layer requires user input — story type, expected pacing — to function. Without a UI for this, the layer cannot be used.
+Placement
+In the Project Settings panel (not SettingsPanel.jsx for API keys — separate project config area)
+Also accessible from a "Story Intent" button in the editor top bar
+Controls Required
+Story Type dropdown: Literary / Genre / Thriller / Romance / Slow Burn / Action
+Expected Pacing selector: 3-level visual slider (Slow / Standard / Fast)
+Phase override toggles: allow user to manually pin a chapter to a phase (overrides algorithm)
+Intent indicator in AnalystTab: small "Intent: Slow Burn" tag above signal cards
+When intent is set and a signal is suppressed due to it: show "Suppressed by intent: [reason]" in signal details
+12.5 — Confidence UI
+✗
+Missing: No correction interaction, no feedback loop display
+The confidence pill must be non-intrusive but discoverable. It should not clutter the graph for well-extracted nodes.
+Placement
+Inline on graph nodes — pill rendered in the bottom-right corner of each node card
+Only visible when confidence_score < 0.80 (per spec)
+States and Interaction
+Low confidence (< 0.80): pill shows "?" icon — yellow/amber color
+Hover: tooltip shows "Confidence: 72% — Is this accurate?"
+Click: expands to [✓ Yes, accurate] [✗ Fix this] buttons
+[Yes]: sets confidence to 1.0, pill disappears
+[Fix]: opens inline popover with editable fields for the node
+Saved correction: pill shows "✓ Confirmed" briefly before disappearing
+Global indicator: in AnalystTab header, show "X low-confidence nodes" count with link to review
+12.6 — AI Modes UI
+✗
+Missing: No mode switch UX, no explanation of differences, no cost/latency signalling
+The three AI modes have meaningfully different costs, latencies, and output quality. The UX must communicate this clearly — not just offer a toggle.
+Settings Panel Additions — SettingsPanel.jsx
+Under "AI Configuration" section, add a new "Analysis Mode" subsection
+Three-state radio selector — not toggles — one mode active at a time
+Each option: mode name + one-line description + cost/latency indicator
+Normal: "Fast analysis · 3 structural signals · Low token cost"
+Depth: "Multi-pass analysis · 5 merged insights · Medium token cost"
+Extended: "Full reasoning · Max coverage · High token cost · Requires paid model"
+Extended option greyed out with lock icon if free model is selected
+Editor Top Bar Mode Indicator
+When mode is Depth: small amber pill "DEPTH MODE" in editor top bar
+When mode is Extended: small purple pill "EXTENDED" in editor top bar
+Normal mode: no pill (default state, no visual noise)
+Pill is clickable → opens Settings directly to the Analysis Mode section
+Analysis Panel Mode Context
+In AnalystTab: before results, show a context line: "Analyzed with [mode] · [N] passes · [timestamp]"
+If Extended timed out and fell back to Depth: show "Extended timed out — Depth fallback used"
+12.7 — Onboarding Flow (Missing)
+⚠
+No onboarding enforcement exists. New users land with no guidance.
+A minimal 3-step onboarding overlay must be shown on first project creation to orient users to the SSO model, signal engine, and AI modes.
+3-Step Overlay
+Step 1 — Set API Key: "Author Studio Pro uses your own AI model. Set your key to unlock analysis." → links to Settings
+Step 2 — Understand Modes: brief visual comparison of Normal / Depth / Extended with a "Start with Normal" recommendation
+Step 3 — First Analysis: "Add a chapter, then click Analyse in the sidebar to surface structural signals." → CTA opens AnalystTab
+Skip option always visible — do not force completion
+13 — UX Findings: Existing Components
+Existing UX Issues
+ID
+Component
+Issue
+Type
+UX-01
+AppWorkspace.jsx
+No visible "Deep Mode Active" / "Extended Mode Active" badge. spec requires it in the top bar.
+Design Gap
+UX-02
+AnalystTab.jsx
+Result rendering block (lines 50-126) only shows loading state and raw JSON dump. No structured signal card layout.
+Design Gap
+UX-03
+StrategistTab.jsx
+"Generate Query Package" button renders but onClick handler absent. generateQueryAPI imported and never called.
+Partial
+UX-04
+SettingsPanel.jsx
+AI Configuration group has API key + model selector but no "Enable Deep Analysis" or "Enable Extended Reasoning" toggles.
+Design Gap
+UX-05
+New User Flow
+No onboarding enforcement. Spec states "Onboarding enforced". Users land in editor with no guidance on SSO model or analysis modes.
+Design Gap
+14 — Build Priority Matrix
+Build in this exact order. Each tier is a prerequisite for the next. Do not start P1 until P0 is complete.
+P0 — Blockers (Build First)
+✗
+Nothing in P1, P2, or P3 can be correctly built until this tier is complete.
+SSO extension is the architectural foundation. Signal Engine, AI Modes, Graph Overlays, Thinking Panel Sync — all read from the SSO. Build P0 first, full stop.
+SSO extension: character_states, conflict_states, progression_markers in storyStore + Supabase migration 005
+node_type field + confidence_score added to all nodes
+edge_type field (causality / relationship / conflict) on all edges
+SSO CRUD actions: upsertCharacterState, upsertConflictState, addProgressionMarker
+Supabase RLS policies on all new tables
+P1 — Core Intelligence
+Intent Layer (intentLayer.js) — must exist before Signal Engine
+Signal Engine (6-stage pipeline, signalEngine.js)
+Meta-Signal Layer (metaSignalLayer.js)
+Progression Curve calculator (progressionCurve.js)
+P2 — AI Modes + UX
+Normal / Depth / Extended mode selector in SettingsPanel
+Prompt templates in backend/prompt_templates/
+Multi-pass pipeline in ai_routes.py
+Mode indicators in AppWorkspace
+Fallback logic (Extended → Depth on timeout)
+Missing SSO API endpoints (nodes, edges, character_states, conflict_states)
+Signal Display UI in AnalystTab (structured card layout)
+AI Modes UI in SettingsPanel (radio selector + descriptors)
+P3 — Sync + Polish
+Two-way SSO sync in Thinking Panel (Threads ↔ story_edges)
+Signal-driven Ideas surface in IdeasTab
+Graph overlays: signal badges, progression curve strip
+Confidence pill UI on low-confidence nodes
+Meta-Signal UI in AnalystTab
+Progression Curve UI (chart + graph strip)
+Intent UI in Project Settings
+Onboarding flow (3-step overlay on first project creation)
+Strategist Tab query generation wired up
+ℹ
+Senior Developer Recommendation
+The backend is strong. The editor core is functional. The application works as a formatter and text analyser today. The spec describes a fundamentally different product — a structured story intelligence engine where the AI reads the SSO, not raw text. That architectural shift (raw text → SSO-first) is the most important single change to make before building any of the missing features. Build P0 (SSO extension) first. Everything else is blocked behind it.
+15 — Layout & Design System Guidelines
+These guidelines define how new UI components must be built to maintain visual consistency with the existing editor shell. All new components should follow these rules.
+Color Tokens (Existing System)
+Token
+Value
+Usage
+--bg
+#0C0C0E
+Main canvas background
+--bg2
+#111115
+Sidebar, panel backgrounds
+--bg3
+#16161C
+Code blocks, prompt blocks, elevated surfaces
+--amber / accent
+#C9915A
+Primary accent — CTAs, active states, headings
+--red / critical
+#D4614A
+Missing features, errors, high-severity signals
+--green / done
+#5AAD7F
+Completed features, low-severity, success states
+--purple / meta
+#9B7EC8
+Meta-signals, Extended mode, design gaps
+--blue / info
+#5A8FC9
+Information callouts, blocked states, setup phase
+Typography Rules
+Primary font: DM Mono (monospace) — body text, labels, descriptions
+Display font: Fraunces (serif) — section headings, score values, report titles
+Code/mono font: Space Mono — IDs, file paths, code snippets, prompt templates
+Base font size: 13px / line-height 1.7 (do not reduce — readability is critical in long analysis sessions)
+Heading hierarchy: --text color for H1-H3, --text-dim for body, --text-muted for labels/metadata
+Component Placement Rules
+Editor Layout Grid
+Shell: CSS Grid, 220px sidebar + 1fr main content
+Sidebar: sticky, full height, scrollable independently — do NOT expand sidebar width
+Main content: max-width 960px, padding 48px 56px
+Thinking Panel (right panel): separate overlay — does NOT collapse the main content area
+New Component Placement
+Signal cards → AnalystTab content area (within Thinking Panel, full width of panel)
+Meta-signal cards → above signal cards in AnalystTab
+Progression curve strip → below Story Graph canvas, toggleable
+Confidence pills → inline on graph nodes (bottom-right corner)
+AI mode indicator → editor top bar (right side, before user avatar/settings)
+Intent settings → Project Settings modal (not SettingsPanel.jsx)
+Spacing System
+Component gap: 12px (tight), 16px (standard), 24px (section), 48-56px (between major sections)
+Internal padding: 16-20px for cards, 12px 16px for compact cells
+Border radius: 4px (tags, pills), 6px (callouts, prompt blocks), 8px (cards)
+Responsive Behaviour
+Editor is a desktop-first application — minimum supported width 1200px
+Thinking Panel: on < 1400px, overlay instead of side-by-side
+Progression curve strip: collapses to icon button on < 1200px
+Do NOT add mobile responsive breakpoints — not in scope for this spec
+Accessibility Minimums
+Color contrast: all text/background combinations must meet WCAG AA (4.5:1 ratio)
+Focus indicators: visible on all interactive elements — no outline: none
+Keyboard nav: all panel tabs, card interactions, and mode toggles must be keyboard accessible
+ARIA labels: signal cards, confidence pills, and mode indicator must have aria-label attributes
+Summary: The Full Gap in One View
+Missing System
+Priority
+Key File(s) to Create
+SSO Extension (character_states, conflict_states, progression_markers)
+P0 — BLOCKER
+storyStore.js, 005_sso_extension.sql
+Intent Layer
+P1 — CORE
+src/utils/intentLayer.js
+Signal Engine (6-stage pipeline)
+P1 — CORE
+src/utils/signalEngine.js
+Meta-Signal Layer
+P1 — CORE
+src/utils/metaSignalLayer.js
+Progression Curve Engine
+P1 — CORE
+src/utils/progressionCurve.js
+AI Modes System (Normal/Depth/Extended)
+P2
+ai_routes.py, aiModes.js, SettingsPanel.jsx
+AI Prompt Templates (3 files)
+P2
+prompt_templates/normal.txt, depth.txt, extended.txt
+Missing SSO API Endpoints (10 routes)
+P2
+backend/routers/sso_routes.py
+Signal Display UI + Meta-Signal UI
+P2
+AnalystTab.jsx (full rewrite)
+AI Modes UI (Settings + Editor badge)
+P2
+SettingsPanel.jsx, AppWorkspace.jsx
+Two-Way Thinking Panel ↔ SSO Sync
+P3
+ThreadsTab.jsx, IdeasTab.jsx, storyStore.js
+Graph Overlays (signal + progression curve)
+P3
+StoryGraph.jsx (extend)
+Confidence Layer UI
+P3
+StoryGraph.jsx + ai_routes.py
+Progression Curve UI (chart + graph strip)
+P3
+StoryGraph.jsx + new StoryCurveTab.jsx
+Intent UI, Onboarding, Strategist wiring
+P3
+ProjectSettings.jsx, OnboardingOverlay.jsx, StrategistTab.jsx
+Total spec completion today: ~38%  |  Missing systems: 15 components  |  Build order: P0 → P1 → P2 → P3
+16 — EXECUTION CONTRACT (MANDATORY)
+16.1 Master Orchestrator
+runFullAnalysis(projectId: string, mode: 'normal' | 'depth' | 'extended') -> AnalysisResult
+ 
+Steps:
+1. snapshot = getSSO(projectId)
+2. signals = runSignalEngine(snapshot)
+3. metaSignals = mergeMeta(signals)
+4. progression = progressionCurve(snapshot)
+ 
+5. IF mode == 'normal':
+     insights = runAIAnalysis({ signals, phase }, 'normal')
+ 
+   IF mode == 'depth':
+     insights = runAIAnalysis({ signals, metaSignals, progression, states }, 'depth')
+ 
+   IF mode == 'extended':
+     TRY:
+       insights = runAIAnalysis(fullContext, 'extended')
+     CATCH timeout/token_error:
+       fallback -> run depth mode
+ 
+6. return AnalysisResult
+16.2 Function Contracts
+getSSO(projectId) -> SSO_Snapshot
+ 
+runSignalEngine(snapshot: SSO_Snapshot) -> Signal[]
+ 
+mergeMeta(signals: Signal[]) -> MetaSignal[]
+ 
+progressionCurve(snapshot: SSO_Snapshot) -> CurveData
+ 
+runAIAnalysis(input: object, mode: string) -> Insight[]
+16.3 Final Output Schema
+AnalysisResult = {
+  mode: 'normal' | 'depth' | 'extended',
+  signals: Signal[],
+  metaSignals: MetaSignal[],
+  progression: CurveData,
+  insights: Insight[],
+  timestamp: number
+}
+17 — API CONTRACT (MANDATORY)
+POST /api/analyze
+ 
+Request:
+{
+  project_id: string,
+  mode: 'normal' | 'depth' | 'extended'
+}
+ 
+Response:
+AnalysisResult
+Rule:
+This is the ONLY entry point for analysis
+No other analysis endpoints allowed
+18 — DATA FLOW LOCK
+Editor -> storyStore -> runFullAnalysis -> API -> Zustand state -> UI
+Rules:
+SSO is the ONLY source of truth
+AI NEVER receives raw editor text
+AI ONLY receives SSO snapshot
+19 — UI DATA BINDING
+analysisResult.insights -> AnalystTab (signal cards)
+ 
+analysisResult.metaSignals -> Graph overlays
+ 
+analysisResult.progression -> Progression Curve UI
+ 
+analysisResult.mode -> Mode indicator (top bar)
+Rule:
+UI must render ONLY from AnalysisResult
+No direct AI response rendering
+20 — STATE MANAGEMENT RULE
+Store: storyStore.analysis = AnalysisResult
+ 
+Flow:
+1. call /api/analyze
+2. set analysis in store
+3. UI subscribes to store
+4. UI re-renders automatically
+21 — TRIGGER RULE
+Trigger: MANUAL ONLY
+ 
+User action:
+-> Click "Analyze" button in AnalystTab
+ 
+No auto-run
+No background execution
+22 — AI EXECUTION RULE
+Normal:
+- 1 AI call
+ 
+Depth:
+- 1 AI call (multi-pass inside prompt)
+ 
+Extended:
+- 1 AI call (full context)
+- fallback to depth on failure
+ 
+DO NOT:
+- split into multiple API calls
+- loop AI calls per pass
+23 — FAILURE HANDLING
+Extended fails -> fallback to Depth
+ 
+Depth fails -> fallback to Normal
+ 
+Normal fails -> return:
+{
+  error: true,
+  message: "Analysis failed",
+  fallback: last_cached_result || null
+}
+24 — MIGRATION RULE
+If SSO fields missing:
+ 
+character_states -> {}
+conflict_states -> {}
+progression_markers -> []
+ 
+node_type -> 'scene' (default)
+confidence_score -> 0.8 (default)
+ 
+System must NOT crash
+25 — ASYNC UI STATES
+States:
+- idle
+- loading
+- success
+- error
+ 
+Behavior:
+loading -> show spinner in AnalystTab
+success -> render AnalysisResult
+error -> show retry option
+26 — HARD ENFORCEMENT RULE
+STRICT RULE:
+ 
+AI must NEVER read raw editor text.
+ 
+ALL analysis must be based ONLY on SSO snapshot.
+ 
+Violation of this rule breaks the system.
+27 — Additional Features & Systems (Spec Gaps)
+The following systems are absent from both the current codebase and the original spec. Each represents a critical gap between Author Studio Pro and a production-ready novel intelligence platform. Build order is indicated per section.
+★
+10 Missing Systems Identified
+Export, versioning, global search, world building, analytics, templates, import, beta readers, query letter assistant, and research panel — none are specified or implemented. These are not optional: they are the table stakes of any writing platform.
+27.1 — Manuscript Export System  [NEW — P2]
+✗
+Status: Not Specified. Not Implemented.
+There is no export mechanism in the spec or codebase. A novel formatting tool that cannot export the manuscript is incomplete by definition. Users cannot deliver to publishers, upload to KDP, or share draft copies.
+Export Targets Required
+Standard Manuscript Format (.docx) — Shunn Modern format: 12pt Times New Roman, double-spaced, 1-inch margins, header with author/title/page number.
+PDF — High-fidelity PDF export preserving all formatting.
+ePub — eBook-ready export with chapter metadata, cover image slot, and table of contents.
+Plain Text (.txt) — Clean plain text with chapter breaks, for Kindle Direct or submission portals.
+Fountain (.fountain) — Screenplay export format for projects written in that mode.
+Export Settings Panel
+Font family, font size, line spacing controls.
+Include / exclude chapter titles in output.
+Front matter (title page, dedication, author note) configuration.
+Chapter numbering scheme: numeric, roman, title-only, or none.
+Header format string with {title}, {author}, {page} tokens.
+PROMPT TEMPLATE — Export System
+Target: backend/routers/export_routes.py + src/components/ExportModal.jsx
+POST /api/export
+Request: { project_id, format: 'docx'|'pdf'|'epub'|'txt'|'fountain',
+          settings: { font, size, spacing, include_titles, front_matter } }
+Response: { download_url: string, expires_at: timestamp }
+Backend: use python-docx for .docx, reportlab for PDF, ebooklib for ePub.
+Store output in Supabase Storage under /exports/{project_id}/{timestamp}/.
+Signed URL, expires 1 hour. Do NOT store permanently.
+ExportModal.jsx: triggered from editor top bar 'Export' button.
+Three steps: (1) Choose format, (2) Configure settings, (3) Download.
+Show progress bar during generation. Error state with retry.
+SHUNN FORMAT RULE: Standard manuscript = Times New Roman 12pt, double-spaced,
+1-inch margins, running header: Author / Title / Page#.
+27.2 — Version History & Snapshot System  [NEW — P2]
+✗
+Status: Not Specified. Not Implemented.
+Writers need to recover earlier drafts, compare versions, and checkpoint before major AI analysis runs. Without versioning, any AI-driven edit is irreversible.
+Snapshot Schema
+snapshot_id (uuid), project_id (FK), chapter_id (FK), created_at, label (string), trigger: 'manual'|'pre-analysis'|'auto-hourly'
+content_hash (sha256) — deduplicate identical snapshots.
+sso_snapshot (jsonb) — full SSO state at time of snapshot (character_states, conflict_states, progression_markers).
+word_count (int), chapter_version (int).
+Auto-Snapshot Rules
+Before every analysis run (any mode) — label: 'Pre-analysis snapshot'.
+Hourly auto-save if content has changed — label: 'Auto-save {timestamp}'.
+User-triggered manual snapshot with custom label.
+Retain last 50 snapshots per project. Purge oldest beyond limit.
+PROMPT TEMPLATE — Version History System
+Target: backend/routers/version_routes.py + src/components/VersionHistoryPanel.jsx
+Supabase table: chapter_snapshots
+  id, project_id, chapter_id, content (text), sso_snapshot (jsonb),
+  word_count, label, trigger, content_hash, created_at
+  RLS: project owner only.
+GET  /api/versions/{project_id}  -> SnapshotMeta[]  (id, label, created_at, word_count)
+GET  /api/versions/{snapshot_id}/content  -> full content + sso_snapshot
+POST /api/versions  -> create snapshot  (auto-called before every analysis)
+DELETE /api/versions/{snapshot_id}  -> soft delete
+VersionHistoryPanel.jsx: slide-in panel from editor left sidebar.
+List of snapshots: label, date, word count, diff badge (+/- N words).
+Click snapshot -> side-by-side diff view (current vs snapshot).
+Restore button: replaces current chapter content. Requires confirmation.
+RULE: Never auto-restore. Always require explicit user action.
+27.3 — Global Project Search & Navigation  [NEW — P2]
+✗
+Status: Not Specified. Not Implemented.
+No cross-chapter search exists. Writers working on 80k-word novels need instant search across all chapters, notes, character states, and idea cards.
+Search Scope
+Chapter content (full text search via Supabase FTS or pg_trgm).
+Idea cards, thread cards, strategy cards in Thinking Panel.
+Character names and arc phase labels in SSO.
+Node labels and edge types in story graph.
+Signal issue text and directional fix text in analysis history.
+PROMPT TEMPLATE — Global Search
+Target: backend/routers/search_routes.py + src/components/SearchModal.jsx
+GET /api/search?project_id=&q=&scope=all|chapters|notes|sso
+Response: { results: [{ type, title, excerpt, chapter_id, match_position }] }
+Backend: PostgreSQL full-text search (tsvector on chapters.content).
+Highlight matching terms in excerpt. Return top 20 results, ranked by relevance.
+SearchModal.jsx: triggered by Cmd+K / Ctrl+K from anywhere in editor.
+Live search with 300ms debounce. Group results by type.
+Clicking a result: navigates to chapter + highlights the match.
+Keyboard navigation: arrow keys cycle results. Enter to open.
+27.4 — World Building Module  [NEW — P3]
+✗
+Status: Not Specified. Not Implemented.
+The Story Graph handles character/scene nodes but there is no structured world-building layer. Locations, timelines, story bibles, and world facts are unmanaged. These feed signal detection accuracy.
+Sub-Modules Required
+Locations Registry — location name, type (interior/exterior/world), connected characters and scenes. Feeds scene-type node enrichment.
+Story Timeline — chronological event sequence separate from chapter order. Allows detecting timeline inconsistencies.
+Story Bible — free-form reference document per project: world rules, lore, magic systems, societal structures. AI-searchable.
+Series Bible — cross-project continuity tracker for series writers. Links characters and locations across projects.
+PROMPT TEMPLATE — World Building Module
+Target: src/components/WorldBuildingPanel/ + backend/routers/worldbuild_routes.py
+Supabase tables: locations, timeline_events, story_bible_entries
+  locations: id, project_id, name, type, description, connected_chapter_ids[]
+  timeline_events: id, project_id, date_label, event_desc, chapter_id, order_index
+  story_bible_entries: id, project_id, category, title, content, tags[]
+WorldBuildingPanel: new tab in Thinking Panel — 'World' tab.
+Three sub-tabs: Locations | Timeline | Bible.
+Timeline sub-tab: drag-reorderable event list. Flag if event order
+  contradicts chapter order (SSO cross-check).
+Bible entries: searchable, tagged, linkable to SSO nodes.
+SIGNAL INTEGRATION: timeline inconsistencies -> emit new signal type 'continuity'.
+27.5 — Writing Session Analytics Dashboard  [NEW — P3]
+✗
+Status: Not Specified. Not Implemented.
+No writing metrics are tracked. Word count goals, daily targets, session velocity, and pacing are invisible to the user. This is a retention-critical feature.
+Metrics to Track
+Daily word count per session (start/end timestamps, words added).
+Per-chapter word count history over time.
+Total project word count vs. target (user-set goal: default 80,000 words).
+Writing streak (consecutive days with any words added).
+Average session length and average words-per-session.
+Signal frequency trend: are structural issues increasing or decreasing over time?
+PROMPT TEMPLATE — Analytics Dashboard
+Target: src/components/AnalyticsPanel.jsx + backend/routers/analytics_routes.py
+Supabase table: writing_sessions
+  id, project_id, user_id, started_at, ended_at, words_added, chapter_id
+Track session automatically: on chapter open (start), on navigate away / close (end).
+word_added = chapter.word_count_end - chapter.word_count_start for session.
+GET /api/analytics/{project_id}?range=7d|30d|all
+Response: { dailyCounts[], streakDays, totalWords, targetWords, sessionAvg }
+AnalyticsPanel.jsx: accessible from sidebar icon (chart icon).
+Bar chart: daily word counts (last 30 days). Use Recharts (already in stack).
+Progress ring: total words / target.
+Streak badge: fire icon + N days.
+Do NOT show analytics in the editor main area — sidebar panel only.
+27.6 — Story Structure Template Library  [NEW — P3]
+✗
+Status: Not Specified. Not Implemented.
+The Progression Curve is custom-calculated from SSO data — but writers also need structural scaffolding before content is written. Templates overlay standard story frameworks onto the progression curve and phase system.
+Templates to Include
+Three-Act Structure — setup (acts 1), conflict (act 2), resolution (act 3). Approximate chapter split: 25 / 50 / 25.
+Save the Cat (Blake Snyder) — 15 beat points mapped to chapter percentages.
+Hero's Journey (Campbell) — 12 stages mapped to chapter arc.
+Five-Act (Freytag's Pyramid) — exposition, rising action, climax, falling action, denouement.
+Custom Template — user defines phase labels, expected word count ranges, and intensity targets.
+PROMPT TEMPLATE — Template Library
+Target: src/utils/storyTemplates.js + src/components/TemplateOverlay.jsx
+Template schema: { id, name, phases: [{ label, pct_start, pct_end, expected_intensity }] }
+TemplateOverlay: toggle button in Progression Curve UI ('Overlay Template').
+Select template from dropdown. Renders ghost overlay on the curve chart:
+  - Expected intensity band (shaded area) per phase.
+  - Deviation from template highlighted in red if actual intensity differs > 0.2.
+Store selected template in projectMeta.activeTemplate (storyStore).
+INTENT LAYER INTEGRATION: pass activeTemplate to intentLayer.js.
+  If story follows a recognized template, adjust severity thresholds accordingly.
+27.7 — Import Pipeline  [NEW — P2]
+✗
+Status: Not Specified. Not Implemented.
+Writers have existing manuscripts in Scrivener, Word, or plain text. Without import, Author Studio Pro cannot acquire existing projects. This is an acquisition-blocking gap.
+Import Sources
+Word / .docx — import chapters as paragraph-delimited sections. Detect heading styles as chapter breaks.
+Plain text (.txt) — split on '# Chapter N' or '=== Chapter ===' conventions.
+Scrivener (.scriv) — parse RTF files from Scrivener binder. Map binder structure to chapter order.
+Fountain (.fountain) — import screenplays. Map scenes to scene-type SSO nodes.
+Markdown (.md) — split on H1/H2 headings as chapter breaks.
+PROMPT TEMPLATE — Import Pipeline
+Target: backend/routers/import_routes.py + src/components/ImportModal.jsx
+POST /api/import
+Multipart form: file upload + { project_id, format, split_strategy }
+split_strategy: 'heading' | 'manual_marker' | 'page_break' | 'scene_break'
+Backend: python-docx for .docx, rtf2xml for .scriv RTF, fountain-parser for .fountain.
+Auto-detect chapter count. Return preview: [{ chapter_title, word_count, preview_text }].
+User confirms import in ImportModal before writing to DB.
+On confirm: create chapter records in Supabase, set order_index.
+IMPORTANT: Do NOT auto-run analysis on import. Let user trigger manually.
+Show import summary: N chapters imported, total word count, any parsing warnings.
+27.8 — Beta Reader & Feedback Workflow  [NEW — P3]
+✗
+Status: Not Specified. Not Implemented.
+Authors need structured feedback collection. Beta readers annotate chapters; authors review, tag, and resolve feedback. This is the collaboration layer entirely absent from the current spec.
+Beta Reader Flow
+Author invites beta reader via email → generates a time-limited read-only share link.
+Beta reader accesses a clean reading view (no editor chrome) with inline comment capability.
+Comments attach to a text selection with chapter_id + position offset.
+Author views all beta feedback in a dedicated BetaTab in the Thinking Panel.
+Author can tag feedback: Agree / Disagree / Fixed / Deferred.
+Resolved feedback contributes to SSO confidence — if a character is flagged as confusing by 2+ readers → lower confidence_score.
+PROMPT TEMPLATE — Beta Reader Workflow
+Target: backend/routers/beta_routes.py + src/components/ThinkingPanel/tabs/BetaTab.jsx
+Supabase tables: beta_invites, beta_comments
+  beta_invites: id, project_id, email, token, expires_at, status
+  beta_comments: id, project_id, chapter_id, text_selection, comment_text,
+    reader_email, status: 'open'|'resolved'|'deferred', author_response
+POST /api/beta/invite  -> sends email with share link
+GET  /api/beta/read/{token}  -> returns project chapters (read-only, no auth required)
+POST /api/beta/comment  -> create comment from beta reader
+PATCH /api/beta/comment/{id}  -> author updates status + response
+BetaTab.jsx: list of all open comments grouped by chapter.
+Clicking comment: highlights relevant text in editor.
+SSO SIGNAL: if 3+ comments flag same character as confusing ->
+  emit signal type 'character_clarity' with affected character_id.
+27.9 — Query Letter & Synopsis Assistant  [NEW — P2]
+⚠
+Status: StrategistTab.jsx partially built — onClick handler missing.
+The Strategist tab exists and imports generateQueryAPI but never calls it. This feature is closer than any other — it only requires wiring up the existing call and building the SSO-powered prompt.
+Outputs to Generate
+Query Letter — standard one-page agent query: hook, plot summary (no spoilers), comps, author bio slot.
+Short Synopsis (1 page) — complete plot including ending. Used for agents requiring synopsis.
+Long Synopsis (5 pages) — chapter-by-chapter summary. Auto-generated from SSO chapter data.
+Elevator Pitch (2 sentences) — logline format: [protagonist] must [goal] before [stakes].
+Back Cover / Blurb — marketing copy, present tense, no spoilers, hooks with a question.
+PROMPT TEMPLATE — Query Letter & Synopsis Assistant
+Target: src/components/ThinkingPanel/tabs/StrategistTab.jsx (fix + expand)
+        backend/routers/strategy_routes.py
+FIX FIRST: wire generateQueryAPI onClick in StrategistTab.jsx.
+  button onClick -> call generateQueryAPI(projectId, outputType)
+POST /api/strategy/generate
+Request: { project_id, output_type: 'query'|'synopsis_short'|'synopsis_long'|'pitch'|'blurb' }
+Backend: pull SSO snapshot. Build prompt from:
+  - character_states (protagonist, antagonist, key arcs)
+  - conflict_states (central conflict, resolution)
+  - progression_markers (story structure shape)
+  - project_meta (genre, word count, title, author name)
+AI call: single pass, structured output.
+UI: StrategistTab shows 5 output type buttons. Each generates independently.
+Results rendered in a clean editable text area (not raw JSON).
+User can copy or download as .txt.
+RULE: AI generates STRUCTURE, not prose style. Output is a draft, not final.
+27.10 — Research & Reference Panel  [NEW — P3]
+✗
+Status: Not Specified. Not Implemented.
+Writers accumulate research notes, URLs, images, and reference documents during writing. No research management exists. Research is stored outside the app, fragmenting the writing workflow.
+Research Panel Components
+Research Notes — rich-text note cards with title, tags, and optional chapter link.
+URL Bookmarks — saved web links with title, description, and tags.
+Reference Files — PDF/image attachments (stored in Supabase Storage, max 20MB per file).
+Research Search — full-text search across all notes, bookmarks, and file metadata.
+Chapter Link — pin any research item to a specific chapter for quick reference while writing.
+PROMPT TEMPLATE — Research Panel
+Target: src/components/ThinkingPanel/tabs/ResearchTab.jsx
+        backend/routers/research_routes.py
+Supabase tables: research_notes, research_bookmarks, research_files
+  research_notes: id, project_id, title, content (richtext), tags[], chapter_id (nullable)
+  research_bookmarks: id, project_id, url, title, description, tags[], chapter_id
+  research_files: id, project_id, file_name, storage_path, mime_type, chapter_id
+ResearchTab.jsx: new tab in Thinking Panel — 'Research' icon.
+Three sub-tabs: Notes | Links | Files.
+Add note: inline expand + save. No separate modal.
+Add bookmark: paste URL -> auto-fetch title/description (Open Graph scrape).
+File upload: drag-drop. Show thumbnail for images. PDF icon for PDFs.
+Chapter pin: dropdown on each item to link to a chapter.
+When in a chapter: show pinned research items in a collapsible sidebar section.
+28 — Master Features Map
+Complete inventory of every system, component, and feature across the application. Status tags reflect current state as of this audit. Priority tags align with the build order defined in Section 14.
+STATUS TAGS:  [BUILT] = implemented and functional  |  [PARTIAL] = exists with gaps  |  [MISSING-P0] = blocker  |  [MISSING-P1] = core intelligence  |  [MISSING-P2] = AI + UX layer  |  [MISSING-P3] = sync and polish  |  [NEW] = not in original spec
+SYSTEM
+COMPONENT
+STATUS
+PRIORITY
+KEY FILES
+Backend / API
+FastAPI structure, CORS, security headers
+[BUILT]
+—
+main.py
+Backend / API
+JWT auth + Supabase integration
+[BUILT]
+—
+auth.py, main.py
+Backend / API
+Rate limiting (SlowAPI)
+[BUILT]
+—
+main.py
+Backend / API
+Razorpay payment flow
+[BUILT]
+—
+payment_routes.py
+Backend / API
+Thinking Panel routes
+[BUILT]
+—
+thinking_routes.py
+Backend / API
+Duplicate exception handler (line 438)
+[PARTIAL]
+FIX
+main.py
+Backend / API
+Prompt templates (hardcoded in handler)
+[PARTIAL]
+P2
+ai_routes.py
+Backend / API
+story_graph.sql migration sequencing
+[PARTIAL]
+P2
+migrations/
+Backend / API
+SSO CRUD endpoints (10 routes)
+[MISSING-P2]
+P2
+sso_routes.py [NEW]
+Backend / API
+Node correction endpoint
+[MISSING-P2]
+P2
+ai_routes.py
+Backend / API
+Export endpoint
+[NEW]
+P2
+export_routes.py [NEW]
+Backend / API
+Version history endpoints
+[NEW]
+P2
+version_routes.py [NEW]
+Backend / API
+Import pipeline endpoint
+[NEW]
+P2
+import_routes.py [NEW]
+Backend / API
+Global search endpoint
+[NEW]
+P2
+search_routes.py [NEW]
+Backend / API
+Beta reader endpoints
+[NEW]
+P3
+beta_routes.py [NEW]
+Backend / API
+Analytics endpoints
+[NEW]
+P3
+analytics_routes.py [NEW]
+Backend / API
+World building endpoints
+[NEW]
+P3
+worldbuild_routes.py [NEW]
+Backend / API
+Query/synopsis generation endpoint
+[NEW]
+P2
+strategy_routes.py [NEW]
+Backend / API
+Research panel endpoints
+[NEW]
+P3
+research_routes.py [NEW]
+Editor Core
+TipTap editor + chapter CRUD
+[BUILT]
+—
+EditorCore.jsx
+Editor Core
+Zustand storyStore
+[BUILT]
+—
+storyStore.js
+Editor Core
+Chapter sync + auto-save
+[BUILT]
+—
+storyStore.js
+Editor Core
+AppWorkspace layout shell
+[BUILT]
+—
+AppWorkspace.jsx
+Editor Core
+Mode indicator badge (top bar)
+[MISSING-P2]
+P2
+AppWorkspace.jsx
+Editor Core
+Onboarding overlay (first project)
+[MISSING-P3]
+P3
+OnboardingOverlay.jsx [NEW]
+Editor Core
+Export button (top bar)
+[NEW]
+P2
+AppWorkspace.jsx
+Editor Core
+Global search trigger (Cmd+K)
+[NEW]
+P2
+SearchModal.jsx [NEW]
+SSO — Store
+story_nodes (scenes, events)
+[PARTIAL]
+P0
+storyStore.js
+SSO — Store
+story_edges (causality, relationship)
+[PARTIAL]
+P0
+storyStore.js
+SSO — Store
+node_type field on all nodes
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+confidence_score on all nodes
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+edge_type (causality/relationship/conflict)
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+character_states object
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+conflict_states object
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+progression_markers array
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+CRUD actions (upsertCharacterState etc.)
+[MISSING-P0]
+P0
+storyStore.js
+SSO — Store
+storyStore.analysis = AnalysisResult
+[MISSING-P2]
+P2
+storyStore.js
+DB Schema
+character_states table + RLS
+[MISSING-P0]
+P0
+005_sso_extension.sql [NEW]
+DB Schema
+conflict_states table + RLS
+[MISSING-P0]
+P0
+005_sso_extension.sql [NEW]
+DB Schema
+progression_markers table + RLS
+[MISSING-P0]
+P0
+005_sso_extension.sql [NEW]
+DB Schema
+chapter_snapshots table + RLS
+[NEW]
+P2
+006_snapshots.sql [NEW]
+DB Schema
+writing_sessions table + RLS
+[NEW]
+P3
+007_analytics.sql [NEW]
+DB Schema
+beta_invites + beta_comments tables
+[NEW]
+P3
+008_beta.sql [NEW]
+DB Schema
+locations + timeline_events + bible tables
+[NEW]
+P3
+009_world.sql [NEW]
+Signal Engine
+Stage 1 — Detection
+[MISSING-P1]
+P1
+signalEngine.js [NEW]
+Signal Engine
+Stage 2 — Intent Adjustment
+[MISSING-P1]
+P1
+intentLayer.js [NEW]
+Signal Engine
+Stage 3 — Scoring
+[MISSING-P1]
+P1
+signalEngine.js [NEW]
+Signal Engine
+Stage 4 — Suppression
+[MISSING-P1]
+P1
+signalEngine.js [NEW]
+Signal Engine
+Stage 5 — Ranking
+[MISSING-P1]
+P1
+signalEngine.js [NEW]
+Signal Engine
+Stage 6 — Output (max 3)
+[MISSING-P1]
+P1
+signalEngine.js [NEW]
+Meta-Signal
+Clustering logic (2-of-3 rule)
+[MISSING-P1]
+P1
+metaSignalLayer.js [NEW]
+Meta-Signal
+Composite score calculation
+[MISSING-P1]
+P1
+metaSignalLayer.js [NEW]
+Meta-Signal
+Root cause + narrative impact merge
+[MISSING-P1]
+P1
+metaSignalLayer.js [NEW]
+Intent Layer
+Story type config + phase modifiers
+[MISSING-P1]
+P1
+intentLayer.js [NEW]
+Intent Layer
+Template overlay integration
+[NEW]
+P3
+intentLayer.js + storyTemplates.js
+Progression Curve
+Metric calculation (4 metrics)
+[MISSING-P1]
+P1
+progressionCurve.js [NEW]
+Progression Curve
+Curve shape detection (flat middle etc.)
+[MISSING-P1]
+P1
+progressionCurve.js [NEW]
+Confidence Layer
+confidence_score on nodes
+[MISSING-P0]
+P0
+storyStore.js
+Confidence Layer
+Confidence pill UI on graph nodes
+[MISSING-P3]
+P3
+StoryGraph.jsx
+Confidence Layer
+Correction feedback loop
+[MISSING-P3]
+P3
+StoryGraph.jsx + ai_routes.py
+AI Modes
+Normal mode (basic call)
+[PARTIAL]
+P2
+ai_routes.py
+AI Modes
+Depth mode (multi-pass pipeline)
+[MISSING-P2]
+P2
+ai_routes.py
+AI Modes
+Extended mode (6-pass full context)
+[MISSING-P2]
+P2
+ai_routes.py
+AI Modes
+Auto-fallback (Extended -> Depth -> Normal)
+[MISSING-P2]
+P2
+ai_routes.py
+AI Modes
+Mode schema (aiModes.js)
+[MISSING-P2]
+P2
+aiModes.js [NEW]
+AI Modes
+Prompt templates (3 files)
+[MISSING-P2]
+P2
+prompt_templates/*.txt [NEW]
+AI Modes
+Master orchestrator (runFullAnalysis)
+[MISSING-P2]
+P2
+aiModes.js [NEW]
+Thinking Panel
+Ideas Tab (static card creation)
+[PARTIAL]
+P3
+IdeasTab.jsx
+Thinking Panel
+Ideas Tab — signal-driven surface
+[MISSING-P3]
+P3
+IdeasTab.jsx
+Thinking Panel
+Threads Tab (basic write)
+[PARTIAL]
+P3
+ThreadsTab.jsx
+Thinking Panel
+Threads -> story_edges sync
+[MISSING-P3]
+P3
+ThreadsTab.jsx + storyStore.js
+Thinking Panel
+Arcs -> progression_markers sync
+[MISSING-P3]
+P3
+BranchesTab.jsx
+Thinking Panel
+Strategist Tab — query gen wired up
+[PARTIAL]
+P2
+StrategistTab.jsx
+Thinking Panel
+Analyst Tab — structured signal cards
+[MISSING-P2]
+P2
+AnalystTab.jsx
+Thinking Panel
+Beta Tab
+[NEW]
+P3
+BetaTab.jsx [NEW]
+Thinking Panel
+World Tab
+[NEW]
+P3
+WorldBuildingPanel/ [NEW]
+Thinking Panel
+Research Tab
+[NEW]
+P3
+ResearchTab.jsx [NEW]
+Graph Engine
+ReactFlow node/edge storage
+[BUILT]
+—
+StoryGraph.jsx
+Graph Engine
+Custom node types (scene/event/character)
+[MISSING-P3]
+P3
+StoryGraph.jsx
+Graph Engine
+Signal overlays on nodes/edges
+[MISSING-P3]
+P3
+StoryGraph.jsx
+Graph Engine
+Progression curve strip (below graph)
+[MISSING-P3]
+P3
+StoryGraph.jsx
+Graph Engine
+Edge type rendering (solid/dashed/animated)
+[MISSING-P3]
+P3
+StoryGraph.jsx
+Settings Panel
+API key + model selector
+[BUILT]
+—
+SettingsPanel.jsx
+Settings Panel
+AI mode radio selector
+[MISSING-P2]
+P2
+SettingsPanel.jsx
+Settings Panel
+Story Intent settings
+[MISSING-P3]
+P3
+ProjectSettings.jsx [NEW]
+Export
+Manuscript export (docx/pdf/epub/txt)
+[NEW]
+P2
+export_routes.py + ExportModal.jsx [NEW]
+Export
+Shunn manuscript format
+[NEW]
+P2
+export_routes.py [NEW]
+Versioning
+Chapter snapshot (auto + manual)
+[NEW]
+P2
+version_routes.py + VersionHistoryPanel.jsx [NEW]
+Versioning
+Pre-analysis auto-snapshot
+[NEW]
+P2
+version_routes.py [NEW]
+Versioning
+Side-by-side diff view
+[NEW]
+P2
+VersionHistoryPanel.jsx [NEW]
+Search
+Global Cmd+K search
+[NEW]
+P2
+search_routes.py + SearchModal.jsx [NEW]
+Analytics
+Session tracking + daily word counts
+[NEW]
+P3
+analytics_routes.py + AnalyticsPanel.jsx [NEW]
+Analytics
+Recharts bar chart (words/day)
+[NEW]
+P3
+AnalyticsPanel.jsx [NEW]
+World Building
+Locations registry
+[NEW]
+P3
+worldbuild_routes.py [NEW]
+World Building
+Story timeline + consistency check
+[NEW]
+P3
+worldbuild_routes.py [NEW]
+World Building
+Story bible entries
+[NEW]
+P3
+worldbuild_routes.py [NEW]
+Templates
+Structure template library (5 templates)
+[NEW]
+P3
+storyTemplates.js [NEW]
+Templates
+Template overlay on progression curve
+[NEW]
+P3
+TemplateOverlay.jsx [NEW]
+Import
+Word / .docx import
+[NEW]
+P2
+import_routes.py [NEW]
+Import
+Scrivener / plain text import
+[NEW]
+P2
+import_routes.py [NEW]
+Beta Reader
+Invite + share link system
+[NEW]
+P3
+beta_routes.py [NEW]
+Beta Reader
+Beta comment -> SSO signal bridge
+[NEW]
+P3
+beta_routes.py + signalEngine.js
+Query Letter
+Query / synopsis / pitch generator
+[NEW]
+P2
+strategy_routes.py + StrategistTab.jsx
+Research
+Research notes + bookmarks + files
+[NEW]
+P3
+research_routes.py + ResearchTab.jsx [NEW]
+29 — Master End Checklist
+This checklist is the single source of truth for build tracking. Each row maps to a deliverable, its priority tier, and the file(s) it targets. Mark ☑ as completed. Items are ordered strictly by build dependency.
+ℹ
+How to Use This Checklist
+Work top to bottom. Do not advance to P1 until every P0 row is ☑. The 'BLOCKED' dependency chain is enforced: P1 requires P0 complete. P2 requires P1. P3 requires P2. NEW items can be interleaved with P2/P3 but never before P0/P1.
+☑
+DELIVERABLE
+TIER
+NOTES / TARGET FILES
+IMMEDIATE FIXES (before any new build)
+☐
+Remove duplicate @app.exception_handler at line 438 in main.py
+FIX NOW
+main.py:438
+☐
+Wire StrategistTab onClick -> generateQueryAPI (currently dead code)
+FIX NOW
+StrategistTab.jsx
+☐
+AnalystTab: replace raw JSON dump with structured signal card UI
+FIX NOW
+AnalystTab.jsx:50-126
+☐
+Rename story_graph.sql -> 004_story_graph.sql for correct migration order
+FIX NOW
+supabase/migrations/
+☐
+Move AI prompt strings out of ai_routes.py into prompt_templates/
+FIX NOW
+ai_routes.py
+☐
+AppWorkspace.jsx: add AI mode badge when mode != 'normal'
+FIX NOW
+AppWorkspace.jsx
+P0 — BLOCKERS (must complete before P1)
+☐
+Add node_type field ('scene'|'event'|'character') to all nodes in storyStore.js
+P0 — BLOCK
+storyStore.js
+☐
+Add confidence_score (default 0.8) to all nodes in storyStore.js
+P0 — BLOCK
+storyStore.js
+☐
+Add edge_type field ('causality'|'relationship'|'conflict') to all edges
+P0 — BLOCK
+storyStore.js
+☐
+Add characterStates: {} top-level field to storyStore
+P0 — BLOCK
+storyStore.js
+☐
+Add conflictStates: {} top-level field to storyStore
+P0 — BLOCK
+storyStore.js
+☐
+Add progressionMarkers: [] top-level field to storyStore
+P0 — BLOCK
+storyStore.js
+☐
+Add CRUD: upsertCharacterState, upsertConflictState, addProgressionMarker
+P0 — BLOCK
+storyStore.js
+☐
+Write Supabase migration 005_sso_extension.sql
+P0 — BLOCK
+supabase/migrations/
+☐
+Create character_states table with RLS in Supabase
+P0 — BLOCK
+005_sso_extension.sql
+☐
+Create conflict_states table with RLS in Supabase
+P0 — BLOCK
+005_sso_extension.sql
+☐
+Create progression_markers table with RLS in Supabase
+P0 — BLOCK
+005_sso_extension.sql
+☐
+Add node_type and confidence_score columns to story_nodes table
+P0 — BLOCK
+005_sso_extension.sql
+☐
+Add edge_type column to story_edges table
+P0 — BLOCK
+005_sso_extension.sql
+☐
+Fix: Remove duplicate exception handler at line 438 in main.py
+P0 — FIX
+main.py
+☐
+Fix: Add number prefix to story_graph.sql migration
+P0 — FIX
+supabase/migrations/
+P1 — CORE INTELLIGENCE (complete before P2)
+☐
+Build intentLayer.js — story type config + phase-aware modifiers
+P1 — CORE
+src/utils/intentLayer.js
+☐
+Build signalEngine.js — Stage 1: Detection (reads SSO only)
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build signalEngine.js — Stage 2: Intent Adjustment pass
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build signalEngine.js — Stage 3: Scoring (weighted formula)
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build signalEngine.js — Stage 4: Suppression logic
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build signalEngine.js — Stage 5: Ranking by intent_adjusted_score
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build signalEngine.js — Stage 6: Output top 3 only
+P1 — CORE
+src/utils/signalEngine.js
+☐
+Build metaSignalLayer.js — clustering by 2-of-3 overlap rule
+P1 — CORE
+src/utils/metaSignalLayer.js
+☐
+Build metaSignalLayer.js — composite score (max * 1.2, capped 100)
+P1 — CORE
+src/utils/metaSignalLayer.js
+☐
+Build metaSignalLayer.js — root_cause + directional_fix merge
+P1 — CORE
+src/utils/metaSignalLayer.js
+☐
+Build progressionCurve.js — 4 metric calculations per chapter
+P1 — CORE
+src/utils/progressionCurve.js
+☐
+Build progressionCurve.js — curve shape detection (flatMiddle, etc.)
+P1 — CORE
+src/utils/progressionCurve.js
+☐
+Build progressionCurve.js — phaseAssignments output
+P1 — CORE
+src/utils/progressionCurve.js
+☐
+Verify: all P1 utilities read ONLY from storyStore snapshot (no raw text)
+P1 — CORE
+code review required
+P2 — AI MODES + UX LAYER
+☐
+Write normal.txt prompt template
+P2
+backend/prompt_templates/normal.txt
+☐
+Write depth.txt prompt template (5-pass)
+P2
+backend/prompt_templates/depth.txt
+☐
+Write extended.txt prompt template (6-pass)
+P2
+backend/prompt_templates/extended.txt
+☐
+Build aiModes.js — AI_MODES schema + runFullAnalysis orchestrator
+P2
+src/utils/aiModes.js
+☐
+Extend ai_routes.py — Normal mode: single call with structured prompt
+P2
+backend/routers/ai_routes.py
+☐
+Extend ai_routes.py — Depth mode: 5-pass pipeline
+P2
+backend/routers/ai_routes.py
+☐
+Extend ai_routes.py — Extended mode: 6-pass + fallback to Depth
+P2
+backend/routers/ai_routes.py
+☐
+Build sso_routes.py — all 10 SSO CRUD endpoints
+P2
+backend/routers/sso_routes.py
+☐
+Build POST /api/sso/node-correction endpoint
+P2
+backend/routers/sso_routes.py
+☐
+Move hardcoded AI prompts to prompt_templates/ folder
+P2
+ai_routes.py + prompt_templates/
+☐
+Rewrite AnalystTab.jsx — structured signal cards (not raw JSON)
+P2
+src/components/ThinkingPanel/tabs/AnalystTab.jsx
+☐
+Build Meta-Signal card UI above signal cards in AnalystTab
+P2
+AnalystTab.jsx
+☐
+Add AI mode radio selector to SettingsPanel.jsx
+P2
+src/components/SettingsPanel.jsx
+☐
+Add mode indicator badge to AppWorkspace.jsx top bar
+P2
+src/components/AppWorkspace.jsx
+☐
+Wire Strategist Tab onClick -> generateQueryAPI call
+P2
+src/components/ThinkingPanel/tabs/StrategistTab.jsx
+☐
+Build export_routes.py (docx/pdf/epub/txt)
+P2 — NEW
+backend/routers/export_routes.py
+☐
+Build ExportModal.jsx — 3-step export flow
+P2 — NEW
+src/components/ExportModal.jsx
+☐
+Build version_routes.py — snapshot CRUD
+P2 — NEW
+backend/routers/version_routes.py
+☐
+Build VersionHistoryPanel.jsx — snapshot list + diff view
+P2 — NEW
+src/components/VersionHistoryPanel.jsx
+☐
+Add pre-analysis auto-snapshot call before every analysis run
+P2 — NEW
+src/utils/aiModes.js
+☐
+Build search_routes.py — full-text search endpoint
+P2 — NEW
+backend/routers/search_routes.py
+☐
+Build SearchModal.jsx — Cmd+K global search with live results
+P2 — NEW
+src/components/SearchModal.jsx
+☐
+Build import_routes.py — docx/txt/scriv/fountain import
+P2 — NEW
+backend/routers/import_routes.py
+☐
+Build ImportModal.jsx — upload + preview + confirm flow
+P2 — NEW
+src/components/ImportModal.jsx
+☐
+Build strategy_routes.py — query/synopsis/pitch generator
+P2 — NEW
+backend/routers/strategy_routes.py
+☐
+Update Zustand: storyStore.analysis = AnalysisResult (Section 20)
+P2
+storyStore.js
+☐
+Implement TRIGGER RULE: Analyze button fires runFullAnalysis only (Section 21)
+P2
+AnalystTab.jsx
+☐
+Verify: UI renders ONLY from AnalysisResult (Section 19)
+P2
+code review required
+☐
+Implement FAILURE HANDLING cascade (Section 23)
+P2
+aiModes.js + ai_routes.py
+☐
+Implement MIGRATION RULE defaults (Section 24)
+P2
+storyStore.js
+☐
+Implement ASYNC UI STATES: idle/loading/success/error (Section 25)
+P2
+AnalystTab.jsx
+P3 — SYNC, POLISH & NEW FEATURES
+☐
+Build two-way SSO sync: ThreadsTab -> story_edges (Section 06)
+P3
+ThreadsTab.jsx + storyStore.js
+☐
+Build reverse sync: storyStore.edges -> ThreadsTab thread cards
+P3
+ThreadsTab.jsx
+☐
+Build signal-driven Ideas surface in IdeasTab (Section 06)
+P3
+IdeasTab.jsx
+☐
+Build Accept/Dismiss actions on idea signal cards
+P3
+IdeasTab.jsx
+☐
+Build ArcsTab progression_markers timeline strip
+P3
+BranchesTab.jsx or ArcsTab.jsx
+☐
+Register custom ReactFlow node types (SceneNode, EventNode, CharacterNode)
+P3
+StoryGraph.jsx
+☐
+Build signal overlay badges on affected graph nodes/edges
+P3
+StoryGraph.jsx
+☐
+Build signal badge popover (issue + root_cause + directional_fix)
+P3
+StoryGraph.jsx
+☐
+Build Progression Curve strip below graph canvas (collapsible)
+P3
+StoryGraph.jsx
+☐
+Build full Progression Curve chart tab (StoryCurveTab.jsx)
+P3
+src/components/StoryCurveTab.jsx
+☐
+Build edge type rendering (solid/dashed/animated by edge_type)
+P3
+StoryGraph.jsx
+☐
+Build confidence pill on graph nodes (shows if score < 0.80)
+P3
+StoryGraph.jsx
+☐
+Build confidence pill interactions (Yes / Fix inline popover)
+P3
+StoryGraph.jsx
+☐
+Build Story Intent UI in ProjectSettings modal
+P3
+src/components/ProjectSettings.jsx
+☐
+Build onboarding 3-step overlay for new project creation
+P3
+src/components/OnboardingOverlay.jsx
+☐
+Build analytics_routes.py + writing_sessions schema
+P3 — NEW
+backend/routers/analytics_routes.py
+☐
+Build AnalyticsPanel.jsx — daily bar chart + progress ring + streak
+P3 — NEW
+src/components/AnalyticsPanel.jsx
+☐
+Build worldbuild_routes.py — locations/timeline/bible CRUD
+P3 — NEW
+backend/routers/worldbuild_routes.py
+☐
+Build WorldBuildingPanel — Locations | Timeline | Bible tabs
+P3 — NEW
+src/components/ThinkingPanel/tabs/WorldBuildingPanel/
+☐
+Integrate timeline inconsistency -> continuity signal in signalEngine.js
+P3 — NEW
+src/utils/signalEngine.js
+☐
+Build storyTemplates.js — 5 story structure templates
+P3 — NEW
+src/utils/storyTemplates.js
+☐
+Build TemplateOverlay.jsx — overlay on progression curve chart
+P3 — NEW
+src/components/TemplateOverlay.jsx
+☐
+Build beta_routes.py — invite, comment, status update endpoints
+P3 — NEW
+backend/routers/beta_routes.py
+☐
+Build BetaTab.jsx — comment list + author response UI
+P3 — NEW
+src/components/ThinkingPanel/tabs/BetaTab.jsx
+☐
+Build research_routes.py — notes/bookmarks/files CRUD
+P3 — NEW
+backend/routers/research_routes.py
+☐
+Build ResearchTab.jsx — Notes | Links | Files sub-tabs
+P3 — NEW
+src/components/ThinkingPanel/tabs/ResearchTab.jsx
+☐
+Accessibility pass: WCAG AA contrast on all new components
+P3
+all new components
+☐
+Keyboard nav: focus rings + aria-label on signal cards, pills, mode toggle
+P3
+all new components
+☐
+End-to-end integration test: P0 SSO -> P1 engine -> P2 AI -> P3 UI
+P3
+test suite
+29.1 — Checklist Summary
+Total deliverables tracked: 101 items across all tiers. Current status at time of this audit: 0 items complete (spec ~38% complete refers to backend/editor core — the intelligence stack is 0%). Target: all P0 + P1 items complete before any P2 or P3 work begins.
+TIER
+TOTAL ITEMS
+COMPLETE
+REMAINING
+NOTE
+Immediate Fixes
+6
+0
+6
+Fix these first — they are blocking visibility
+P0 — Blockers
+15
+0
+15
+Zero P1 work until all 15 are complete
+P1 — Core Intelligence
+14
+0
+14
+Signal Engine + Meta-Signal + Progression Curve
+P2 — AI Modes + UX
+30
+0
+30
+Includes 10 NEW items from Section 27
+P3 — Sync + Polish + New
+36
+0
+36
+Includes 16 NEW items from Section 27
+TOTAL
+101
+0
+101
+~38% spec completion at time of audit
+✓
+Final Completion Gate
+The application is production-ready when: all P0 + P1 + P2 checklist items are ☑, the end-to-end integration test passes (P0 SSO -> P1 engine -> P2 AI -> P3 UI), WCAG AA contrast is verified on all new components, and manuscript export produces a valid Shunn-format .docx. P3 items elevate the platform; they are not gate requirements.

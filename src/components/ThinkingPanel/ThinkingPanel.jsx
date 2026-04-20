@@ -4,6 +4,8 @@ import WhatIfTab from './tabs/WhatIfTab';
 import ThreadsTab from './tabs/ThreadsTab';
 import BranchesTab from './tabs/BranchesTab';
 import GraveyardTab from './tabs/GraveyardTab';
+import AnalystTab from './tabs/AnalystTab';
+import StrategistTab from './tabs/StrategistTab';
 
 const StoryGraph = lazy(() => import('../Editor/StoryGraph'));
 
@@ -16,7 +18,7 @@ export default function ThinkingPanel({
     onTabChange 
 }) {
     const scrollPositions = useRef({
-        ideas: 0, whatif: 0, threads: 0, branches: 0, graveyard: 0, graph: 0
+        ideas: 0, whatif: 0, threads: 0, branches: 0, graveyard: 0, graph: 0, analyst: 0, strategist: 0
     });
     
     const panelBodyRef = useRef(null);
@@ -76,12 +78,14 @@ export default function ThinkingPanel({
     }
 
     const tabs = [
-        { id: 'ideas', label: 'Ideas' },
-        { id: 'whatif', label: 'What-If' },
-        { id: 'threads', label: 'Threads' },
-        { id: 'branches', label: 'Branches' },
-        { id: 'graveyard', label: 'Graveyard' },
-        { id: 'graph', label: 'Graph' }
+        { id: 'graph', label: 'Graph', icon: '◈' },
+        { id: 'ideas', label: 'Ideas', icon: '💡' },
+        { id: 'whatif', label: 'What-If', icon: '❓' },
+        { id: 'threads', label: 'Threads', icon: '🧵' },
+        { id: 'branches', label: 'Branches', icon: '🌿' },
+        { id: 'analyst', label: 'Analyst', icon: '🔬' },
+        { id: 'strategist', label: 'Strategist', icon: '🎯' },
+        { id: 'graveyard', label: 'Graveyard', icon: '🪦' }
     ];
 
     return (
@@ -133,6 +137,7 @@ export default function ThinkingPanel({
                     <button
                         key={tab.id}
                         onClick={() => handleTabClick(tab.id)}
+                        title={tab.label}
                         style={{
                             flex: 1,
                             background: 'transparent',
@@ -140,16 +145,14 @@ export default function ThinkingPanel({
                             borderBottom: activeTab === tab.id ? '2px solid #c9915a' : '2px solid transparent',
                             color: activeTab === tab.id ? '#c9915a' : '#6b6560',
                             cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: activeTab === tab.id ? '600' : '400',
+                            fontSize: '14px',
                             transition: 'all 0.2s',
-                            padding: '0 4px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                         }}
                     >
-                        {tab.label}
+                        {tab.icon}
                     </button>
                 ))}
             </div>
@@ -170,6 +173,8 @@ export default function ThinkingPanel({
                 {activeTab === 'threads' && <ThreadsTab projectId={projectId} />}
                 {activeTab === 'branches' && <BranchesTab projectId={projectId} />}
                 {activeTab === 'graveyard' && <GraveyardTab projectId={projectId} />}
+                {activeTab === 'analyst' && <AnalystTab projectId={projectId} />}
+                {activeTab === 'strategist' && <StrategistTab projectId={projectId} />}
                 {activeTab === 'graph' && (
                     <Suspense fallback={
                         <div style={{ 

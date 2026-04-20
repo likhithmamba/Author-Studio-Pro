@@ -22,6 +22,19 @@ export const useStoryStore = create(
     nodes: {},
     edges: [],
 
+    // ─── SSO Extended Data ────────────────────────────────────────────
+    characterStates: {},
+    conflictStates: {},
+    progressionMarkers: [],
+
+    // ─── Midnight Chronicle Editor Data ───────────────────────────────
+    scenes: {},
+    sceneOrder: [],
+    characters: {},
+    locations: {},
+    timelineEvents: [],
+    researchNotes: [],
+
     // ─── Editor State ─────────────────────────────────────────────────
     editor: {
       activeChapterId: null,
@@ -97,7 +110,31 @@ export const useStoryStore = create(
 
     upsertNode: (node) =>
       set(state => ({
-        nodes: { ...state.nodes, [node.id]: node }
+        nodes: { ...state.nodes, [node.id]: { node_type: 'event', confidence_score: 0.8, ...node } }
+      })),
+
+    upsertCharacterState: (stateUpdate) =>
+      set(state => ({
+        characterStates: { ...state.characterStates, [stateUpdate.character_id]: { ...state.characterStates[stateUpdate.character_id], ...stateUpdate } },
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      })),
+
+    upsertConflictState: (conflictUpdate) =>
+      set(state => ({
+        conflictStates: { ...state.conflictStates, [conflictUpdate.conflict_id]: { ...state.conflictStates[conflictUpdate.conflict_id], ...conflictUpdate } },
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      })),
+
+    addProgressionMarker: (marker) =>
+      set(state => ({
+        progressionMarkers: [...state.progressionMarkers.filter(m => m.marker_id !== marker.marker_id), marker],
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      })),
+
+    removeProgressionMarker: (markerId) =>
+      set(state => ({
+        progressionMarkers: state.progressionMarkers.filter(m => m.marker_id !== markerId),
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
       })),
 
     removeNode: (nodeId) =>
@@ -141,6 +178,70 @@ export const useStoryStore = create(
         }
       })),
 
+    // ─── Midnight Chronicle Editor Actions ────────────────────────────
+    
+    setScenes: (scenesList) => {
+      const byId = {}
+      const order = []
+      scenesList.forEach(s => {
+        byId[s.id] = s
+        order.push(s.id)
+      })
+      set({ scenes: byId, sceneOrder: order })
+    },
+    
+    upsertScene: (scene) => set(state => ({
+      scenes: { ...state.scenes, [scene.id]: { ...state.scenes[scene.id], ...scene } }
+    })),
+    
+    removeScene: (id) => set(state => {
+      const { [id]: _, ...remain } = state.scenes
+      return { scenes: remain, sceneOrder: state.sceneOrder.filter(x => x !== id) }
+    }),
+
+    setCharacters: (chars) => {
+      const byId = {}
+      chars.forEach(c => { byId[c.id] = c })
+      set({ characters: byId })
+    },
+    
+    upsertCharacter: (char) => set(state => ({ characters: { ...state.characters, [char.id]: char } })),
+    
+    removeCharacter: (id) => set(state => {
+      const { [id]: _, ...remain } = state.characters
+      return { characters: remain }
+    }),
+
+    setLocations: (locs) => {
+      const byId = {}
+      locs.forEach(l => { byId[l.id] = l })
+      set({ locations: byId })
+    },
+    
+    upsertLocation: (loc) => set(state => ({ locations: { ...state.locations, [loc.id]: loc } })),
+    
+    removeLocation: (id) => set(state => {
+      const { [id]: _, ...remain } = state.locations
+      return { locations: remain }
+    }),
+
+    setTimelineEvents: (events) => set({ timelineEvents: events }),
+    
+    upsertTimelineEvent: (event) => set(state => {
+      const existing = state.timelineEvents.filter(e => e.id !== event.id)
+      return { timelineEvents: [...existing, event].sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)) }
+    }),
+    
+    removeTimelineEvent: (id) => set(state => ({ timelineEvents: state.timelineEvents.filter(e => e.id !== id) })),
+
+    setResearchNotes: (notes) => set({ researchNotes: notes }),
+    
+    upsertResearchNote: (note) => set(state => ({
+      researchNotes: [...state.researchNotes.filter(n => n.id !== note.id), note]
+    })),
+    
+    removeResearchNote: (id) => set(state => ({ researchNotes: state.researchNotes.filter(n => n.id !== id) })),
+
     // ─── Debounced Graph Sync ──────────────────────────────────────────
     
     syncGraph: async (token) => {
@@ -150,12 +251,15 @@ export const useStoryStore = create(
       set(state => ({ sync: { ...state.sync, status: 'saving' } }))
       
       try {
-        const { saveNodes, saveEdges } = await import('../api.js')
+        const { saveNodes, saveEdges, saveCharacterState, saveConflictState, saveProgressionMarker } = await import('../api.js')
         const nodes = Object.values(state.nodes)
         
         await Promise.all([
           saveNodes(state.projectId, nodes, token),
-          saveEdges(state.projectId, state.edges, token)
+          saveEdges(state.projectId, state.edges, token),
+          ...Object.values(state.characterStates).map(c => saveCharacterState(c, token)),
+          ...Object.values(state.conflictStates).map(c => saveConflictState(c, token)),
+          ...state.progressionMarkers.map(p => saveProgressionMarker(p, token))
         ])
         
         set(state => ({ 
@@ -172,25 +276,68 @@ export const useStoryStore = create(
       set({ isRehydrating: true, projectId })
       
       try {
-        const { loadNodes, loadManuscript } = await import('../api.js')
-        const [graphData, manuscriptData] = await Promise.all([
+        const { loadNodes, loadManuscript, loadCharacterStates, loadConflictStates, loadProgressionMarkers, loadEditorData } = await import('../api.js')
+        const [graphData, manuscriptData, charStates, confStates, progMarkers, editorData] = await Promise.all([
           loadNodes(projectId, token),
-          loadManuscript(projectId, token)
+          loadManuscript(projectId, token),
+          loadCharacterStates(projectId, token),
+          loadConflictStates(projectId, token),
+          loadProgressionMarkers(projectId, token),
+          loadEditorData(projectId, token)
         ])
         
         const byId = {}
         if (graphData.nodes) graphData.nodes.forEach(n => { byId[n.id] = n })
+        
+        const charsById = {}
+        if (charStates && Array.isArray(charStates)) charStates.forEach(c => { charsById[c.character_id] = c })
+        
+        const confsById = {}
+        if (confStates && Array.isArray(confStates)) confStates.forEach(c => { confsById[c.conflict_id] = c })
+        
+        // Editor Data
+        const eData = editorData || {}
+        const scenesById = {}
+        const sceneOrderArr = []
+        if (eData.scenes) {
+          eData.scenes.forEach(s => {
+            scenesById[s.id] = s
+            sceneOrderArr.push(s.id)
+          })
+        }
+        
+        const editorChars = {}
+        if (eData.characters) eData.characters.forEach(c => { editorChars[c.id] = c })
+        
+        const editorLocs = {}
+        if (eData.locations) eData.locations.forEach(l => { editorLocs[l.id] = l })
         
         set({ 
           nodes: byId, 
           edges: graphData.edges || [],
           chapters: manuscriptData.chapters || {},
           chapterOrder: manuscriptData.chapterOrder || [],
+          characterStates: charsById,
+          conflictStates: confsById,
+          progressionMarkers: progMarkers || [],
+          scenes: scenesById,
+          sceneOrder: sceneOrderArr,
+          characters: editorChars,
+          locations: editorLocs,
+          timelineEvents: eData.timeline_events || [],
+          researchNotes: eData.research_notes || [],
           isRehydrating: false 
         })
       } catch (err) {
         console.error("Project initialization failed:", err)
-        set({ isRehydrating: false })
+        // Seed a default chapter so the editor always has something to show
+        const defaultChId = `ch_${Date.now()}`
+        set({
+          isRehydrating: false,
+          chapters: { [defaultChId]: { id: defaultChId, title: 'Chapter 1', content: '', wordCount: 0, order: 0 } },
+          chapterOrder: [defaultChId],
+          editor: { activeChapterId: defaultChId, isTyping: false, wordCount: 0 }
+        })
       }
     },
 

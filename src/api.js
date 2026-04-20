@@ -428,3 +428,52 @@ export async function saveManuscript(projectId, content, token) {
     })
 }
 
+// ─── Midnight Chronicle Editor API ────────────────────────────────────────
+
+export async function loadEditorData(projectId, token) {
+    return fetchJSON(`/editor/data/${projectId}`, { headers: _authHeaders(token) })
+}
+
+// ─── SSO API ─────────────────────────────────────────────────────────────
+
+export async function loadCharacterStates(projectId, token) {
+    return fetchJSON(`/sso/character-states/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function saveCharacterState(data, token) {
+    return fetchJSON('/sso/character-states', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify(data),
+    })
+}
+
+export async function loadConflictStates(projectId, token) {
+    return fetchJSON(`/sso/conflict-states/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function saveConflictState(data, token) {
+    return fetchJSON('/sso/conflict-states', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify(data),
+    })
+}
+
+export async function loadProgressionMarkers(projectId, token) {
+    return fetchJSON(`/sso/progression-markers/${projectId}`, { headers: _authHeaders(token) })
+}
+
+export async function saveProgressionMarker(data, token) {
+    return fetchJSON('/sso/progression-markers', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify(data),
+    })
+}
+
+export async function deleteProgressionMarkerAPI(id, token) {
+    return fetchJSON(`/sso/progression-markers/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+

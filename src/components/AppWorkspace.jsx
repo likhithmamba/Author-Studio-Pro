@@ -1,38 +1,52 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     HiOutlineArrowLeft, HiOutlineCog6Tooth, HiOutlineArrowRightOnRectangle,
     HiOutlineLockClosed, HiOutlineSparkles, HiOutlineStar, HiOutlineCheckBadge,
+    HiOutlineDocumentText, HiOutlineWrenchScrewdriver, HiOutlineLightningBolt
 } from 'react-icons/hi2'
 import { useAuth } from '../contexts/AuthContext'
+import MidnightChronicleEditor from './Editor/MidnightChronicleEditor'
 import Tools from './Tools'
 import AuthModal from './AuthModal'
-import './AppWorkspace.css'
-
-// FIX-6: Format and Market are free for all users
-const FREE_TABS = ['format', 'market', 'submissions']
-const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions', 'editor']
-
+import OnboardingOverlay from './OnboardingOverlay'
+import { hasApiKey, loadApiKey, getDeviceFingerprint } from '../utils/keyStorage'
 import { WritingSystemProvider } from '../contexts/WritingSystemContext'
 import StoreSyncManager from './StoreSyncManager'
 import { useStoryStore } from '../store/storyStore'
+import './AppWorkspace.css'
+
+const FREE_TABS = ['format', 'market', 'submissions']
+const PAID_TABS = ['format', 'analyse', 'query', 'market', 'submissions']
 
 export default function AppWorkspace({ settings, onSettingsClick, initialTab }) {
     const { user, loading, isSubscribed, subscription, token, logout } = useAuth()
     const [showAuth, setShowAuth] = useState(false)
+    const [showOnboarding, setShowOnboarding] = useState(false)
+    const [workspaceMode, setWorkspaceMode] = useState('editor') // 'editor' | 'tools'
     const navigate = useNavigate()
+
+    // Derive API key props
+    const hasKey = hasApiKey()
+    const apiKey = hasKey ? loadApiKey(getDeviceFingerprint()) : ''
+    const aiModel = settings?.aiModel || 'mistralai/mistral-7b-instruct:free'
 
     const { isRehydrating, initializeProject } = useStoryStore()
 
+    useEffect(() => {
+        if (user && !localStorage.getItem('asp_onboarded')) {
+            setShowOnboarding(true)
+        }
+    }, [user])
+
     // ─── Project Rehydration ─────────────────────────────────────────────────
     useEffect(() => {
-        if (user && token && !isSubscribed && !isRehydrating) {
-            // In trial mode, we use a fixed demo project ID if one isn't set
-            const demoProjectId = 'demo-project-1'
-            initializeProject(demoProjectId, token)
+        if (user && token && !isRehydrating) {
+            const projectId = 'demo-project-1'
+            initializeProject(projectId, token)
         }
-    }, [user, token, isSubscribed, initializeProject])
+    }, [user, token, initializeProject])
 
     // ─── Loading state ──────────────────────────────────────────────────────
     if (loading || isRehydrating) {
@@ -137,6 +151,25 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                                 </span>
                             )}
                         </div>
+
+                        {/* ─── Workspace Mode Toggle ──────────────────────── */}
+                        <div className="workspace-mode-toggle">
+                            <button
+                                className={`workspace-mode-btn ${workspaceMode === 'editor' ? 'active' : ''}`}
+                                onClick={() => setWorkspaceMode('editor')}
+                            >
+                                <HiOutlineDocumentText />
+                                <span>Studio</span>
+                            </button>
+                            <button
+                                className={`workspace-mode-btn ${workspaceMode === 'tools' ? 'active' : ''}`}
+                                onClick={() => setWorkspaceMode('tools')}
+                            >
+                                <HiOutlineWrenchScrewdriver />
+                                <span>Publishing Tools</span>
+                            </button>
+                        </div>
+
                         <div className="workspace-nav-actions">
                             <span className="workspace-user-email">{user.email}</span>
                             <button className="workspace-settings-btn" onClick={onSettingsClick} aria-label="Settings">
@@ -149,31 +182,59 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                     </div>
                 </header>
 
-                {/* Free tier upgrade banner */}
-                {false && (
-                    <motion.div
-                        className="workspace-upgrade-banner"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <span>
-                            <HiOutlineStar /> You're on the <strong>Free plan</strong> — Format and Market are free.
-                        </span>
-                        <Link to="/#pricing" className="workspace-upgrade-link">
-                            Upgrade for AI features →
-                        </Link>
-                    </motion.div>
-                )}
+                <AnimatePresence>
+                    {showOnboarding && (
+                        <OnboardingOverlay 
+                            onClose={() => setShowOnboarding(false)} 
+                            onOpenSettings={onSettingsClick} 
+                        />
+                    )}
+                </AnimatePresence>
 
                 {/* Main workspace content */}
-                <motion.main
-                    className="workspace-main"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    <Tools settings={settings} allowedTabs={allowedTabs} initialTab={initialTab} />
-                </motion.main>
+                <AnimatePresence mode="wait">
+                    {workspaceMode === 'editor' ? (
+                        <motion.main
+                            key="editor"
+                            className="workspace-main workspace-main-editor"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                        >
+                            <Suspense fallback={
+                                <div className="workspace-loading">
+                                    <div className="workspace-loading-spinner" />
+                                    <p>Loading your writing studio...</p>
+                                </div>
+                            }>
+                                <MidnightChronicleEditor 
+                                    apiKey={apiKey} 
+                                    aiModel={aiModel} 
+                                    hasKey={hasKey} 
+                                    settings={settings} 
+                                    projectId="demo-project-1"
+                                />
+                            </Suspense>
+                        </motion.main>
+                    ) : (
+                        <motion.main
+                            key="tools"
+                            className="workspace-main workspace-main-tools"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}
+                        >
+                            <Tools
+                                settings={settings}
+                                allowedTabs={allowedTabs}
+                            />
+                        </motion.main>
+                    )}
+                </AnimatePresence>
 
                 {/* Workspace footer */}
                 <footer className="workspace-footer">

@@ -3,6 +3,9 @@ import IdeaCard from './IdeaCard';
 import { HiOutlinePlus, HiOutlineMagnifyingGlassMinus, HiOutlineMagnifyingGlassPlus, HiOutlineArrowsPointingOut } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getIdeas, createIdea, updateIdea, deleteIdea, createIdeaConnection } from '../../../api';
+import { useStoryStore } from '../../../store/storyStore';
+import { runSignalEngine } from '../../../utils/signalEngine';
+import { mergeToMetaSignals } from '../../../utils/metaSignalLayer';
 
 export default function IdeasTab({ projectId }) {
     const { token } = useAuth();
@@ -15,6 +18,7 @@ export default function IdeasTab({ projectId }) {
     // Data State
     const [cards, setCards] = useState([]);
     const [connections, setConnections] = useState([]);
+    const [signalIdeas, setSignalIdeas] = useState([]);
 
     useEffect(() => {
         if (!projectId || !token) return;
@@ -22,6 +26,16 @@ export default function IdeasTab({ projectId }) {
             if (data.cards) setCards(data.cards.map(c => ({...c, x: c.position_x || 0, y: c.position_y || 0})));
             if (data.connections) setConnections(data.connections);
         }).catch(err => console.error("Failed to load ideas:", err));
+
+        // SSO signal-driven ideas
+        try {
+            const snapshot = useStoryStore.getState();
+            const signals = runSignalEngine(snapshot);
+            const metas = mergeToMetaSignals(signals);
+            const topIdeas = (metas.length > 0 ? metas : signals).slice(0, 3);
+            setSignalIdeas(topIdeas);
+        } catch(e) { console.warn('Signal Engine Error:', e); }
+
     }, [projectId, token]);
 
     const [selectedCardId, setSelectedCardId] = useState(null);
@@ -304,6 +318,29 @@ export default function IdeasTab({ projectId }) {
                     <button style={{...cmBtnStyle, color: '#ef4444'}} onClick={() => deleteCard(contextMenu.cardId)}>Delete</button>
                 </div>
             )}
+
+            {/* Signal-Driven Ideas Overlay */}
+            <div style={{
+                position: 'absolute', top: 50, left: 16, zIndex: 10,
+                display: 'flex', flexDirection: 'column', gap: '8px', width: '260px'
+            }}>
+                {signalIdeas.map((sig, i) => (
+                    <div key={i} className="glass-card" style={{ background: 'rgba(20,20,25,0.95)', padding: '12px', borderLeft: '3px solid #9B7EC8', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                        <div style={{ fontSize: '10px', color: '#9B7EC8', textTransform: 'uppercase', marginBottom: '4px' }}>Strategic Insight</div>
+                        <strong style={{ fontSize: '12px', color: '#e8e0d5', display: 'block', marginBottom: '4px', lineHeight: '1.4' }}>{sig.is_meta ? sig.title : sig.issue}</strong>
+                        <p style={{ fontSize: '11px', color: '#bbb', margin: '0 0 10px 0', lineHeight: '1.4' }}>{sig.directional_fix}</p>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn-primary" style={{ padding: '6px 8px', fontSize: '11px', flex: 1, borderRadius: '4px' }} 
+                                onClick={() => {
+                                    addNewCard(undefined, undefined, sig.is_meta ? sig.title : sig.issue, sig.directional_fix);
+                                    setSignalIdeas(prev => prev.filter((_, idx) => idx !== i));
+                                }}>Accept as Idea</button>
+                            <button style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#bbb', padding: '6px 8px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                                onClick={() => setSignalIdeas(prev => prev.filter((_, idx) => idx !== i))}>Dismiss</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

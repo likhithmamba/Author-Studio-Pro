@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useCallback, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import CharacterCount from '@tiptap/extension-character-count'
@@ -344,12 +345,12 @@ export default function NovelEditor({
                 </div>
             )}
 
-            <div style={{ position: 'relative', zIndex: focusMode ? 101 : 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ position: 'relative', zIndex: focusMode ? 101 : 1, display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'center' }}>
                 {!focusMode && (
                     <Toolbar 
                         editor={editor}
                         wordCount={wordCount}
-                        targetWords={allChapters.reduce((acc, ch) => acc + (ch.targetWords || 0), 0) || 80000} // Simple fallback target
+                        targetWords={allChapters.reduce((acc, ch) => acc + (ch.targetWords || 0), 0) || 80000}
                         focusMode={focusMode}
                         onToggleFocus={onToggleFocus}
                         typewriterMode={typewriterMode}
@@ -363,70 +364,81 @@ export default function NovelEditor({
                         className="bubble-menu-container"
                         style={{
                             ...menuStyle,
-                            background: '#1a1a1a',
-                            border: '1px solid #2a2a2a',
-                            borderRadius: '6px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                            background: 'var(--bg-studio)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '12px',
+                            boxShadow: 'var(--shadow-lg)',
                             overflow: 'hidden',
-                            zIndex: 200
+                            zIndex: 200,
+                            backdropFilter: 'blur(20px)'
                         }}
                     >
                         <button 
                             onClick={handleToIdeas} 
-                            style={{ background: 'none', border: 'none', borderRight: '1px solid #2a2a2a', color: '#e8e0d5', fontFamily: '"DM Sans", sans-serif', fontSize: '11px', height: '28px', padding: '0 10px', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', borderRight: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '11px', height: '32px', padding: '0 12px', cursor: 'pointer' }}
                         >
-                            To Ideas
+                            💡 Idea
                         </button>
                         <button 
                             onClick={handleToThread} 
-                            style={{ background: 'none', border: 'none', borderRight: '1px solid #2a2a2a', color: '#e8e0d5', fontFamily: '"DM Sans", sans-serif', fontSize: '11px', height: '28px', padding: '0 10px', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', borderRight: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '11px', height: '32px', padding: '0 12px', cursor: 'pointer' }}
                         >
-                            To Thread
+                            🧵 Thread
                         </button>
                         <button 
                             onClick={handleBury} 
-                            style={{ background: 'none', border: 'none', color: '#e8e0d5', fontFamily: '"DM Sans", sans-serif', fontSize: '11px', height: '28px', padding: '0 10px', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent-rose)', fontSize: '11px', height: '32px', padding: '0 12px', cursor: 'pointer' }}
                         >
-                            Bury this
+                            🪦 Bury
                         </button>
                     </div>
                 )}
 
-            {/* Editor Area */}
-            <div className="editor-writing-area">
-                <EditorContent editor={editor} />
-            </div>
-
-            {/* AI Result Panel */}
-            {aiResult && (
-                <div className={`editor-ai-result ${aiResult.type === 'error' ? 'error' : ''}`}>
-                    <div className="editor-ai-result-header">
-                        <strong>
-                            {aiResult.type === 'continue' && '✍️ AI Continuation'}
-                            {aiResult.type === 'rewrite' && '🔄 AI Rewrite'}
-                            {aiResult.type === 'names' && '🏷️ Name Suggestions'}
-                            {aiResult.type === 'error' && '⚠️ Error'}
-                        </strong>
-                        <button className="editor-ai-dismiss" onClick={dismissAI}>✕</button>
-                    </div>
-                    <div className="editor-ai-result-body">
-                        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>
-                            {aiResult.text}
-                        </pre>
-                    </div>
-                    {(aiResult.type === 'continue' || aiResult.type === 'rewrite') && (
-                        <div className="editor-ai-result-actions">
-                            <button className="btn-primary" onClick={acceptAI} style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}>
-                                ✓ Accept & Insert
-                            </button>
-                            <button className="btn-secondary" onClick={dismissAI} style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}>
-                                ✕ Dismiss
-                            </button>
-                        </div>
-                    )}
+                {/* Editor Area */}
+                <div className="editor-writing-area">
+                    <EditorContent editor={editor} />
                 </div>
-            )}
-            
+
+                {/* AI Result Panel (Floating Editorial Callout) */}
+                <AnimatePresence>
+                    {aiResult && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className={`editor-ai-result ${aiResult.type === 'error' ? 'error' : ''}`}
+                            style={{
+                                position: 'fixed', bottom: '4rem', right: '4rem', width: '380px',
+                                background: 'rgba(20, 20, 25, 0.95)', backdropFilter: 'blur(20px)',
+                                border: '1px solid var(--accent-purple)', borderRadius: '16px',
+                                boxShadow: 'var(--shadow-premium)', zIndex: 300, overflow: 'hidden'
+                            }}
+                        >
+                            <div className="editor-ai-result-header" style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
+                                <strong style={{ color: 'var(--accent-purple)', fontSize: '0.9rem' }}>
+                                    {aiResult.type === 'continue' && '✍️ AI Continuation'}
+                                    {aiResult.type === 'rewrite' && '🔄 AI Rewrite'}
+                                    {aiResult.type === 'names' && '🏷️ Name Suggestions'}
+                                    {aiResult.type === 'error' && '⚠️ Error'}
+                                </strong>
+                                <button onClick={dismissAI} style={{ background: 'none', border: 'none', color: 'var(--text-muted)' }}>✕</button>
+                            </div>
+                            <div className="editor-ai-result-body" style={{ padding: '1.25rem', fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.7', maxHeight: '300px' }}>
+                                {aiResult.text}
+                            </div>
+                            {(aiResult.type === 'continue' || aiResult.type === 'rewrite') && (
+                                <div className="editor-ai-result-actions" style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', display: 'flex', gap: '0.75rem' }}>
+                                    <button className="btn-primary" onClick={acceptAI} style={{ flex: 1, padding: '0.6rem' }}>
+                                        Accept Changes
+                                    </button>
+                                    <button className="btn-secondary" onClick={dismissAI} style={{ padding: '0.6rem 1rem' }}>
+                                        Ignore
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     )

@@ -1,72 +1,39 @@
 /**
- * Author Studio Pro — Editor Layout
- * Container connecting Sidebar, NovelEditor, and chapter state management.
- * Uses localStorage for project/chapter persistence.
+ * Author Studio Pro — Editor Layout v3
+ * Container connecting Sidebar, NovelEditor, ThinkingPanel.
+ * Clean three-panel layout. No modals — formatting is in Publishing Tools.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import Sidebar from './Sidebar.jsx'
 import NovelEditor from './NovelEditor.jsx'
 import StatusBar from './StatusBar.jsx'
+import StoryCurve from './StoryCurve.jsx'
 import ThinkingPanel from '../ThinkingPanel/ThinkingPanel.jsx'
-import { useChapterSave } from './useChapterSave.js'
-import { useSyncEngine } from './useChapterSave.js'
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
 import { useWritingSystem } from '../../contexts/WritingSystemContext.jsx'
 import { useStoryStore } from '../../store/storyStore.js'
-import { loadNodes } from '../../api.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import './EditorLayout.css'
-
-const STORAGE_KEY = 'asp_editor_project'
-
-function loadProject() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        if (!raw) return null
-        return JSON.parse(raw)
-    } catch { return null }
-}
-
-function saveProject(project) {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(project))
-    } catch { /* silently fail */ }
-}
-
-function createDefaultProject() {
-    const ch1Id = `ch_${Date.now()}`
-    return {
-        id: `project_${Date.now()}`,
-        author: 'Jane Doe',
-        title: 'Untitled Novel',
-        targetWords: 80000,
-        chapters: [
-            { id: ch1Id, title: 'Chapter 1', content: '', wordCount: 0, order: 0 },
-        ],
-        activeChapterId: ch1Id,
-        createdAt: new Date().toISOString(),
-    }
-}
 
 export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
     const [focusMode, setFocusMode] = useState(false)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
+    const [viewMode, setViewMode] = useState('editor') // 'editor' | 'curve'
 
     // Context & Store State
-    const { 
-        thinkingPanelOpen, setThinkingPanelOpen, 
-        activeThinkingTab, setActiveThinkingTab 
+    const {
+        thinkingPanelOpen, setThinkingPanelOpen,
+        activeThinkingTab, setActiveThinkingTab
     } = useWritingSystem();
-    
+
     const { token } = useAuth();
-    
+
     // Store Actions & State
-    const { 
-        projectTitle, setProject, 
-        chapters, chapterOrder, 
+    const {
+        projectTitle, setProject,
+        chapters, chapterOrder,
         editor, setActiveChapter,
         addChapter, removeChapter, updateChapterTitle, reorderChapters,
         updateChapterContent,
@@ -92,7 +59,7 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
         updateChapterContent(activeChapterId, html, wc);
     }, [activeChapterId, updateChapterContent]);
 
-    // UI Configuration Persistence (Panel Width etc.)
+    // UI Configuration
     const [panelWidth, setPanelWidth] = useState(320);
 
     return (
@@ -114,51 +81,70 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
             )}
 
             <div className="editor-main">
-                {/* Project header (hidden in focus mode) */}
+                {/* Project header */}
                 {!focusMode && (
                     <div className="editor-project-header">
-                        <input
-                            className="editor-project-title-input"
-                            value={projectTitle}
-                            onChange={e => setProject(useStoryStore.getState().projectId, e.target.value)}
-                            placeholder="Untitled Novel"
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                            <input
+                                className="editor-project-title-input"
+                                value={projectTitle}
+                                onChange={e => setProject(useStoryStore.getState().projectId, e.target.value)}
+                                placeholder="Untitled Novel"
+                            />
+                            <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.03)', padding: '3px', borderRadius: '6px' }}>
+                                <button
+                                    onClick={() => setViewMode('editor')}
+                                    className={`editor-tb-btn ${viewMode === 'editor' ? 'active' : ''}`}
+                                    style={{ fontSize: '0.7rem' }}
+                                >Editor</button>
+                                <button
+                                    onClick={() => setViewMode('curve')}
+                                    className={`editor-tb-btn ${viewMode === 'curve' ? 'active' : ''}`}
+                                    style={{ fontSize: '0.7rem' }}
+                                >Story Curve</button>
+                            </div>
+                        </div>
                         <div className="editor-project-actions">
                             <button
-                                className="editor-settings-btn"
-                                onClick={() => setShowSettings(!showSettings)}
-                                title="Project Settings"
+                                onClick={() => setThinkingPanelOpen(!thinkingPanelOpen)}
+                                className={`editor-tb-btn ${thinkingPanelOpen ? 'active' : ''}`}
+                                title="Toggle Intelligence Panel"
+                                style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}
                             >
-                                <HiOutlineCog6Tooth />
+                                ✦ Intelligence
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* Chapter title */}
-                {!focusMode && activeChapter && (
+                {/* Chapter title strip */}
+                {!focusMode && activeChapter && viewMode === 'editor' && (
                     <div className="editor-chapter-title">
                         {activeChapter.title}
                     </div>
                 )}
 
-                {/* Editor */}
+                {/* Main View Area */}
                 <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <NovelEditor
-                        key={activeChapterId}
-                        chapterId={activeChapterId}
-                        content={activeChapter?.content || ''}
-                        onChange={handleContentChange}
-                        apiKey={apiKey}
-                        aiModel={aiModel}
-                        hasKey={hasKey}
-                        focusMode={focusMode}
-                        onToggleFocus={() => setFocusMode(!focusMode)}
-                        lastSaved={sync.lastSaved}
-                        saving={sync.status === 'saving'}
-                        projectTitle={projectTitle}
-                        projectId={useStoryStore.getState().projectId}
-                    />
+                    {viewMode === 'editor' ? (
+                        <NovelEditor
+                            key={activeChapterId}
+                            chapterId={activeChapterId}
+                            content={activeChapter?.content || ''}
+                            onChange={handleContentChange}
+                            apiKey={apiKey}
+                            aiModel={aiModel}
+                            hasKey={hasKey}
+                            focusMode={focusMode}
+                            onToggleFocus={() => setFocusMode(!focusMode)}
+                            lastSaved={sync.lastSaved}
+                            saving={sync.status === 'saving'}
+                            projectTitle={projectTitle}
+                            projectId={useStoryStore.getState().projectId}
+                        />
+                    ) : (
+                        <StoryCurve />
+                    )}
                 </div>
 
                 {!focusMode && activeChapter && (
@@ -173,14 +159,16 @@ export default function EditorLayout({ apiKey, aiModel, hasKey, settings }) {
             </div>
 
             {!focusMode && thinkingPanelOpen && (
-                <ThinkingPanel
-                    projectId={useStoryStore.getState().projectId}
-                    width={activeThinkingTab === 'graph' ? Math.max(panelWidth, 500) : panelWidth}
-                    open={thinkingPanelOpen}
-                    onToggleOpen={setThinkingPanelOpen}
-                    activeTab={activeThinkingTab}
-                    onTabChange={setActiveThinkingTab}
-                />
+                <div className="thinking-panel-wrap">
+                    <ThinkingPanel
+                        projectId={useStoryStore.getState().projectId}
+                        width={activeThinkingTab === 'graph' ? Math.max(panelWidth, 500) : panelWidth}
+                        open={thinkingPanelOpen}
+                        onToggleOpen={setThinkingPanelOpen}
+                        activeTab={activeThinkingTab}
+                        onTabChange={setActiveThinkingTab}
+                    />
+                </div>
             )}
         </div>
     )

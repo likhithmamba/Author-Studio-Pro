@@ -519,3 +519,96 @@ async def analyse_text(request: Request, body: AnalyseTextRequest):
         logger.exception("Analyse-text error")
         raise HTTPException(422, f"Could not process the manuscript structure. Try re-uploading the file. Detail: {str(e)[:200]}")
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI ENGINE - SIGNAL ANALYSIS 
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SignalAnalysisRequest(BaseModel):
+    mode: str = "normal"
+    signals: list
+    current_phase: str = "setup"
+    progression: dict = None
+    character_states: dict = None
+    conflict_states: dict = None
+    api_key: str = ""
+    ai_model: str = "mistralai/mistral-7b-instruct:free"
+
+@router.post("/api/ai/analyze-signals", tags=["AI"])
+@limiter.limit("10/minute")
+async def analyze_signals(request: Request, body: SignalAnalysisRequest):
+    if not body.api_key:
+        raise HTTPException(400, "API key required")
+        
+    mode = body.mode.lower()
+    prompt_file = f"prompt_templates/{mode}.txt"
+    if not os.path.exists(prompt_file):
+        prompt_file = "prompt_templates/normal.txt"
+        
+    with open(prompt_file, 'r', encoding='utf-8') as f:
+        sys_prompt = f.read()
+        
+    sys_prompt = sys_prompt.replace("{{signals_json}}", json.dumps(body.signals))
+    sys_prompt = sys_prompt.replace("{{primary_signals_json}}", json.dumps(body.signals))
+    sys_prompt = sys_prompt.replace("{{secondary_signals_json}}", "[]") 
+    sys_prompt = sys_prompt.replace("{{current_phase}}", body.current_phase or "unknown")
+    if body.progression:
+        sys_prompt = sys_prompt.replace("{{progression_curve_json}}", json.dumps(body.progression))
+    if body.character_states:
+        sys_prompt = sys_prompt.replace("{{character_states_json}}", json.dumps(body.character_states))
+    if body.conflict_states:
+        sys_prompt = sys_prompt.replace("{{conflict_states_json}}", json.dumps(body.conflict_states))
+        
+    full_sso = {
+        "signals": body.signals,
+        "progression": body.progression,
+        "character_states": body.character_states,
+        "conflict_states": body.conflict_states
+    }
+    sys_prompt = sys_prompt.replace("{{full_sso_json}}", json.dumps(full_sso))
+    sys_prompt = sys_prompt.replace("{{signal_history_json}}", "[]")
+    sys_prompt = sys_prompt.replace("{{character_evolution_json}}", json.dumps(body.character_states))
+    sys_prompt = sys_prompt.replace("{{conflict_evolution_json}}", json.dumps(body.conflict_states))
+
+    try:
+        import requests
+        headers = {
+            "Authorization": f"Bearer {body.api_key}",
+            "HTTP-Referer": "http://localhost:5173", 
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": body.ai_model,
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": "Please analyze the structural signals and output the JSON insights."}
+            ],
+            "response_format": {"type": "json_object"}
+        }
+        
+        timeout = 60
+        if mode == "extended":
+            timeout = 120
+            
+        r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=timeout)
+        r.raise_for_status()
+        
+        j = r.json()
+        content = j['choices'][0]['message']['content']
+        
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.replace("```", "")
+            
+        return json.loads(content.strip())
+        
+    except requests.exceptions.Timeout:
+        if mode == "extended":
+            return {"error": "Timeout", "fallback": "depth required"}
+        raise HTTPException(504, "AI Request Timed out")
+    except Exception as e:
+        logger.exception("Signal Analysis Failed")
+        raise HTTPException(500, f"AI Analysis Error: {str(e)[:200]}")
+
+

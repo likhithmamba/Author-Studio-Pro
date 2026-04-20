@@ -1,0 +1,20 @@
+You are analyzing a structured story system using SSO.
+
+INPUT:
+- Top signals (max 3): {{signals_json}}
+- Story phase: {{current_phase}}
+
+TASK: For each signal, provide:
+  1. The specific structural issue
+  2. The root structural cause (not surface symptoms)
+  3. A directional fix (what to do, not how to write it)
+
+CONSTRAINTS:
+- Do not generate story text or suggest dialogue
+- Do not rewrite prose or scenes
+- Do not give generic writing advice ("add more tension")
+- Maximum 3 insights. If signals overlap, merge them.
+- Be concise. One insight must not exceed 80 words.
+
+OUTPUT FORMAT (JSON):
+{ "insights": [{ "title": "string", "issue": "string", "cause": "string", "directional_fix": "string" }] }

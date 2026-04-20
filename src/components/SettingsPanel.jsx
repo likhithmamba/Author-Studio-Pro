@@ -255,10 +255,101 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                             </select>
                         </div>
 
+                        <div className="settings-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
+                            <div className="settings-item-info">
+                                <span className="settings-item-label">Analysis Engine Mode</span>
+                                <span className="settings-item-desc">
+                                    Control depth and cost of structural inference
+                                </span>
+                            </div>
+                            {(() => {
+                                const isFreeModel = (settings.aiModel || 'mistralai/mistral-7b-instruct:free').includes(':free');
+                                return (
+                                    <div style={{ display: 'flex', gap: '1rem', width: '100%', flexWrap: 'wrap' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="aiMode" 
+                                        value="normal" 
+                                        checked={(settings.aiMode || 'normal') === 'normal'} 
+                                        onChange={() => update('aiMode', 'normal')} 
+                                    />
+                                    <span style={{ fontSize: '0.85rem' }}>Normal (Fast)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="aiMode" 
+                                        value="depth" 
+                                        checked={settings.aiMode === 'depth'} 
+                                        onChange={() => update('aiMode', 'depth')} 
+                                    />
+                                    <span style={{ fontSize: '0.85rem' }}>Depth (Thorough)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isFreeModel ? 'not-allowed' : 'pointer', opacity: isFreeModel ? 0.5 : 1 }}>
+                                    <input 
+                                        type="radio" 
+                                        name="aiMode" 
+                                        value="extended" 
+                                        checked={settings.aiMode === 'extended'} 
+                                        onChange={() => !isFreeModel && update('aiMode', 'extended')} 
+                                        disabled={isFreeModel}
+                                    />
+                                    <span style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Extended (Comprehensive) {isFreeModel && <HiOutlineLockClosed title="Requires paid model" />}
+                                    </span>
+                                </label>
+                            </div>
+                                );
+                            })()}
+                        </div>
+
                         {/* ─── AI Guide ─── */}
                         <AIGuide />
                     </div>
 
+                    {/* ─── Story Intent ─── */}
+                    <div className="settings-group">
+                        <h3 className="settings-group-title">
+                            📚 Story Intent
+                        </h3>
+                        <p className="settings-group-desc">
+                            Configure the underlying structural rules the AI uses when evaluating your manuscript.
+                        </p>
+
+                        <div className="settings-item">
+                            <div className="settings-item-info">
+                                <span className="settings-item-label">Story Type</span>
+                                <span className="settings-item-desc">Defines structural expectations</span>
+                            </div>
+                            <select
+                                className="settings-select"
+                                value={settings.storyType || 'genre'}
+                                onChange={e => update('storyType', e.target.value)}
+                            >
+                                <option value="genre">Genre Fiction (Fast Paced)</option>
+                                <option value="literary">Literary Fiction (Character Driven)</option>
+                                <option value="slow_burn">Slow Burn / Mystery</option>
+                            </select>
+                        </div>
+
+                        <div className="settings-item">
+                            <div className="settings-item-info">
+                                <span className="settings-item-label">Expected Pacing</span>
+                                <span className="settings-item-desc">Adjust the baseline frequency of conflicts (1.0x is average)</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '240px', justifyContent: 'flex-end' }}>
+                                <input 
+                                    type="range" 
+                                    min="0.5" max="2" step="0.1" 
+                                    value={settings.pacingMultiplier || 1.0}
+                                    onChange={e => update('pacingMultiplier', parseFloat(e.target.value))}
+                                    style={{ flex: 1, cursor: 'ew-resize' }}
+                                />
+                                <span style={{ fontSize: '0.85rem', width: '30px', textAlign: 'right' }}>{settings.pacingMultiplier || 1.0}x</span>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* ─── Subscription & Billing ─── */}
                     <div className="settings-group">

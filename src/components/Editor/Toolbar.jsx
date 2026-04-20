@@ -1,3 +1,8 @@
+/**
+ * Author Studio Pro — Premium Editor Toolbar v3
+ * Minimal, dark, manuscript-grade formatting controls.
+ */
+
 import React, { useState, useEffect } from 'react';
 
 export default function Toolbar({
@@ -11,8 +16,8 @@ export default function Toolbar({
 }) {
     const [fontFamily, setFontFamily] = useState(() => {
         try {
-            return localStorage.getItem('asp:prefs:fontFamily') || 'Georgia';
-        } catch { return 'Georgia'; }
+            return localStorage.getItem('asp:prefs:fontFamily') || 'Cormorant Garamond';
+        } catch { return 'Cormorant Garamond'; }
     });
 
     const [fontSize, setFontSize] = useState(() => {
@@ -48,93 +53,108 @@ export default function Toolbar({
         }
     };
 
-    // Handle Scene Break
     const insertSceneBreak = () => {
         if (!editor) return;
-        editor.chain().focus().insertContent('<p style="text-align: center;">* * *</p><p></p>').run();
+        editor.chain().focus().setHorizontalRule().run();
     };
 
     if (!editor) return null;
 
     const pct = localTarget > 0 ? (wordCount / localTarget) * 100 : 0;
-    let barColor = '#2a2a2a';
+    let barColor = 'rgba(255,255,255,0.06)';
     if (pct >= 100) barColor = '#4caf7d';
     else if (pct >= 80) barColor = '#c9915a';
+    else if (pct > 0) barColor = 'rgba(201, 145, 90, 0.4)';
 
     return (
-        <div style={{ position: 'sticky', top: 0, zIndex: 40, background: '#111', borderBottom: '1px solid #2a2a2a' }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                height: '44px',
-                padding: '0 8px',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap',
-                gap: '8px'
-            }}>
-                {/* Group 1: Formatting */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <button className={`editor-tb-btn ${editor.isActive('bold') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
-                    <button className={`editor-tb-btn ${editor.isActive('italic') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
-                    <button className={`editor-tb-btn ${editor.isActive('underline') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleUnderline?.().run()}>U</button>
-                    <button className={`editor-tb-btn ${editor.isActive('strike') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleStrike?.().run()}>S</button>
-                    
+        <div className="editor-toolbar">
+            <div className="editor-toolbar-inner">
+                {/* Formatting */}
+                <div className="editor-tb-group">
+                    <button className={`editor-tb-btn ${editor.isActive('bold') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
+                        <strong>B</strong>
+                    </button>
+                    <button className={`editor-tb-btn ${editor.isActive('italic') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
+                        <em>I</em>
+                    </button>
+                    <button className={`editor-tb-btn ${editor.isActive('strike') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleStrike?.().run()} title="Strikethrough">
+                        <s>S</s>
+                    </button>
+                </div>
+
+                <div className="editor-tb-divider" />
+
+                {/* Structure */}
+                <div className="editor-tb-group">
+                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 1 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">H1</button>
+                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 2 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">H2</button>
+                    <button className={`editor-tb-btn ${editor.isActive('blockquote') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Blockquote">"</button>
+                    <button className="editor-tb-btn" onClick={insertSceneBreak} title="Scene break">⁂</button>
+                </div>
+
+                <div className="editor-tb-divider" />
+
+                {/* Typography */}
+                <div className="editor-tb-group">
                     <select 
                         value={fontFamily} 
                         onChange={e => setFontFamily(e.target.value)}
-                        style={{ background: '#1a1a1a', color: '#e8e0d5', border: '1px solid #2a2a2a', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', marginLeft: '4px' }}
+                        className="editor-tb-select"
+                        title="Font"
                     >
-                        <option value="Cormorant Garamond">Cormorant Garamond</option>
+                        <option value="Cormorant Garamond">Cormorant</option>
                         <option value="Georgia">Georgia</option>
-                        <option value="Courier New">Courier New</option>
+                        <option value="Courier New">Courier</option>
+                        <option value="Lora">Lora</option>
                     </select>
 
                     <select 
                         value={fontSize} 
                         onChange={e => setFontSize(e.target.value)}
-                        style={{ background: '#1a1a1a', color: '#e8e0d5', border: '1px solid #2a2a2a', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', marginLeft: '4px' }}
+                        className="editor-tb-select"
+                        title="Font size"
                     >
-                        {[12, 14, 16, 18, 20, 24, 28, 32].map(size => (
-                            <option key={size} value={size}>{size}px</option>
+                        {[14, 16, 18, 20, 22, 24].map(size => (
+                            <option key={size} value={size}>{size}</option>
                         ))}
                     </select>
                 </div>
 
                 <div className="editor-tb-divider" />
 
-                {/* Group 2: Structure */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 1 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 2 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 3 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
-                    
-                    <button className={`editor-tb-btn ${editor.isActive('blockquote') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>”</button>
-                    <button className={`editor-tb-btn ${editor.isActive('bulletList') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</button>
-                    <button className={`editor-tb-btn ${editor.isActive('orderedList') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleOrderedList?.().run()}>1.</button>
-                    <button className="editor-tb-btn" onClick={() => editor.chain().focus().setHorizontalRule().run()}>—</button>
-                    <button className="editor-tb-btn" onClick={insertSceneBreak}>Element</button>
+                {/* Modes */}
+                <div className="editor-tb-group">
+                    <button className={`editor-tb-btn ${focusMode ? 'active' : ''}`} onClick={onToggleFocus} title="Focus mode (double-Esc to exit)">
+                        Focus
+                    </button>
+                    {window.innerWidth >= 768 && (
+                        <button className={`editor-tb-btn ${typewriterMode ? 'active' : ''}`} onClick={onToggleTypewriter} title="Typewriter scroll">
+                            Typewriter
+                        </button>
+                    )}
                 </div>
 
-                <div className="editor-tb-divider" />
+                <div className="editor-tb-spacer" />
 
-                {/* Group 3: Writer Tools */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button className={`editor-tb-btn ${focusMode ? 'active' : ''}`} onClick={onToggleFocus}>Focus Mode</button>
-                    <button className={`editor-tb-btn ${typewriterMode ? 'active' : ''}`} onClick={onToggleTypewriter} style={{ display: window.innerWidth < 768 ? 'none' : 'block' }}>Typewriter</button>
-                    
-                    <div 
-                        onClick={handleTargetClick}
-                        style={{ fontSize: '12px', color: '#c9915a', cursor: 'pointer', marginLeft: 'auto', paddingLeft: '8px' }}
-                        title="Click to edit target words"
-                    >
-                        {wordCount} / {localTarget}
-                    </div>
+                {/* Word Count */}
+                <div 
+                    className="editor-tb-wordcount"
+                    onClick={handleTargetClick}
+                    title="Click to set word target"
+                >
+                    {wordCount.toLocaleString()} / {localTarget.toLocaleString()}
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div style={{ width: '100%', height: '2px', background: '#2a2a2a' }}>
-                <div style={{ height: '100%', background: barColor, width: `${Math.min(pct, 100)}%`, transition: 'width 0.3s' }} />
+            {/* Thin progress bar */}
+            <div className="editor-tb-progress">
+                <div 
+                    className="editor-tb-progress-fill" 
+                    style={{ 
+                        width: `${Math.min(pct, 100)}%`,
+                        background: barColor,
+                    }} 
+                />
             </div>
         </div>
     );

@@ -98,12 +98,17 @@ def get_user_id(request: Request) -> str:
 @router.get("/api/thinking/captures", tags=["Thinking"])
 async def get_captures(request: Request, project_id: Optional[str] = None):
     uid = get_user_id(request)
-    sb = get_supabase()
-    q = sb.table("quick_captures").select("*").eq("user_id", uid)
-    if project_id:
-        q = q.eq("project_id", project_id)
-    res = q.order("created_at", desc=True).execute()
-    return res.data
+    try:
+        sb = get_supabase()
+        if not sb: return []
+        q = sb.table("quick_captures").select("*").eq("user_id", uid)
+        if project_id:
+            q = q.eq("project_id", project_id)
+        res = q.order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.warning(f"get_captures failed: {e}")
+        return []
 
 @router.post("/api/thinking/captures", tags=["Thinking"])
 async def create_capture(request: Request, body: QuickCaptureCreate):
@@ -125,10 +130,15 @@ async def delete_capture(request: Request, id: str):
 @router.get("/api/thinking/ideas/{project_id}", tags=["Thinking"])
 async def get_ideas(request: Request, project_id: str):
     uid = get_user_id(request)
-    sb = get_supabase()
-    cards = sb.table("idea_cards").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
-    connections = sb.table("idea_connections").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
-    return {"cards": cards.data, "connections": connections.data}
+    try:
+        sb = get_supabase()
+        if not sb: return {"cards": [], "connections": []}
+        cards = sb.table("idea_cards").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+        connections = sb.table("idea_connections").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+        return {"cards": cards.data, "connections": connections.data}
+    except Exception as e:
+        logger.warning(f"get_ideas failed: {e}")
+        return {"cards": [], "connections": []}
 
 @router.post("/api/thinking/ideas", tags=["Thinking"])
 async def create_idea(request: Request, body: IdeaCardCreate):
@@ -180,9 +190,14 @@ async def create_connection(request: Request, body: IdeaConnection):
 @router.get("/api/thinking/whatifs/{project_id}", tags=["Thinking"])
 async def get_whatifs(request: Request, project_id: str):
     uid = get_user_id(request)
-    sb = get_supabase()
-    res = sb.table("what_if_scenarios").select("*").eq("project_id", project_id).eq("user_id", uid).order("created_at", desc=True).execute()
-    return res.data
+    try:
+        sb = get_supabase()
+        if not sb: return []
+        res = sb.table("what_if_scenarios").select("*").eq("project_id", project_id).eq("user_id", uid).order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.warning(f"get_whatifs failed: {e}")
+        return []
 
 @router.post("/api/thinking/whatifs", tags=["Thinking"])
 async def create_whatif(request: Request, body: WhatIfCreate):
@@ -212,9 +227,14 @@ async def delete_whatif(request: Request, id: str):
 @router.get("/api/thinking/threads/{project_id}", tags=["Thinking"])
 async def get_threads(request: Request, project_id: str):
     uid = get_user_id(request)
-    sb = get_supabase()
-    res = sb.table("thread_cards").select("*").eq("project_id", project_id).eq("user_id", uid).order("created_at", desc=True).execute()
-    return res.data
+    try:
+        sb = get_supabase()
+        if not sb: return []
+        res = sb.table("thread_cards").select("*").eq("project_id", project_id).eq("user_id", uid).order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.warning(f"get_threads failed: {e}")
+        return []
 
 @router.post("/api/thinking/threads", tags=["Thinking"])
 async def create_thread(request: Request, body: ThreadCreate):
@@ -341,43 +361,61 @@ class StoryEdgesPayload(BaseModel):
 @router.get("/api/thinking/nodes/{project_id}", tags=["Thinking"])
 async def get_nodes(request: Request, project_id: str):
     uid = get_user_id(request)
-    sb = get_supabase()
-    nodes = sb.table("story_nodes").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
-    edges = sb.table("story_edges").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
-    return {"nodes": nodes.data, "edges": edges.data}
+    try:
+        sb = get_supabase()
+        if not sb:
+            return {"nodes": [], "edges": []}
+        nodes = sb.table("story_nodes").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+        edges = sb.table("story_edges").select("*").eq("project_id", project_id).eq("user_id", uid).execute()
+        return {"nodes": nodes.data, "edges": edges.data}
+    except Exception as e:
+        logger.warning(f"get_nodes failed (returning empty): {e}")
+        return {"nodes": [], "edges": []}
 
 @router.post("/api/thinking/nodes", tags=["Thinking"])
 async def upsert_nodes(request: Request, body: StoryNodesPayload):
     uid = get_user_id(request)
-    sb = get_supabase()
-    for node in body.nodes:
-        node_data = {
-            "id": node.get("id"),
-            "project_id": body.project_id,
-            "user_id": str(uid),
-            "type": node.get("type", "character"),
-            "label": node.get("label", ""),
-            "position_x": node.get("position_x", node.get("position", {}).get("x", 0)),
-            "position_y": node.get("position_y", node.get("position", {}).get("y", 0)),
-            "chapter_refs": node.get("chapter_refs", node.get("chapterRefs", [])),
-        }
-        sb.table("story_nodes").upsert(node_data, on_conflict="id").execute()
-    return {"status": "ok", "count": len(body.nodes)}
+    try:
+        sb = get_supabase()
+        if not sb:
+            return {"status": "offline", "count": 0}
+        for node in body.nodes:
+            node_data = {
+                "id": node.get("id"),
+                "project_id": body.project_id,
+                "user_id": str(uid),
+                "type": node.get("type", "character"),
+                "label": node.get("label", ""),
+                "position_x": node.get("position_x", node.get("position", {}).get("x", 0)),
+                "position_y": node.get("position_y", node.get("position", {}).get("y", 0)),
+                "chapter_refs": node.get("chapter_refs", node.get("chapterRefs", [])),
+            }
+            sb.table("story_nodes").upsert(node_data, on_conflict="id").execute()
+        return {"status": "ok", "count": len(body.nodes)}
+    except Exception as e:
+        logger.warning(f"upsert_nodes failed: {e}")
+        return {"status": "offline", "count": 0}
 
 @router.post("/api/thinking/edges", tags=["Thinking"])
 async def upsert_edges(request: Request, body: StoryEdgesPayload):
     uid = get_user_id(request)
-    sb = get_supabase()
-    for edge in body.edges:
-        edge_data = {
-            "id": edge.get("id"),
-            "project_id": body.project_id,
-            "user_id": str(uid),
-            "source": edge.get("source"),
-            "target": edge.get("target"),
-        }
-        sb.table("story_edges").upsert(edge_data, on_conflict="id").execute()
-    return {"status": "ok", "count": len(body.edges)}
+    try:
+        sb = get_supabase()
+        if not sb:
+            return {"status": "offline", "count": 0}
+        for edge in body.edges:
+            edge_data = {
+                "id": edge.get("id"),
+                "project_id": body.project_id,
+                "user_id": str(uid),
+                "source": edge.get("source"),
+                "target": edge.get("target"),
+            }
+            sb.table("story_edges").upsert(edge_data, on_conflict="id").execute()
+        return {"status": "ok", "count": len(body.edges)}
+    except Exception as e:
+        logger.warning(f"upsert_edges failed: {e}")
+        return {"status": "offline", "count": 0}
 
 @router.delete("/api/thinking/nodes/{node_id}", tags=["Thinking"])
 async def delete_node(request: Request, node_id: str):
@@ -403,18 +441,30 @@ class ManuscriptPayload(BaseModel):
 @router.get("/api/thinking/manuscript/{project_id}", tags=["Thinking"])
 async def get_manuscript(request: Request, project_id: str):
     uid = get_user_id(request)
-    sb = get_supabase()
-    res = sb.table("manuscripts").select("content").eq("project_id", project_id).eq("user_id", uid).execute()
-    return res.data[0]["content"] if res.data else {"chapters": {}, "chapterOrder": []}
+    try:
+        sb = get_supabase()
+        if not sb:
+            return {"chapters": {}, "chapterOrder": []}
+        res = sb.table("manuscripts").select("content").eq("project_id", project_id).eq("user_id", uid).execute()
+        return res.data[0]["content"] if res.data else {"chapters": {}, "chapterOrder": []}
+    except Exception as e:
+        logger.warning(f"get_manuscript failed (returning empty): {e}")
+        return {"chapters": {}, "chapterOrder": []}
 
 @router.post("/api/thinking/manuscript", tags=["Thinking"])
 async def upsert_manuscript(request: Request, body: ManuscriptPayload):
     uid = get_user_id(request)
-    sb = get_supabase()
-    data = {
-        "project_id": body.project_id,
-        "user_id": str(uid),
-        "content": body.content,
-    }
-    res = sb.table("manuscripts").upsert(data, on_conflict="project_id").execute()
-    return {"status": "ok"}
+    try:
+        sb = get_supabase()
+        if not sb:
+            return {"status": "offline"}
+        data = {
+            "project_id": body.project_id,
+            "user_id": str(uid),
+            "content": body.content,
+        }
+        sb.table("manuscripts").upsert(data, on_conflict="project_id").execute()
+        return {"status": "ok"}
+    except Exception as e:
+        logger.warning(f"upsert_manuscript failed (ignoring): {e}")
+        return {"status": "offline"}
