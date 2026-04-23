@@ -1,350 +1,128 @@
-# Author Studio Pro 🖋️✨
+# Author Studio Pro: Technical Specification and Architectural Overview
 
-### The Professional Manuscript Toolkit for Serious Authors
+Author Studio Pro is an advanced, high-fidelity writing suite and publication pipeline designed for the precision management of narrative assets. It provides an integrated environment where creative production is continuously monitored by a Story Strategy Optimization (SSO) engine, ensuring that manuscripts are both artistically consistent and commercially viable according to industry standards.
 
-**Author Studio Pro** is a production-grade SaaS platform that transforms raw manuscripts into submission-ready query packages. Built for authors, literary agents, and publishing houses, it combines industry-standard formatting with AI-powered developmental editing — all from a single, elegant interface.
+## 1. Core Purpose and Philosophy
 
-[![CI](https://github.com/likhithmamba/novel-formatter/actions/workflows/ci.yml/badge.svg)](https://github.com/likhithmamba/novel-formatter/actions)
-[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](#license)
+The fundamental problem addressed by Author Studio Pro is the "Semantic Gap" in traditional word processors. Standard tools treat text as a flat sequence of characters. Author Studio Pro treats a manuscript as a complex relational database of interconnected nodes: Scenes, Chapters, Characters, Locations, and Conflict Markers.
 
----
-
-## 🎯 Why Author Studio Pro?
-
-| Pain Point | Our Solution |
-|------------|-------------|
-| Manuscript formatting takes hours | One-click formatting to agency standards (US, UK, WGA Screenplay) |
-| Query letters are guesswork | AI reads your manuscript and generates compelling query packages |
-| No feedback before submission | Deep structural analysis with readability, pacing, and editorial flags |
-| AI costs are unpredictable | BYOK (Bring Your Own Key) — use your own OpenRouter API key |
-| Genre fit is uncertain | Real-time market intelligence with word-count benchmarking |
+By maintaining this structural integrity, the application enables:
+- **Real-time Structural Analysis**: The software understands where you are in the story arc.
+- **Automated Industry Compliance**: Formatting is a mathematical transformation of data into templates, not a manual stylistic task.
+- **Context-Aware Intelligence**: The integrated AI "knows" the entire project bible while you write a single paragraph.
 
 ---
 
-## ✨ Feature Suite
+## 2. System Architecture
 
-### 📄 Intelligent Manuscript Formatting
-Upload a `.docx` manuscript and receive a perfectly formatted file matching stringent literary agency standards. Choose from templates including **US Standard**, **UK Standard**, **WGA Screenplay**, and more. Output includes chapter detection, proper page breaks, and industry-correct margins and font sizing.
+The application implements a decoupled three-tier architecture designed for low-latency feedback and high data integrity.
 
-### 📊 Deep Structural Analysis
-A comprehensive analysis engine evaluates your manuscript across multiple dimensions:
-- **Readability Metrics** — Flesch-Kincaid, Gunning-Fog, ARI
-- **Lexical Diversity** — Type-Token Ratio and hapax legomena
-- **Pacing Evaluation** — Scene length variance and dialogue-to-prose ratio
-- **Editorial Flags** — Overused words, adverb density, passive voice frequency
-- **Trigram Analysis** — Identifies repetitive phrase patterns
+### 2.1 Frontend: Reactive State Management
+- **Framework**: React 18 with Vite for optimized HMR.
+- **State Store (Zustand)**: Implements a Single Source of Truth (SSOT) pattern. The store (`storyStore.js`) manages the entire project graph, including nodes (scenes/chapters) and edges (relational links).
+- **Synchronization Logic**: A debounced persistence engine (`useAutoSave`) monitors the store and synchronizes deltas to the backend every 2000ms of inactivity, ensuring zero data loss without flooding the API.
 
-### 🤖 AI Developmental Editor
-Integrates with **OpenRouter** (via BYOK architecture) to provide AI-powered critique of your manuscript's opening, midpoint, and climax sections. The AI evaluates narrative flow, character development, thematic resonance, and provides actionable revision suggestions.
+### 2.2 Backend: Stateless API Gateway
+- **Framework**: FastAPI (Python 3.10+).
+- **Orchestration**: The backend acts as a stateless gateway between the frontend, the AI providers (OpenRouter), and the persistent database.
+- **Concurrency**: Asynchronous request handling allows for non-blocking analysis pipelines where prose metrics and AI signals are processed in parallel.
 
-### 📮 Agent Query Package Generator
-Dynamically extracts story intelligence from your raw manuscript to produce:
-- **One-page query letter** — Personalized, hook-driven, industry-formatted
-- **Plot synopsis** — Structured single-page distillation of your story arc
-- **Submission metadata** — Genre classification, word count, comp titles
-
-Available in both **manual mode** (fill in the form) and **AI mode** (the AI reads your manuscript and generates everything).
-
-### 📈 Market Intelligence
-Real-time genre benchmarking against publishing industry standards:
-- Word count viability for your genre
-- Market trend data and comparable title positioning
-- Agent preference alignment
+### 2.3 Persistence: Relational Story Logic
+- **Provider**: Supabase (PostgreSQL).
+- **Relational Integrity**: The database enforces strict foreign key constraints between scenes, chapters, and the overarching project.
+- **Logic at the Edge**: PostgreSQL triggers are utilized for:
+    - **Word Count Aggregation**: Automatically updating chapter and project word counts when a scene is modified.
+    - **Cache Invalidation**: Nuking analysis results automatically if the underlying content changes, preventing the presentation of stale data.
 
 ---
 
-## 🏗️ Architecture
+## 3. The Intelligence Subsystem (SSO Engine)
 
+The Story Strategy Optimization (SSO) engine is a proprietary intelligence layer that synthesizes manuscript data into actionable signals.
+
+### 3.1 Signal Processing
+The engine splits analysis into three distinct logical tracks:
+- **The Analyst**: Focuses on structural integrity, identifying pacing issues and narrative logic gaps.
+- **The Strategist**: Monitors character arc progression and the resolution of conflict markers defined in the story bible.
+- **The Ideas Track**: Provides creative synthesis, suggesting thematic connections based on the current scene's proximity to earlier plot points.
+
+### 3.2 Token Window Optimization
+To maintain cost-efficiency and performance, the engine employs a "Metadata-First" context injection strategy:
+- **Context Compression**: Instead of sending the entire 80,000-word manuscript, the engine sends the active scene's text + a compressed summary of relevant project metadata (character bios, previous scene summaries).
+- **RAG-lite Approach**: Relevant story bible entries are injected into the prompt context only when relevant keywords are detected in the active scene.
+
+---
+
+## 4. The Formatting and Distribution Engine
+
+The formatter is a specialized rendering engine that transforms raw manuscript data into production-ready `.docx` files.
+
+### 4.1 Template Transformation
+The engine uses a style-mapping architecture:
+- **Normalization**: Raw text is stripped of ad-hoc formatting and normalized into a clean internal representation.
+- **Style Mapping**: Logical nodes (e.g., "Chapter Title", "Body Paragraph", "Scene Break") are mapped to template-specific styles defined by US/UK Literary Agencies or the WGA.
+- **Output Generation**: The final document is rendered server-side using a template-injection process, ensuring 100% compliance with rigid industry standards.
+
+---
+
+## 5. Technical Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User as Author
+    participant Store as Zustand Store
+    participant API as FastAPI
+    participant AI as SSO Engine (OpenRouter)
+    participant DB as Supabase (PostgreSQL)
+
+    User->>Store: Input Text
+    Store->>Store: Update Local State
+    Store-->>API: Debounced PUT /scenes/{id}
+    API->>DB: Upsert Content
+    DB-->>DB: Trigger: Invalidate Cache
+    DB-->>DB: Trigger: Update Word Counts
+    
+    Note over User, AI: On Intelligence Request
+    User->>API: GET /analysis/{id}
+    API->>DB: Check Cache
+    alt Cache Miss
+        API->>AI: POST /v1/chat/completions (Scene + Meta)
+        AI-->>API: Structured Signals (JSON)
+        API->>DB: Store in Analysis Cache
+    end
+    API-->>User: Return Intelligence Signals
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Frontend (Vercel)                      │
-│     React 18 + Vite  •  Framer Motion  •  Vanilla CSS    │
-│                                                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│  │ FormatTab│  │AnalyseTab│  │ QueryTab │  │MarketTab │ │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘ │
-│       └──────────────┴─────────────┴──────────────┘       │
-│                        api.js                             │
-└─────────────────────────┬────────────────────────────────┘
-                          │ HTTPS
-┌─────────────────────────┴────────────────────────────────┐
-│                   Backend (Render)                        │
-│              FastAPI + Uvicorn (Python)                   │
-│                                                          │
-│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐  │
-│  │ auth_routes│  │format_route│  │   ai_routes        │  │
-│  │            │  │            │  │  (OpenRouter BYOK) │  │
-│  └─────┬──────┘  └─────┬──────┘  └──────┬─────────────┘  │
-│        │               │                │                │
-│  ┌─────┴───────────────┴────────────────┴─────────┐      │
-│  │   auth.py • database.py • api_utils.py         │      │
-│  └────────┬──────────────────────┬────────────────┘      │
-└───────────┼──────────────────────┼───────────────────────┘
-            │                      │
-   ┌────────┴──────┐     ┌────────┴──────┐
-   │   Supabase    │     │   Razorpay    │
-   │  (Auth + DB)  │     │  (Payments)   │
-   └───────────────┘     └───────────────┘
-```
-
-### Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, Vite, Framer Motion, Vanilla CSS |
-| Backend | FastAPI, Uvicorn, SlowAPI (rate limiting) |
-| Database | Supabase (PostgreSQL + Auth) |
-| Payments | Razorpay (INR-based subscriptions) |
-| AI | OpenRouter API (BYOK — Bring Your Own Key) |
-| Deployment | Vercel (frontend) + Render (backend) |
-| CI/CD | GitHub Actions |
 
 ---
 
-## 💰 Subscription Plans
+## 6. Performance Characteristics and Limitations
 
-Author Studio Pro operates on a **freemium SaaS model** with two paid tiers:
-
-| Feature | Free | Studio (₹1,599/mo) | Publisher (₹4,099/mo) |
-|---------|------|--------------------|-----------------------|
-| Manuscript Formatting | ✅ Basic | ✅ All Templates | ✅ All Templates |
-| Structural Analysis | ✅ Limited | ✅ Full Suite | ✅ Full Suite |
-| AI Developmental Editor | ❌ | ✅ | ✅ Priority |
-| AI Query Package | ❌ | ✅ | ✅ Priority |
-| Market Intelligence | ✅ Basic | ✅ Full | ✅ Full + Trends |
-| Annual Discount | — | ₹15,999/yr (2 months free) | ₹40,999/yr (2 months free) |
-
-**Payment processing** is handled by Razorpay with server-side HMAC SHA256 signature verification and webhook support for reliable payment capture.
+- **Latency**: Core write operations are sub-50ms (local) and ~200ms (remote).
+- **Cold Starts**: As the backend is hosted on Render, the initial wake-up time for the API can reach 30 seconds after a period of inactivity.
+- **Concurrency**: The system is designed for single-author sessions. Simultaneous multi-device editing of the same scene may lead to "Last-Write-Wins" collisions.
+- **Context Window**: AI intelligence is optimized for scenes up to 5,000 words. Larger scenes may result in truncated context payloads to ensure stability.
 
 ---
 
-## 🔒 Security
-
-Author Studio Pro is built with defense-in-depth:
-
-- **JWT Authentication** — Stateless tokens with configurable expiry, no hardcoded secrets
-- **BYOK AI Keys** — API keys stay in-browser, only sent transiently via encrypted form payloads
-- **Content Security Policy** — Strict CSP headers preventing XSS and injection attacks
-- **Security Headers** — HSTS, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy
-- **Rate Limiting** — Multi-tier `slowapi` throttling per endpoint (Format: 10/min, AI: 3/min)
-- **CORS Enforcement** — Strict-origin whitelist (no wildcards)
-- **Ephemeral File Handling** — FastAPI Background Tasks aggressively purge temp files
-- **Error Obfuscation** — Internal exceptions never leak to client responses
-- **Email Validation** — Server-side pydantic `EmailStr` validation on all auth endpoints
-
----
-
-## 🚀 Quick Start
+## 7. Deployment and Development
 
 ### Prerequisites
-- **Python 3.10+** with `pip`
-- **Node.js 18+** with `npm`
-- **Supabase** project (free tier works)
-- **Razorpay** account (for payment testing)
+- **Python 3.10+**
+- **Node.js 18+**
+- **PostgreSQL (Supabase)**
 
-### 1. Clone & Setup Backend
-
-```bash
-git clone https://github.com/likhithmamba/novel-formatter.git
-cd novel-formatter/backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (Windows)
-.\venv\Scripts\Activate.ps1
-# Activate (macOS/Linux)
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your actual keys (see Environment Variables below)
-
-# Start the API server
-python -m uvicorn main:app --reload --port 8000
-```
-
-> **API Docs:** http://localhost:8000/api/docs
-
-### 2. Setup Frontend
-
-```bash
-# From the repository root
-npm install
-npm run dev
-```
-
-> **App:** http://localhost:5173 (Vite proxies `/api/*` to the backend automatically)
-
-### 3. Database Setup
-
-Run the Supabase migration against your project:
-
-```bash
-# Using the Supabase CLI
-supabase db push
-
-# Or execute manually via the Supabase SQL Editor:
-# Copy contents of supabase/migrations/001_initial.sql
-```
+### Installation
+1.  **Repository Setup**: Clone the source and initialize submodules.
+2.  **Environment Configuration**: Populate `.env` with `SUPABASE_URL`, `JWT_SECRET_KEY`, and `RAZORPAY_API_KEY`.
+3.  **Database Migration**: Execute the scripts in `/supabase/migrations` to initialize the schema, triggers, and stored procedures.
+4.  **Service Startup**:
+    - Backend: `uvicorn main:app --reload`
+    - Frontend: `npm run dev`
 
 ---
 
-## ⚙️ Environment Variables
+## 8. Conclusion
 
-### Backend (Render / `.env`)
+Author Studio Pro represents a shift from "Writing Software" to "Writing Intelligence". By combining a design-centric frontend with a relational story engine and an AI-powered optimization layer, it provides authors with the professional tools required for modern, data-driven storytelling.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `JWT_SECRET_KEY` | ✅ | 64-character hex key for JWT signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `SUPABASE_URL` | ✅ | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (not the anon key) |
-| `RAZORPAY_KEY_ID` | ✅ | Razorpay API key ID |
-| `RAZORPAY_KEY_SECRET` | ✅ | Razorpay API key secret |
-| `ALLOWED_ORIGINS` | ✅ | Comma-separated list of allowed frontend origins |
-| `PORT` | ❌ | Server port (default: `8000`, Render sets this automatically) |
-
-### Frontend (Vercel / `.env.production`)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | ✅ | Full URL to the backend (e.g., `https://your-app.onrender.com`) |
-| `VITE_RAZORPAY_KEY_ID` | ✅ | Razorpay public key ID for client-side checkout |
-
-> ⚠️ **Never commit `.env` or `.env.production` with real values.** Use your hosting platform's environment variable management.
-
----
-
-## 🧪 Testing
-
-```bash
-# Backend tests (from repo root)
-pytest --tb=short -q
-
-# Frontend build verification
-npm run build
-```
-
-Tests are configured via `pytest.ini` at the repo root. The CI pipeline runs both backend tests and frontend build checks on every pull request.
-
----
-
-## 🌐 Deployment
-
-### Frontend → Vercel
-
-1. Connect your GitHub repository to Vercel
-2. Set the **Build Command**: `npm run build`
-3. Set the **Output Directory**: `dist`
-4. Configure environment variables (`VITE_API_URL`, `VITE_RAZORPAY_KEY_ID`)
-5. Deploy
-
-### Backend → Render
-
-1. Connect your GitHub repository to Render
-2. The `render.yaml` blueprint auto-configures the service
-3. Set all required environment variables in the Render dashboard
-4. Deploy
-
-### Razorpay Webhook
-
-After deployment, configure your Razorpay webhook:
-- **URL**: `https://your-render-service.onrender.com/api/webhook/razorpay`
-- **Events**: `payment.captured`, `payment.failed`
-
----
-
-## 📁 Project Structure
-
-```
-author-studio-pro/
-├── src/                          # React frontend
-│   ├── components/               # UI components (40+ files)
-│   │   ├── FormatTab.jsx         # Manuscript formatting
-│   │   ├── AnalyseTab.jsx        # Structural analysis
-│   │   ├── QueryTab.jsx          # Query package generator
-│   │   ├── MarketTab.jsx         # Market intelligence
-│   │   ├── AuthModal.jsx         # Login/register modal
-│   │   ├── Pricing.jsx           # Subscription plans
-│   │   └── ...
-│   ├── contexts/AuthContext.jsx  # Authentication state
-│   ├── api.js                    # API service layer
-│   ├── App.jsx                   # Root component + routing
-│   └── main.jsx                  # Entry point
-├── backend/                      # FastAPI backend
-│   ├── main.py                   # App orchestration + payments
-│   ├── auth.py                   # JWT + password hashing
-│   ├── database.py               # Supabase persistence
-│   ├── rate_limiter.py           # SlowAPI configuration
-│   ├── api_utils.py              # Shared utilities
-│   ├── routers/
-│   │   ├── auth_routes.py        # Registration, login, /me
-│   │   ├── format_routes.py      # Manuscript formatting
-│   │   └── ai_routes.py          # AI analysis + query gen
-│   └── requirements.txt
-├── supabase/migrations/          # Database schema
-│   └── 001_initial.sql
-├── public/                       # Static assets
-│   ├── favicon.svg
-│   ├── robots.txt
-│   └── sitemap.xml
-├── .github/workflows/ci.yml      # CI/CD pipeline
-├── render.yaml                   # Render deployment blueprint
-├── vercel.json                   # Vercel SPA config
-├── vite.config.js                # Vite + proxy config
-└── pytest.ini                    # Test runner config
-```
-
----
-
-## 📋 API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/health` | ❌ | Health check |
-| `GET` | `/api/templates` | ❌ | List formatting templates |
-| `GET` | `/api/genres` | ❌ | List supported genres |
-| `GET` | `/api/market/{genre}` | ❌ | Market data for a genre |
-| `POST` | `/api/format` | ❌ | Format a manuscript |
-| `POST` | `/api/analyse` | ❌ | Analyse a manuscript |
-| `POST` | `/api/query/manual` | ❌ | Generate manual query package |
-| `POST` | `/api/query/ai` | ❌ | AI-generated query package |
-| `POST` | `/api/auth/register` | ❌ | Create account |
-| `POST` | `/api/auth/login` | ❌ | Authenticate |
-| `GET` | `/api/auth/me` | ✅ | Current user + subscription |
-| `POST` | `/api/create-order` | ✅ | Create Razorpay payment order |
-| `POST` | `/api/verify-payment` | ✅ | Verify payment signature |
-| `POST` | `/api/webhook/razorpay` | 🔐 | Razorpay webhook handler |
-| `POST` | `/api/ai/validate-key` | ❌ | Validate OpenRouter API key |
-
-> **Interactive docs:** `/api/docs` (Swagger UI) • `/api/redoc` (ReDoc)
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-The CI pipeline will automatically run backend tests and frontend build checks on your PR.
-
----
-
-## 📄 License
-
-Author Studio Pro is proprietary software. All rights reserved.
-
-© 2026 Likhith Mamba. Unauthorized reproduction or distribution is prohibited.
-
----
-
-<p align="center">
-  <strong>Author Studio Pro</strong> — Professional manuscript tools for the modern author.<br>
-  <em>Format. Analyse. Query. Publish.</em>
-</p>
+© 2026 Author Studio Pro. Technical Documentation v3.1.
