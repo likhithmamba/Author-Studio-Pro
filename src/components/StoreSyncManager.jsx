@@ -22,14 +22,14 @@ export default function StoreSyncManager() {
 
     // Debounced Graph Sync — only when there are actual pending changes
     useEffect(() => {
-        if (!projectId || !token || Object.keys(nodes).length === 0 || pendingChanges === 0) return
+        if (!projectId || !token || pendingChanges === 0) return
 
         const timer = setTimeout(() => {
             syncGraph(token)
         }, 3000)
 
         return () => clearTimeout(timer)
-    }, [nodes, edges, projectId, token, pendingChanges, syncGraph])
+    }, [projectId, token, pendingChanges, syncGraph])
 
     // Debounced Manuscript Sync — only when there are actual pending changes
     useEffect(() => {

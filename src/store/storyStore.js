@@ -191,12 +191,13 @@ export const useStoryStore = create(
     },
     
     upsertScene: (scene) => set(state => ({
-      scenes: { ...state.scenes, [scene.id]: { ...state.scenes[scene.id], ...scene } }
+      scenes: { ...state.scenes, [scene.id]: { ...state.scenes[scene.id], ...scene } },
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
     })),
     
     removeScene: (id) => set(state => {
       const { [id]: _, ...remain } = state.scenes
-      return { scenes: remain, sceneOrder: state.sceneOrder.filter(x => x !== id) }
+      return { scenes: remain, sceneOrder: state.sceneOrder.filter(x => x !== id), sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 } }
     }),
 
     setCharacters: (chars) => {
@@ -205,11 +206,14 @@ export const useStoryStore = create(
       set({ characters: byId })
     },
     
-    upsertCharacter: (char) => set(state => ({ characters: { ...state.characters, [char.id]: char } })),
+    upsertCharacter: (char) => set(state => ({ 
+      characters: { ...state.characters, [char.id]: char },
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+    })),
     
     removeCharacter: (id) => set(state => {
       const { [id]: _, ...remain } = state.characters
-      return { characters: remain }
+      return { characters: remain, sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 } }
     }),
 
     setLocations: (locs) => {
@@ -218,29 +222,42 @@ export const useStoryStore = create(
       set({ locations: byId })
     },
     
-    upsertLocation: (loc) => set(state => ({ locations: { ...state.locations, [loc.id]: loc } })),
+    upsertLocation: (loc) => set(state => ({ 
+      locations: { ...state.locations, [loc.id]: loc },
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+    })),
     
     removeLocation: (id) => set(state => {
       const { [id]: _, ...remain } = state.locations
-      return { locations: remain }
+      return { locations: remain, sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 } }
     }),
 
     setTimelineEvents: (events) => set({ timelineEvents: events }),
     
     upsertTimelineEvent: (event) => set(state => {
       const existing = state.timelineEvents.filter(e => e.id !== event.id)
-      return { timelineEvents: [...existing, event].sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)) }
+      return { 
+        timelineEvents: [...existing, event].sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)),
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      }
     }),
     
-    removeTimelineEvent: (id) => set(state => ({ timelineEvents: state.timelineEvents.filter(e => e.id !== id) })),
+    removeTimelineEvent: (id) => set(state => ({ 
+      timelineEvents: state.timelineEvents.filter(e => e.id !== id),
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+    })),
 
     setResearchNotes: (notes) => set({ researchNotes: notes }),
     
     upsertResearchNote: (note) => set(state => ({
-      researchNotes: [...state.researchNotes.filter(n => n.id !== note.id), note]
+      researchNotes: [...state.researchNotes.filter(n => n.id !== note.id), note],
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
     })),
     
-    removeResearchNote: (id) => set(state => ({ researchNotes: state.researchNotes.filter(n => n.id !== id) })),
+    removeResearchNote: (id) => set(state => ({ 
+      researchNotes: state.researchNotes.filter(n => n.id !== id),
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+    })),
 
     // ─── Debounced Graph Sync ──────────────────────────────────────────
     
@@ -251,7 +268,7 @@ export const useStoryStore = create(
       set(state => ({ sync: { ...state.sync, status: 'saving' } }))
       
       try {
-        const { saveNodes, saveEdges, saveCharacterState, saveConflictState, saveProgressionMarker } = await import('../api.js')
+        const { saveNodes, saveEdges, saveCharacterState, saveConflictState, saveProgressionMarker, saveEditorData } = await import('../api.js')
         const nodes = Object.values(state.nodes)
         
         await Promise.all([
@@ -259,7 +276,14 @@ export const useStoryStore = create(
           saveEdges(state.projectId, state.edges, token),
           ...Object.values(state.characterStates).map(c => saveCharacterState(c, token)),
           ...Object.values(state.conflictStates).map(c => saveConflictState(c, token)),
-          ...state.progressionMarkers.map(p => saveProgressionMarker(p, token))
+          ...state.progressionMarkers.map(p => saveProgressionMarker(p, token)),
+          saveEditorData(state.projectId, {
+              scenes: Object.values(state.scenes || {}),
+              characters: Object.values(state.characters || {}),
+              locations: Object.values(state.locations || {}),
+              timeline_events: state.timelineEvents || [],
+              research_notes: state.researchNotes || []
+          }, token)
         ])
         
         set(state => ({ 

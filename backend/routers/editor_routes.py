@@ -81,6 +81,45 @@ async def get_editor_data(request: Request, project_id: str):
         logger.warning(f"get_editor_data failed for project {project_id}: {e}")
         return empty
 
+class EditorDataSync(BaseModel):
+    scenes: Optional[List[Dict[str, Any]]] = None
+    characters: Optional[List[Dict[str, Any]]] = None
+    locations: Optional[List[Dict[str, Any]]] = None
+    timeline_events: Optional[List[Dict[str, Any]]] = None
+    research_notes: Optional[List[Dict[str, Any]]] = None
+
+@router.post("/api/editor/data/{project_id}", tags=["Editor"])
+async def save_editor_data(request: Request, project_id: str, body: EditorDataSync):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"error": "Database offline"}
+    
+    try:
+        if body.scenes:
+            for s in body.scenes: s["user_id"] = uid; s["project_id"] = project_id
+            sb.table("scenes").upsert(body.scenes).execute()
+            
+        if body.characters:
+            for c in body.characters: c["user_id"] = uid; c["project_id"] = project_id
+            sb.table("characters").upsert(body.characters).execute()
+            
+        if body.locations:
+            for l in body.locations: l["user_id"] = uid; l["project_id"] = project_id
+            sb.table("locations").upsert(body.locations).execute()
+            
+        if body.timeline_events:
+            for t in body.timeline_events: t["user_id"] = uid; t["project_id"] = project_id
+            sb.table("timeline_events").upsert(body.timeline_events).execute()
+            
+        if body.research_notes:
+            for r in body.research_notes: r["user_id"] = uid; r["project_id"] = project_id
+            sb.table("research_notes").upsert(body.research_notes).execute()
+            
+        return {"status": "success"}
+    except Exception as e:
+        logger.warning(f"save_editor_data failed: {e}")
+        raise HTTPException(500, f"Failed to sync editor data: {str(e)[:200]}")
+
 # --- Scenes ---
 
 @router.post("/api/scenes", tags=["Editor"])
@@ -355,13 +394,12 @@ async def ai_assist(request: Request, body: AIAssistRequest):
 # --- Metadata (Characters, Locations, etc.) ---
 
 @router.post("/api/characters", tags=["Editor"])
-async def create_character(request: Request, body: CharacterCreate):
+async def create_character(request: Request):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"error": "Database offline"}
+    if not sb: return {"error": "Database offline"}
     try:
-        data = body.dict()
+        data = await request.json()
         data["user_id"] = uid
         res = sb.table("characters").insert(data).execute()
         return res.data[0] if res.data else {"error": "Insert failed"}
@@ -369,12 +407,27 @@ async def create_character(request: Request, body: CharacterCreate):
         logger.warning(f"create_character failed: {e}")
         raise HTTPException(500, f"Failed to create character: {str(e)[:200]}")
 
+@router.put("/api/characters/{id}", tags=["Editor"])
+async def update_character(request: Request, id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"status": "offline"}
+    try:
+        data = await request.json()
+        # Remove id or user_id from update payload if they exist
+        data.pop('id', None)
+        data.pop('user_id', None)
+        res = sb.table("characters").update(data).eq("id", id).eq("user_id", uid).execute()
+        return res.data[0] if res.data else {"status": "updated"}
+    except Exception as e:
+        logger.warning(f"update_character failed: {e}")
+        raise HTTPException(500, f"Failed to update character: {str(e)[:200]}")
+
 @router.delete("/api/characters/{id}", tags=["Editor"])
 async def delete_character(request: Request, id: str):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"status": "offline"}
+    if not sb: return {"status": "offline"}
     try:
         sb.table("characters").delete().eq("id", id).eq("user_id", uid).execute()
         return {"status": "deleted"}
@@ -383,13 +436,12 @@ async def delete_character(request: Request, id: str):
         raise HTTPException(500, f"Failed to delete character: {str(e)[:200]}")
 
 @router.post("/api/locations", tags=["Editor"])
-async def create_location(request: Request, body: LocationCreate):
+async def create_location(request: Request):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"error": "Database offline"}
+    if not sb: return {"error": "Database offline"}
     try:
-        data = body.dict()
+        data = await request.json()
         data["user_id"] = uid
         res = sb.table("locations").insert(data).execute()
         return res.data[0] if res.data else {"error": "Insert failed"}
@@ -397,12 +449,26 @@ async def create_location(request: Request, body: LocationCreate):
         logger.warning(f"create_location failed: {e}")
         raise HTTPException(500, f"Failed to create location: {str(e)[:200]}")
 
+@router.put("/api/locations/{id}", tags=["Editor"])
+async def update_location(request: Request, id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"status": "offline"}
+    try:
+        data = await request.json()
+        data.pop('id', None)
+        data.pop('user_id', None)
+        res = sb.table("locations").update(data).eq("id", id).eq("user_id", uid).execute()
+        return res.data[0] if res.data else {"status": "updated"}
+    except Exception as e:
+        logger.warning(f"update_location failed: {e}")
+        raise HTTPException(500, f"Failed to update location: {str(e)[:200]}")
+
 @router.delete("/api/locations/{id}", tags=["Editor"])
 async def delete_location(request: Request, id: str):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"status": "offline"}
+    if not sb: return {"status": "offline"}
     try:
         sb.table("locations").delete().eq("id", id).eq("user_id", uid).execute()
         return {"status": "deleted"}
@@ -411,13 +477,12 @@ async def delete_location(request: Request, id: str):
         raise HTTPException(500, f"Failed to delete location: {str(e)[:200]}")
 
 @router.post("/api/timeline", tags=["Editor"])
-async def create_timeline_event(request: Request, body: TimelineEventCreate):
+async def create_timeline_event(request: Request):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"error": "Database offline"}
+    if not sb: return {"error": "Database offline"}
     try:
-        data = body.dict()
+        data = await request.json()
         data["user_id"] = uid
         res = sb.table("timeline_events").insert(data).execute()
         return res.data[0] if res.data else {"error": "Insert failed"}
@@ -425,12 +490,26 @@ async def create_timeline_event(request: Request, body: TimelineEventCreate):
         logger.warning(f"create_timeline_event failed: {e}")
         raise HTTPException(500, f"Failed to create timeline event: {str(e)[:200]}")
 
+@router.put("/api/timeline/{id}", tags=["Editor"])
+async def update_timeline_event(request: Request, id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"status": "offline"}
+    try:
+        data = await request.json()
+        data.pop('id', None)
+        data.pop('user_id', None)
+        res = sb.table("timeline_events").update(data).eq("id", id).eq("user_id", uid).execute()
+        return res.data[0] if res.data else {"status": "updated"}
+    except Exception as e:
+        logger.warning(f"update_timeline_event failed: {e}")
+        raise HTTPException(500, f"Failed to update timeline event: {str(e)[:200]}")
+
 @router.delete("/api/timeline/{id}", tags=["Editor"])
 async def delete_timeline_event(request: Request, id: str):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"status": "offline"}
+    if not sb: return {"status": "offline"}
     try:
         sb.table("timeline_events").delete().eq("id", id).eq("user_id", uid).execute()
         return {"status": "deleted"}
@@ -439,13 +518,12 @@ async def delete_timeline_event(request: Request, id: str):
         raise HTTPException(500, f"Failed to delete timeline event: {str(e)[:200]}")
 
 @router.post("/api/research", tags=["Editor"])
-async def create_research_note(request: Request, body: ResearchNoteCreate):
+async def create_research_note(request: Request):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"error": "Database offline"}
+    if not sb: return {"error": "Database offline"}
     try:
-        data = body.dict()
+        data = await request.json()
         data["user_id"] = uid
         res = sb.table("research_notes").insert(data).execute()
         return res.data[0] if res.data else {"error": "Insert failed"}
@@ -453,12 +531,26 @@ async def create_research_note(request: Request, body: ResearchNoteCreate):
         logger.warning(f"create_research_note failed: {e}")
         raise HTTPException(500, f"Failed to create research note: {str(e)[:200]}")
 
+@router.put("/api/research/{id}", tags=["Editor"])
+async def update_research_note(request: Request, id: str):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"status": "offline"}
+    try:
+        data = await request.json()
+        data.pop('id', None)
+        data.pop('user_id', None)
+        res = sb.table("research_notes").update(data).eq("id", id).eq("user_id", uid).execute()
+        return res.data[0] if res.data else {"status": "updated"}
+    except Exception as e:
+        logger.warning(f"update_research_note failed: {e}")
+        raise HTTPException(500, f"Failed to update research note: {str(e)[:200]}")
+
 @router.delete("/api/research/{id}", tags=["Editor"])
 async def delete_research_note(request: Request, id: str):
     uid = get_user_id(request)
     sb = get_supabase()
-    if not sb:
-        return {"status": "offline"}
+    if not sb: return {"status": "offline"}
     try:
         sb.table("research_notes").delete().eq("id", id).eq("user_id", uid).execute()
         return {"status": "deleted"}

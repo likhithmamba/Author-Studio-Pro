@@ -268,8 +268,9 @@ const useWritingSession = (projectId) => {
 };
 
 /** POST /api/analysis/prose { text } → metrics */
+/** POST /api/analysis/prose { text } → metrics */
 const useAnalysis = () => {
-  const [analysis, setAnalysis] = useState(MOCK_ANALYSIS);
+  const [analysis, setAnalysis] = useState(null);
   const analyze = useCallback(async (text) => {
     if (!text || text.length < 50) return;
     try { const d = await apiFetch("/analysis/prose", { method: "POST", body: JSON.stringify({ text }) }); setAnalysis(d); } catch {}
@@ -279,11 +280,11 @@ const useAnalysis = () => {
 
 /** POST /api/ai/assist { mode, text } → feedback[] */
 const useAI = () => {
-  const [feedback, setFeedback] = useState(MOCK_AI_FEEDBACK);
+  const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(false);
   const getAssist = useCallback(async (mode, text) => {
     setLoading(true);
-    try { const d = await apiFetch("/ai/assist", { method: "POST", body: JSON.stringify({ mode, text }) }); setFeedback(d.feedback || MOCK_AI_FEEDBACK); }
+    try { const d = await apiFetch("/ai/assist", { method: "POST", body: JSON.stringify({ mode, text }) }); setFeedback(d.feedback || []); }
     catch {} finally { setLoading(false); }
   }, []);
   return { feedback, loading, getAssist };
@@ -291,21 +292,78 @@ const useAI = () => {
 
 /** GET /api/scenes/:id/versions */
 const useVersionHistory = (sceneId) => {
-  const [versions] = useState(MOCK_VERSIONS);
+  const [versions, setVersions] = useState([]);
+  
+  useEffect(() => {
+    if (!sceneId) return;
+    apiFetch(`/scenes/${sceneId}/versions`).then(d => setVersions(d.versions || [])).catch(() => setVersions([]));
+  }, [sceneId]);
+
   const restore = useCallback(async (versionId) => {
     try { const d = await apiFetch(`/scenes/${sceneId}/versions/restore/${versionId}`, { method: "POST" }); return d.content; } catch { return null; }
   }, [sceneId]);
   return { versions, restore };
 };
 
-/** POST /api/export → { downloadUrl } */
+/** POST /api/format-text → DOCX Blob */
 const useExport = () => {
   const [exporting, setExporting] = useState(false);
+  
   const doExport = useCallback(async (projectId, format, options) => {
     setExporting(true);
-    try { const d = await apiFetch("/export", { method: "POST", body: JSON.stringify({ projectId, format, options }) }); return d.downloadUrl; }
-    catch { return null; } finally { setExporting(false); }
+    try {
+      const state = useStoryStore.getState();
+      const chapters = [];
+      
+      const chScenes = Object.values(state.scenes || {}).reduce((acc, sc) => {
+        if (!acc[sc.chapter_id]) acc[sc.chapter_id] = [];
+        acc[sc.chapter_id].push(sc);
+        return acc;
+      }, {});
+
+      state.chapterOrder.forEach(cid => {
+        const ch = state.chapters[cid];
+        if (!ch) return;
+        const paragraphs = [];
+        
+        if (ch.content) {
+          paragraphs.push(...ch.content.split('\n').filter(p => p.trim()));
+        } else {
+          const scList = (chScenes[cid] || []).sort((a,b) => (a.position || 0) - (b.position || 0));
+          scList.forEach((sc, idx) => {
+            if (sc.content) {
+              paragraphs.push(...sc.content.split('\n').filter(p => p.trim()));
+            }
+            if (idx < scList.length - 1) paragraphs.push("***"); // Scene break
+          });
+        }
+        
+        chapters.push({
+          title: ch.title || "Chapter",
+          paragraphs
+        });
+      });
+
+      const payload = {
+        author: "Author",
+        title: state.projectTitle || "Untitled Novel",
+        template_key: format || "us_standard",
+        overrides: {},
+        chapters
+      };
+
+      const { fetchBlob } = await import('../../api');
+      const { blob } = await fetchBlob('/format-text', { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload) 
+      }); 
+      return URL.createObjectURL(blob); 
+    }
+    catch (e) { console.error("Export error:", e); return null; } 
+    finally { setExporting(false); }
   }, []);
+  
   return { exporting, doExport };
 };
 
@@ -343,84 +401,6 @@ const useWordCount = (text) => ({
   chars: text ? text.length : 0,
   paras: text ? text.split(/\n\n+/).filter(Boolean).length : 1,
 });
-
-// ═══════════════════════════════════════════════════════════════════════
-// 5. MOCK DATA  (replace each with real API calls in production)
-// ═══════════════════════════════════════════════════════════════════════
-const MOCK_CONTENT = `The old lighthouse keeper had not spoken to another soul in thirty-seven years. He had grown accustomed to the silence — had come to love it, in fact, the way a man learns to love the particular weight of a life he has chosen without entirely meaning to.
-
-When the girl appeared on the rocks below, drenched and shivering, he stood for a long moment at the window before descending the iron stairs.
-
-She was perhaps fourteen, perhaps younger, her dark hair plastered against her cheeks in flat, sodden ribbons. She did not speak when he reached her, and he did not expect her to.
-
-He carried her inside without a word — which was, for Eli Marsh, the only way he knew how to speak.`;
-
-const MOCK_CHAPTERS = [
-  { id: "ch0", label: "Dedication",              status: "done",   words: 42,   scenes: [] },
-  { id: "ch1", label: "Prologue",                status: "done",   words: 2148, scenes: [{ id: "s1a", title: "The Wreck" }, { id: "s1b", title: "Found at Dawn" }] },
-  { id: "ch2", label: "Ch. 1 — The Storm",       status: "done",   words: 3421, scenes: [{ id: "s2a", title: "Gathering Clouds" }, { id: "s2b", title: "The Last Ship" }] },
-  { id: "ch3", label: "Ch. 2 — Arrivals",        status: "done",   words: 3204, scenes: [{ id: "s3a", title: "Dawn" }, { id: "s3b", title: "The Inspector" }] },
-  { id: "ch4", label: "Ch. 3 — The Descent",     status: "active", words: 1243, scenes: [{ id: "scene_3_1", title: "The Girl on the Rocks" }, { id: "s4b", title: "The Climb" }] },
-  { id: "ch5", label: "Ch. 4 — The Secret",      status: "draft",  words: 0,    scenes: [] },
-  { id: "ch6", label: "Ch. 5 — The Letter",      status: "draft",  words: 0,    scenes: [] },
-];
-
-const MOCK_CHARS = [
-  { id: "eli",    name: "Eli Marsh",        role: "Protagonist",   age: 67, arc: "Redemption", color: T.accent,  traits: ["Taciturn","Perceptive","Haunted"],      bio: "Former merchant sailor turned lighthouse keeper. Has not spoken to another soul in 37 years.", firstAppears: "Prologue",        wordCount: 892, scenes: 14, arc_pct: 35 },
-  { id: "girl",   name: "The Girl / Clara", role: "Deuteragonist", age: 14, arc: "Discovery",  color: T.blue,    traits: ["Silent","Watchful","Knows too much"],   bio: "Arrives on the rocks during a storm. Does not speak. Knows Eli's old name.",             firstAppears: "Ch. 3",           wordCount: 411, scenes: 4,  arc_pct: 10 },
-  { id: "half",   name: "Insp. Halford",    role: "Antagonist",    age: 54, arc: "Obsession",  color: T.red,     traits: ["Methodical","Cold","Dangerous"],         bio: "Inspector connected to the 1952 Wrecking. His real motive is buried in the past.",       firstAppears: "Ch. 2",           wordCount: 318, scenes: 3,  arc_pct: 20 },
-  { id: "mary",   name: "Mary Marsh",       role: "Absent Figure", age: 52, arc: "Mystery",    color: T.purple,  traits: ["Warm","Fearless","Chose to leave"],      bio: "Eli's wife, disappeared 1990. Referenced through flashback and memory.",                firstAppears: "Ch. 1 (flashback)", wordCount: 210, scenes: 6,  arc_pct: 0  },
-  { id: "thomas", name: "Thomas Crane",     role: "Supporting",    age: 71, arc: "Conscience", color: T.green,   traits: ["Loyal","Weathered","Knows secrets"],     bio: "Runs the post office. The only person who still leaves food for Eli.",                  firstAppears: "Ch. 2",           wordCount: 189, scenes: 2,  arc_pct: 15 },
-];
-
-const MOCK_LOCS = [
-  { id: "l1", name: "The Lighthouse",       type: "Primary Setting", region: "Crow's Point",      desc: "19th-century stone lighthouse. Four stories of iron stairs. Light automated since 1985. Eli lives in the keeper's cottage attached to the base.", tag: "ACTIVE",    color: T.accent },
-  { id: "l2", name: "Crow's Point Village", type: "Secondary",       region: "Coastal",            desc: "Fishing village of 340 people. Declining since the cannery closed in 1978. Locals consider the lighthouse haunted.", tag: "RECURRING", color: T.blue   },
-  { id: "l3", name: "The Lower Rocks",      type: "Scene Location",  region: "Lighthouse grounds", desc: "Where the girl is found. Granite shelf worn smooth by surf. A cave beneath at low tide.", tag: "KEY SCENE", color: T.red    },
-  { id: "l4", name: "The Keeper's Cottage", type: "Interior",        region: "Lighthouse grounds", desc: "Stone walls 80cm thick. A woodstove. 37 years of logbooks. One locked room sealed in 1990.", tag: "ACTIVE",    color: T.accent },
-];
-
-const MOCK_TIMELINE = [
-  { id: "t1", year: 1952, label: "The Wrecking",        desc: "SS Ardmore runs aground. 12 of 19 crew lost. Eli, 25, survives.",      type: "historical", color: T.red    },
-  { id: "t2", year: 1953, label: "Eli becomes Keeper",  desc: "Appointed lighthouse keeper — 'penance for surviving'.",               type: "character",  color: T.accent },
-  { id: "t3", year: 1961, label: "Marries Mary",         desc: "Marries Mary Vance. 29 years together in the lighthouse.",            type: "character",  color: T.green  },
-  { id: "t4", year: 1985, label: "Light Automated",      desc: "Lighthouse automated. Eli stays as unofficial caretaker.",            type: "world",      color: T.blue   },
-  { id: "t5", year: 1990, label: "Mary Disappears",      desc: "A clear November night. No body found. Three days before report.",    type: "mystery",    color: T.purple },
-  { id: "t6", year: 1991, label: "The Vow of Silence",   desc: "Last words to Thomas Crane: 'I'll be here.' Has not spoken since.",  type: "character",  color: T.accent },
-  { id: "t7", year: 2024, label: "The Girl Arrives",     desc: "Present day. A storm. A child on the rocks. The silence breaks.",    type: "present",    color: T.amber  },
-];
-
-const MOCK_RESEARCH = [
-  { id: "r1", tag: "LIGHTHOUSE", color: T.accent, title: "Keeper duties post-automation",    body: "After 1985 automation, most keepers were given notice. A few retained as informal caretakers. No salary — accommodation only. Legally ambiguous status." },
-  { id: "r2", tag: "MARITIME",   color: T.blue,   title: "Reporting missing person at sea",  body: "In 1990, a report from a remote lighthouse required physical travel to the nearest coast guard station (22 miles). Eli never made this trip." },
-  { id: "r3", tag: "PSYCHOLOGY", color: T.purple, title: "Selective mutism in adults",       body: "Trauma-induced mutism in adults is rare but documented. Always tied to a specific precipitating event. Speech is physically possible but psychologically blocked." },
-  { id: "r4", tag: "HISTORY",    color: T.red,    title: "SS Ardmore wreck records",          body: "Real-world analogue: Flying Enterprise, 1952 — captain refuses to leave his ship. Eli stayed. Others died. This is the emotional register I need." },
-  { id: "r5", tag: "CRAFT",      color: T.green,  title: "On silence in prose (Hemingway)",  body: "'The dignity of movement of an iceberg is due to only one-eighth of it being above water.' This is the structural principle for Eli — everything is subtext." },
-  { id: "r6", tag: "SETTING",    color: T.amber,  title: "Cornish lighthouse interiors",      body: "Stone spiral stairs. Iron handrails worn smooth. The smell: salt, paraffin, old paper. Wind in the lantern room described as 'a kind of singing'." },
-];
-
-const MOCK_ANALYSIS = {
-  grade: "B+", summary: "Strong voice. One long sentence. Passive voice above baseline.",
-  readability: 78, pacing: 64, sentenceVariety: 82, showVsTell: 71,
-  dialogueRatio: 8, passiveVoice: 14, adverbDensity: 6, clicheScore: 88,
-  overusedWords: [{ word: "had", count: 8 }, { word: "the", count: 47 }, { word: "just", count: 5 }, { word: "silence", count: 4 }],
-  sentenceLengths: [12, 28, 8, 35, 14, 22, 31, 9, 18, 25, 7, 40],
-};
-
-const MOCK_AI_FEEDBACK = [
-  { type: "praise",   icon: "✦", color: T.green,  title: "STRONG PASSAGE",  text: "The final line is the best in the chapter. 'The only way he knew how to speak' earns all 37 years of silence." },
-  { type: "suggest",  icon: "→", color: T.accent, title: "SUGGESTION",       text: "Cut 'for a long moment' in §2. The act of descending tells us everything — the hesitation needs no announcement." },
-  { type: "flag",     icon: "⚠", color: T.amber,  title: "PACING FLAG",      text: "§3 rushes slightly. 'Sodden ribbons' is vivid but arrives before the reader has fully descended the stairs with Eli." },
-  { type: "question", icon: "?", color: T.blue,   title: "STORY QUESTION",   text: "Does Eli recognize something in her, or is it instinct? The reader needs a single micro-reaction to anchor the mystery." },
-];
-
-const MOCK_VERSIONS = [
-  { id: "v5", time: "5 min ago",           words: "412 → 412", label: "Auto-save",    active: true  },
-  { id: "v4", time: "24m ago",             words: "398 → 412", label: "Manual save",  active: false },
-  { id: "v3", time: "1h 22m ago",          words: "271 → 398", label: "Session start", active: false },
-  { id: "v2", time: "Yesterday 11:41pm",   words: "218 → 271", label: "Late session", active: false },
-  { id: "v1", time: "Apr 18 · 2:14pm",    words: "0 → 218",   label: "Scene created", active: false },
-];
 
 const HISTORY = [842, 1204, 678, 1553, 0, 0, 941, 1102, 1891, 534, 1243, 0, 0, 1243];
 const DAYS    = ["M","T","W","T","F","S","S","M","T","W","T","F","S","S"];
@@ -493,15 +473,24 @@ const GlobalStatus = ({ view }) => (
 // 7. DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const DashboardView = ({ setView }) => {
-  const maxW = Math.max(...HISTORY);
+  const { projectTitle, chapters, chapterOrder, characters, scenes, sceneOrder, timelineEvents, researchNotes, locations } = useStoryStore();
+  const totalWords = Object.values(chapters || {}).reduce((s, c) => s + (c.wordCount || 0), 0);
+  const sceneCount = Object.keys(scenes || {}).length || chapterOrder.length;
+  const charCount = Object.keys(characters || {}).length;
+  const readTime = Math.round(totalWords / 200);
+  const readH = Math.floor(readTime / 60);
+  const readM = readTime % 60;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
     <div style={{ flex: 1, overflow: "auto", padding: 28, display: "flex", flexDirection: "column", gap: 22 }}>
       {/* Greeting */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
         <div>
-          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 27, color: T.text, fontWeight: 400, lineHeight: 1.2, marginBottom: 8 }}>Good evening, Author.</h1>
+          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 27, color: T.text, fontWeight: 400, lineHeight: 1.2, marginBottom: 8 }}>{greeting}, Author.</h1>
           <p style={{ fontFamily: T.fontBody, fontSize: 15, color: T.textMuted, lineHeight: 1.7, maxWidth: 500, margin: 0 }}>
-            Working on <em style={{ color: T.accent }}>The Lighthouse Keeper's Daughter</em>. 1,243 words today — 757 left to hit your goal.
+            Working on <em style={{ color: T.accent }}>{projectTitle || 'Untitled Novel'}</em>. {totalWords.toLocaleString()} words written across {chapterOrder.length} chapter{chapterOrder.length !== 1 ? 's' : ''}.
           </p>
         </div>
         <button onClick={() => setView("write")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 22px", borderRadius: T.r, border: `1px solid ${T.accent}55`, background: `linear-gradient(135deg,${T.accentSoft},${T.accentGlow})`, color: T.accent, cursor: "pointer", fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -512,11 +501,11 @@ const DashboardView = ({ setView }) => {
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
         {[
-          { label: "Total Words",    value: "47,218", sub: "Full manuscript",  color: T.text,   icon: "book"      },
-          { label: "Today's Words",  value: "1,243",  sub: "62% of goal",      color: T.green,  icon: "lightning" },
-          { label: "Writing Streak", value: "14 days",sub: "Personal best",    color: T.amber,  icon: "fire"      },
-          { label: "Chapters Done",  value: "3 / 8",  sub: "37.5% complete",   color: T.blue,   icon: "check"     },
-          { label: "Est. Read Time", value: "3h 57m", sub: "At ~200 wpm",      color: T.purple, icon: "eye"       },
+          { label: "Total Words",    value: totalWords.toLocaleString(), sub: "Full manuscript",  color: T.text,   icon: "book"      },
+          { label: "Chapters",       value: `${chapterOrder.length}`,    sub: `${sceneCount} scenes total`, color: T.green,  icon: "lightning" },
+          { label: "Characters",     value: `${charCount}`,             sub: `${Object.keys(locations||{}).length} locations`, color: T.amber,  icon: "fire"      },
+          { label: "Timeline",       value: `${(timelineEvents||[]).length}`,  sub: "events tracked",  color: T.blue,   icon: "clock"     },
+          { label: "Est. Read Time", value: readH > 0 ? `${readH}h ${readM}m` : `${readM}m`, sub: "At ~200 wpm",      color: T.purple, icon: "eye"       },
         ].map(({ label, value, sub, color, icon }) => (
           <div key={label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -530,60 +519,73 @@ const DashboardView = ({ setView }) => {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-        {/* History chart */}
+        {/* Chapter overview */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
             <div>
-              <div style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI, fontWeight: 600 }}>Writing History</div>
-              <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI, marginTop: 2 }}>Last 14 days · avg 892 words/session</div>
+              <div style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI, fontWeight: 600 }}>Chapter Breakdown</div>
+              <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI, marginTop: 2 }}>{chapterOrder.length} chapters · avg {chapterOrder.length > 0 ? Math.round(totalWords / chapterOrder.length).toLocaleString() : 0} words/chapter</div>
             </div>
-            <Badge label="2-WEEK VIEW" color={T.blue} />
+            <Badge label={`${totalWords.toLocaleString()} TOTAL`} color={T.accent} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 80 }}>
-            {HISTORY.map((w, i) => {
-              const pct = maxW > 0 ? (w / maxW) * 100 : 0;
-              const isToday = i === 13;
+            {chapterOrder.map((cid, i) => {
+              const ch = chapters[cid];
+              const wc = ch?.wordCount || 0;
+              const maxW = Math.max(...chapterOrder.map(id => chapters[id]?.wordCount || 0), 1);
+              const pct = (wc / maxW) * 100;
               return (
-                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                  <div style={{ width: "100%", height: `${pct || 8}%`, minHeight: 4, background: w === 0 ? T.border : isToday ? T.accent : `${T.accent}55`, borderRadius: "2px 2px 0 0", boxShadow: isToday ? `0 0 12px ${T.accent}44` : "none" }} />
-                  <span style={{ fontSize: 8, color: isToday ? T.accent : T.textDim, fontFamily: T.fontUI }}>{DAYS[i]}</span>
+                <div key={cid} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <div style={{ width: "100%", height: `${Math.max(pct, 8)}%`, minHeight: 4, background: wc > 0 ? `${T.accent}88` : T.border, borderRadius: "2px 2px 0 0" }} />
+                  <span style={{ fontSize: 8, color: T.textDim, fontFamily: T.fontUI }}>{i + 1}</span>
                 </div>
               );
             })}
           </div>
-          <div style={{ marginTop: 16 }}><PBar value={1243} max={2000} label="Today's goal" /></div>
+          <div style={{ marginTop: 16 }}><PBar value={totalWords} max={80000} label="Target: 80,000 words" /></div>
         </div>
 
         {/* Progress */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI, fontWeight: 600 }}>Novel Progress</div>
-          <PBar value={47218} max={80000} label="Target word count" color={T.accent} height={5} />
-          <PBar value={3} max={8} label="Chapters complete" color={T.green} height={5} />
-          <PBar value={31} max={52} label="Scenes complete" color={T.blue} height={5} />
+          <PBar value={totalWords} max={80000} label="Target word count" color={T.accent} height={5} />
+          <PBar value={chapterOrder.length} max={Math.max(chapterOrder.length, 8)} label="Chapters" color={T.green} height={5} />
+          <PBar value={sceneCount} max={Math.max(sceneCount, 20)} label="Scenes" color={T.blue} height={5} />
           <Divider />
-          {[["Manuscript draft","~41 days"],["At 2k words/day","~16 days"],["Projected finish","June 1, 2025"]].map(([l, v]) => (
-            <div key={l} style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontUI }}>{l}</span>
-              <span style={{ fontSize: 11, color: T.accent, fontFamily: T.fontMono }}>{v}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontUI }}>Characters</span>
+              <span style={{ fontSize: 11, color: T.accent, fontFamily: T.fontMono }}>{charCount}</span>
             </div>
-          ))}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontUI }}>Research Notes</span>
+              <span style={{ fontSize: 11, color: T.accent, fontFamily: T.fontMono }}>{(researchNotes||[]).length}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontUI }}>Timeline Events</span>
+              <span style={{ fontSize: 11, color: T.accent, fontFamily: T.fontMono }}>{(timelineEvents||[]).length}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Recent sessions */}
+      {/* Chapter list */}
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 20 }}>
-        <div style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI, fontWeight: 600, marginBottom: 14 }}>Recent Sessions</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-          {[{ d:"Today",d2:"1h 22m",ch:"Ch. 3 · Scene 1",w:1243,m:"Focused"},{d:"Yesterday",d2:"58m",ch:"Ch. 3 · Scene 1",w:891,m:"Struggling"},{d:"Fri Apr 18",d2:"34m",ch:"Ch. 2 · Scene 3",w:534,m:"Inspired"},{d:"Thu Apr 17",d2:"1h 12m",ch:"Ch. 2 · Scene 2",w:1102,m:"Flowing"}].map(({ d, d2, ch, w, m }) => (
-            <div key={d} style={{ padding: 12, borderRadius: T.rSm, background: T.panel, border: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI, marginBottom: 6 }}>{d}</div>
-              <div style={{ fontSize: 11, color: T.text, fontFamily: T.fontUI, marginBottom: 8 }}>{ch}</div>
+        <div style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI, fontWeight: 600, marginBottom: 14 }}>Chapters</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10 }}>
+          {chapterOrder.map((cid, i) => {
+            const ch = chapters[cid];
+            return (
+            <div key={cid} onClick={() => setView("write")} style={{ padding: 12, borderRadius: T.rSm, background: T.panel, border: `1px solid ${T.border}`, cursor: "pointer" }}>
+              <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI, marginBottom: 6 }}>Chapter {i + 1}</div>
+              <div style={{ fontSize: 11, color: T.text, fontFamily: T.fontUI, marginBottom: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ch?.title || 'Untitled'}</div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: T.accent, fontFamily: T.fontMono, fontWeight: 600 }}>{w.toLocaleString()}</span>
-                <span style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI }}>{d2} · {m}</span>
+                <span style={{ fontSize: 13, color: T.accent, fontFamily: T.fontMono, fontWeight: 600 }}>{(ch?.wordCount || 0).toLocaleString()}</span>
+                <span style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI }}>words</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -594,8 +596,15 @@ const DashboardView = ({ setView }) => {
 // 8. BINDER PANEL
 // ═══════════════════════════════════════════════════════════════════════
 const BinderPanel = ({ activeScene, onSelect }) => {
-  const { chapters, chapterOrder, scenes } = useStoryStore();
-  const [exp, setExp] = useState({ ch4: true });
+  const { chapters, chapterOrder, scenes, addChapter, characters, locations, timelineEvents, researchNotes } = useStoryStore();
+  const [exp, setExp] = useState({});
+
+  // Auto-expand the first chapter
+  useEffect(() => {
+    if (chapterOrder.length > 0 && Object.keys(exp).length === 0) {
+      setExp({ [chapterOrder[0]]: true });
+    }
+  }, [chapterOrder]);
 
   const mappedChapters = chapterOrder.map(cid => {
     const ch = chapters[cid];
@@ -609,11 +618,16 @@ const BinderPanel = ({ activeScene, onSelect }) => {
     };
   });
 
+  const handleAddChapter = () => {
+    const num = chapterOrder.length + 1;
+    addChapter(`Chapter ${num}`);
+  };
+
   return (
     <div style={{ width: 208, background: T.panel, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
       <div style={{ padding: "10px 12px 6px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: T.fontUI }}>BINDER</span>
-        <button style={{ ...btnSt(20), fontSize: 16 }}>+</button>
+        <button onClick={handleAddChapter} style={{ ...btnSt(20), fontSize: 16 }}>+</button>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: "4px 0" }}>
         {mappedChapters.map(item => {
@@ -624,11 +638,11 @@ const BinderPanel = ({ activeScene, onSelect }) => {
                 <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: { done: T.green, active: T.accent, draft: T.textDim }[item.status] || T.accent }} />
                 <span style={{ flex: 1, fontSize: 11, fontFamily: T.fontUI }}>{item.label}</span>
                 {item.words > 0 && <span style={{ fontSize: 9, color: T.textDim, fontFamily: T.fontMono }}>{(item.words / 1000).toFixed(1)}k</span>}
-                {item.scenes.length > 0 && <span style={{ fontSize: 10, color: T.textDim }}>{isE ? "▾" : "▸"}</span>}
+                {item.scenes.length > 0 && <span style={{ fontSize: 10, color: T.textDim }}>{isE ? "\u25be" : "\u25b8"}</span>}
               </div>
               {isE && item.scenes.map(sc => (
                 <div key={sc.id} onClick={() => onSelect && onSelect(sc.id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px 3px 28px", cursor: "pointer", background: activeScene === sc.id ? `${T.accent}0a` : "transparent", color: activeScene === sc.id ? T.accent : T.textMuted }}>
-                  <span style={{ fontSize: 9, color: T.textDim }}>↳</span>
+                  <span style={{ fontSize: 9, color: T.textDim }}>{"\u21b3"}</span>
                   <span style={{ fontSize: 10, fontFamily: T.fontUI }}>{sc.title}</span>
                 </div>
               ))}
@@ -636,7 +650,7 @@ const BinderPanel = ({ activeScene, onSelect }) => {
           );
         })}
         <div style={{ padding: "12px 12px 3px", fontSize: 8, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: T.fontUI, marginTop: 4 }}>STORY BIBLE</div>
-        {[["person","Characters","5"],["globe","Worldbuilding","4"],["clock","Timeline","7"],["folder","Research","34"],["tag","Glossary","18"]].map(([icon, lbl, sub]) => (
+        {[["person","Characters",`${Object.keys(characters||{}).length}`],["globe","Worldbuilding",`${Object.keys(locations||{}).length}`],["clock","Timeline",`${(timelineEvents||[]).length}`],["folder","Research",`${(researchNotes||[]).length}`]].map(([icon, lbl, sub]) => (
           <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 8px 5px 12px", cursor: "pointer", margin: "0 4px", borderRadius: 4 }}>
             <Ico n={icon} s={12} c={T.textDim} />
             <span style={{ flex: 1, fontSize: 11, color: T.textMuted, fontFamily: T.fontUI }}>{lbl}</span>
@@ -645,13 +659,12 @@ const BinderPanel = ({ activeScene, onSelect }) => {
         ))}
       </div>
       <div style={{ padding: 12, borderTop: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>TODAY'S GOAL</div>
-        <PBar value={1243} max={2000} />
+        <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>MANUSCRIPT</div>
+        <PBar value={Object.values(chapters||{}).reduce((s,c) => s + (c.wordCount||0), 0)} max={80000} />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: T.fontMono }}>
-          <span style={{ color: T.accent }}>1,243 wd</span>
-          <span style={{ color: T.textMuted }}>757 left</span>
+          <span style={{ color: T.accent }}>{Object.values(chapters||{}).reduce((s,c) => s + (c.wordCount||0), 0).toLocaleString()} wd</span>
+          <span style={{ color: T.textMuted }}>{chapterOrder.length} ch</span>
         </div>
-        <div style={{ fontSize: 9, color: T.textMuted, fontFamily: T.fontUI, textAlign: "center" }}>🔥 14-day streak</div>
       </div>
     </div>
   );
@@ -1238,39 +1251,51 @@ const WriteView = () => {
 // 12. CORKBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const CorkboardView = () => {
-  const [selCh, setSelCh] = useState("ch4");
-  const cards = [
-    { id:1, title:"3.1 — The Girl",          status:"done",    text:"Eli sees her from the window. Drenched, silent, alone. He descends without speaking.",        pov:"Eli", tension:"Rising",  words:412,  bg:"#2a2000" },
-    { id:2, title:"3.2 — The Climb",         status:"done",    text:"He carries her up. She studies everything — not frightened, not grateful. Already familiar.",  pov:"Eli", tension:"Tense",   words:388,  bg:"#002020" },
-    { id:3, title:"3.3 — First Words",       status:"writing", text:"Her first word is his old name. The one he buried with the Ardmore.",                          pov:"Eli", tension:"Peak",    words:156,  bg:"#20001a" },
-    { id:4, title:"3.4 — The Storm Returns", status:"draft",   text:"PLACEHOLDER — Halford's truck on the coast road.",                                              pov:"Eli", tension:"???",     words:0,    bg:"#1a1a1a" },
-    { id:5, title:"3.5 — The Knock",         status:"draft",   text:"PLACEHOLDER — Someone at the door. Eli decides before opening.",                                pov:"Eli", tension:"???",     words:0,    bg:"#1a1a1a" },
-  ];
+  const { chapters, chapterOrder, scenes } = useStoryStore();
+  const [selCh, setSelCh] = useState(chapterOrder[0] || "");
+  
+  useEffect(() => {
+    if (!selCh && chapterOrder.length > 0) {
+      setSelCh(chapterOrder[0]);
+    }
+  }, [chapterOrder, selCh]);
+
+  const chScenes = Object.values(scenes).filter(s => s.chapter_id === selCh).sort((a,b) => a.position - b.position);
+  
+  const getStatusColor = (status) => status === "done" ? T.green : status === "writing" ? T.accent : T.border;
+  const getStatusBg = (status) => status === "done" ? "#002010" : status === "writing" ? "#2a2000" : "#1a1a1a";
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", padding: "8px 20px", gap: 8, background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, flexWrap: "wrap" }}>
         <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI, marginRight: 4 }}>CHAPTER:</span>
-        {MOCK_CHAPTERS.filter(c => c.scenes.length > 0).map(c => (
-          <button key={c.id} onClick={() => setSelCh(c.id)} style={{ padding: "3px 10px", borderRadius: T.rSm, border: `1px solid ${selCh === c.id ? T.accent : T.border}`, background: selCh === c.id ? T.accentSoft : "transparent", color: selCh === c.id ? T.accent : T.textMuted, fontSize: 10, fontFamily: T.fontUI, cursor: "pointer" }}>{c.label}</button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><Badge label="5 SCENES" color={T.blue} /><Badge label="956 WORDS" /></div>
+        {chapterOrder.map((cid, i) => {
+          const c = chapters[cid];
+          return (
+          <button key={cid} onClick={() => setSelCh(cid)} style={{ padding: "3px 10px", borderRadius: T.rSm, border: `1px solid ${selCh === cid ? T.accent : T.border}`, background: selCh === cid ? T.accentSoft : "transparent", color: selCh === cid ? T.accent : T.textMuted, fontSize: 10, fontFamily: T.fontUI, cursor: "pointer" }}>{c?.title || `Chapter ${i+1}`}</button>
+          );
+        })}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><Badge label={`${chScenes.length} SCENES`} color={T.blue} /></div>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 28, background: `repeating-linear-gradient(0deg,transparent,transparent 24px,${T.border}18 24px,${T.border}18 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,${T.border}18 24px,${T.border}18 25px),${T.bgDeep}` }}>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {cards.map(card => (
-            <div key={card.id} style={{ width: 200, background: card.bg, border: `1px solid ${card.status === "writing" ? T.accent : T.border}`, borderTop: `3px solid ${card.status === "done" ? T.green : card.status === "writing" ? T.accent : T.border}`, borderRadius: T.rSm, padding: 14, boxShadow: "0 2px 8px #00000044", cursor: "pointer", position: "relative" }}>
-              <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: 12, height: 12, borderRadius: "50%", background: card.status === "done" ? T.green : card.status === "writing" ? T.accent : T.textDim, boxShadow: "0 2px 4px #00000066" }} />
+          {chScenes.map((sc, i) => {
+            const words = sc.content ? sc.content.split(/\s+/).filter(Boolean).length : 0;
+            return (
+            <div key={sc.id} style={{ width: 200, background: getStatusBg(sc.status), border: `1px solid ${sc.status === "writing" ? T.accent : T.border}`, borderTop: `3px solid ${getStatusColor(sc.status)}`, borderRadius: T.rSm, padding: 14, boxShadow: "0 2px 8px #00000044", cursor: "pointer", position: "relative" }}>
+              <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: 12, height: 12, borderRadius: "50%", background: getStatusColor(sc.status), boxShadow: "0 2px 4px #00000066" }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: T.text, fontFamily: T.fontUI, fontWeight: 600, flex: 1, paddingRight: 6, lineHeight: 1.3 }}>{card.title}</span>
-                <Badge label={card.status === "done" ? "DONE" : card.status === "writing" ? "WIP" : "DRAFT"} color={card.status === "done" ? T.green : card.status === "writing" ? T.accent : T.textDim} />
+                <span style={{ fontSize: 11, color: T.text, fontFamily: T.fontUI, fontWeight: 600, flex: 1, paddingRight: 6, lineHeight: 1.3 }}>{i+1}. {sc.title || 'Untitled'}</span>
+                <Badge label={sc.status === "done" ? "DONE" : sc.status === "writing" ? "WIP" : "DRAFT"} color={getStatusColor(sc.status)} />
               </div>
-              <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody, lineHeight: 1.6, marginBottom: 10, minHeight: 50 }}>{card.text}</div>
+              <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody, lineHeight: 1.6, marginBottom: 10, minHeight: 50 }}>{sc.summary || (sc.content ? sc.content.substring(0, 100) + '...' : 'No content yet.')}</div>
               <Divider />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 9, color: T.textDim, fontFamily: T.fontUI }}>
-                <span>POV: {card.pov}</span><span>⚡ {card.tension}</span><span>{card.words > 0 ? `${card.words}w` : "—"}</span>
+                <span>POV: {sc.pov || '—'}</span><span>⚡ {sc.tension || '—'}</span><span>{words > 0 ? `${words}w` : "—"}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
           <div style={{ width: 200, minHeight: 140, background: "transparent", border: `2px dashed ${T.border}`, borderRadius: T.rSm, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: T.textDim, flexDirection: "column", gap: 8 }}>
             <Ico n="plus" s={20} c={T.textDim} /><span style={{ fontSize: 11, fontFamily: T.fontUI }}>Add Scene</span>
           </div>
@@ -1284,25 +1309,47 @@ const CorkboardView = () => {
 // 13. CHARACTERS VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const CharactersView = () => {
-  const { characters } = useStoryStore();
-  const charsList = Object.keys(characters || {}).length > 0 ? Object.values(characters) : MOCK_CHARS;
-  const [sel, setSel] = useState(charsList[0]);
+  const { characters, upsertCharacter } = useStoryStore();
+  const charsList = Object.values(characters || {});
+  const [sel, setSel] = useState(charsList[0] || null);
   
   useEffect(() => {
     if (charsList.length > 0 && !charsList.find(c => c.id === sel?.id)) {
       setSel(charsList[0]);
     }
-  }, [charsList, sel]);
+  }, [characters, sel]);
+
+  const handleAdd = () => {
+    const id = `char_${Date.now()}`;
+    const newChar = {
+      id,
+      name: "New Character",
+      role: "Supporting",
+      age: "?",
+      color: "#888888",
+      arc: "Flat",
+      arc_pct: 0,
+      bio: "Add character details here.",
+      traits: ["Trait 1", "Trait 2"],
+      firstAppears: "Chapter 1",
+      wordCount: 0,
+      scenes: 0
+    };
+    upsertCharacter(newChar);
+    setSel(newChar);
+  };
 
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
       <div style={{ width: 220, background: T.panel, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
         <div style={{ padding: "12px 14px 8px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>CHARACTERS · {charsList.length}</span>
-          <button style={{ ...btnSt(20), fontSize: 18 }}>+</button>
+          <button onClick={handleAdd} style={{ ...btnSt(20), fontSize: 18 }}>+</button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "6px 8px" }}>
-          {charsList.map(ch => (
+          {charsList.length === 0 ? (
+            <div style={{ padding: 16, textAlign: "center", color: T.textDim, fontSize: 11, fontFamily: T.fontUI }}>No characters yet.</div>
+          ) : charsList.map(ch => (
             <div key={ch.id} onClick={() => setSel(ch)} style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, borderRadius: T.rSm, cursor: "pointer", marginBottom: 2, background: sel?.id === ch.id ? T.accentSoft : "transparent", borderLeft: `2px solid ${sel?.id === ch.id ? T.accent : "transparent"}` }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: `${ch.color}20`, border: `1px solid ${ch.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: ch.color, fontFamily: T.fontDisplay, fontWeight: 700, flexShrink: 0 }}>{ch.name[0]}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1313,7 +1360,7 @@ const CharactersView = () => {
           ))}
         </div>
       </div>
-      {sel && (
+      {sel ? (
         <div style={{ flex: 1, overflow: "auto", padding: 28 }}>
           <div style={{ display: "flex", gap: 24, marginBottom: 24, alignItems: "flex-start" }}>
             <div style={{ width: 80, height: 80, borderRadius: 20, background: `${sel.color}20`, border: `2px solid ${sel.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, color: sel.color, fontFamily: T.fontDisplay, fontWeight: 700, flexShrink: 0, boxShadow: `0 0 30px ${sel.color}22` }}>{sel.name[0]}</div>
@@ -1328,7 +1375,7 @@ const CharactersView = () => {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
             <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 16 }}>
               <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: T.fontUI, marginBottom: 10 }}>TRAITS</div>
-              {sel.traits.map(t => (
+              {(sel.traits || []).map(t => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${T.borderSoft}` }}>
                   <div style={{ width: 4, height: 4, borderRadius: "50%", background: sel.color }} />
                   <span style={{ fontSize: 12, color: T.text, fontFamily: T.fontUI }}>{t}</span>
@@ -1337,7 +1384,7 @@ const CharactersView = () => {
             </div>
             <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 16 }}>
               <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: T.fontUI, marginBottom: 10 }}>PRESENCE</div>
-              {[["First appears",sel.firstAppears],["Total words",`${sel.wordCount.toLocaleString()} words`],["Scene count",`${sel.scenes} scenes`],["Arc progress",`${sel.arc_pct}% resolved`]].map(([l,v]) => (
+              {[["First appears",sel.firstAppears],["Total words",`${(sel.wordCount || 0).toLocaleString()} words`],["Scene count",`${sel.scenes || 0} scenes`],["Arc progress",`${sel.arc_pct || 0}% resolved`]].map(([l,v]) => (
                 <div key={l} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "6px 0", borderBottom: `1px solid ${T.borderSoft}` }}>
                   <span style={{ fontSize: 9, color: T.textDim, fontFamily: T.fontUI, textTransform: "uppercase", letterSpacing: "0.08em" }}>{l}</span>
                   <span style={{ fontSize: 11, color: T.text, fontFamily: T.fontUI }}>{v}</span>
@@ -1349,9 +1396,14 @@ const CharactersView = () => {
               <div style={{ height: 60, display: "flex", alignItems: "flex-end", gap: 3, marginBottom: 8 }}>
                 {[15,20,30,25,35,40,38,45,50].map((h,i) => <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: "2px 2px 0 0", background: i < 3 ? `${sel.color}44` : `${sel.color}88` }} />)}
               </div>
-              <PBar value={sel.arc_pct} max={100} color={sel.color} height={4} />
+              <PBar value={sel.arc_pct || 0} max={100} color={sel.color} height={4} />
             </div>
           </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+          <Ico n="person" s={40} c={T.textDim} />
+          <p style={{ fontSize: 14, color: T.textMuted, fontFamily: T.fontUI, margin: 0 }}>No characters created.</p>
         </div>
       )}
     </div>
@@ -1363,8 +1415,22 @@ const CharactersView = () => {
 // ═══════════════════════════════════════════════════════════════════════
 const WorldView = () => {
   const [cat, setCat] = useState("locations");
-  const { locations } = useStoryStore();
-  const locList = Object.keys(locations || {}).length > 0 ? Object.values(locations) : MOCK_LOCS;
+  const { locations, upsertLocation } = useStoryStore();
+  const locList = Object.values(locations || {});
+
+  const handleAdd = () => {
+    const typeMap = { locations: "Setting", lore: "Lore", glossary: "Glossary", objects: "Artifact" };
+    const nameMap = { locations: "New Location", lore: "New Lore Entry", glossary: "New Term", objects: "New Artifact" };
+    upsertLocation({
+      id: `loc_${Date.now()}`,
+      name: nameMap[cat] || "New Entry",
+      type: typeMap[cat] || "Setting",
+      region: "Unknown",
+      tag: cat.toUpperCase(),
+      color: cat === "locations" ? T.blue : cat === "lore" ? T.purple : cat === "glossary" ? T.green : T.amber,
+      desc: "Add description here."
+    });
+  };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -1372,17 +1438,18 @@ const WorldView = () => {
         {[["locations","Locations"],["lore","Lore"],["glossary","Glossary"],["objects","Artifacts"]].map(([id, l]) => (
           <button key={id} onClick={() => setCat(id)} style={{ padding: "4px 14px", borderRadius: 20, border: `1px solid ${cat === id ? T.accent : T.border}`, background: cat === id ? T.accentSoft : "transparent", color: cat === id ? T.accent : T.textMuted, fontSize: 11, fontFamily: T.fontUI, cursor: "pointer" }}>{l}</button>
         ))}
-        <button style={{ marginLeft: "auto", ...btnSt(24), fontSize: 18 }}>+</button>
+        <button onClick={handleAdd} style={{ marginLeft: "auto", ...btnSt(24), fontSize: 18 }}>+</button>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
-        {cat === "locations" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
-            {locList.map(loc => (
+            {locList.filter(l => l.type?.toLowerCase() === (cat === "objects" ? "artifact" : cat === "locations" ? "setting" : cat)).length === 0 ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: T.textMuted, fontFamily: T.fontUI }}>No {cat} added yet.</div>
+            ) : locList.filter(l => l.type?.toLowerCase() === (cat === "objects" ? "artifact" : cat === "locations" ? "setting" : cat)).map(loc => (
               <div key={loc.id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 20, cursor: "pointer", borderTop: `3px solid ${loc.color}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <div>
                     <h3 style={{ fontFamily: T.fontDisplay, fontSize: 17, color: T.text, fontWeight: 400, marginBottom: 3 }}>{loc.name}</h3>
-                    <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI }}>{loc.type} · {loc.region}</div>
+                    <div style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI }}>{loc.type} {loc.region && loc.region !== "Unknown" ? `· ${loc.region}` : ""}</div>
                   </div>
                   <Badge label={loc.tag} color={loc.color} />
                 </div>
@@ -1390,24 +1457,6 @@ const WorldView = () => {
               </div>
             ))}
           </div>
-        )}
-        {cat === "glossary" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[["The Wrecking","The local term for the 1952 grounding of the SS Ardmore."],["The Keeper","Eli's title. Not his name — his function."],["The Log","Eli's daily journal. 37 volumes, written as if addressed to no one."],["The Locked Room","The back room sealed in 1990."],["The Girl's Name","Clara. Not used until Chapter 6."]].map(([term, def]) => (
-              <div key={term} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.rSm, padding: 14 }}>
-                <div style={{ fontFamily: T.fontUI, fontSize: 12, color: T.accent, fontWeight: 600, marginBottom: 6 }}>{term}</div>
-                <p style={{ fontFamily: T.fontBody, fontSize: 13, color: T.textSoft, lineHeight: 1.7, margin: 0 }}>{def}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        {(cat === "lore" || cat === "objects") && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60%", flexDirection: "column", gap: 12 }}>
-            <Ico n="folder" s={40} c={T.textDim} />
-            <p style={{ fontSize: 14, color: T.textMuted, fontFamily: T.fontUI, margin: 0 }}>No {cat} entries yet.</p>
-            <button style={{ padding: "7px 16px", borderRadius: T.r, border: `1px solid ${T.accent}44`, background: T.accentSoft, color: T.accent, cursor: "pointer", fontSize: 11, fontFamily: T.fontUI }}>+ Add first entry</button>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1417,32 +1466,54 @@ const WorldView = () => {
 // 15. TIMELINE VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const TimelineView = () => {
-  const { timelineEvents } = useStoryStore();
-  const timelineList = timelineEvents?.length > 0 ? timelineEvents : MOCK_TIMELINE;
+  const { timelineEvents, projectTitle, upsertTimelineEvent } = useStoryStore();
+  const timelineList = timelineEvents || [];
+
+  const handleAdd = () => {
+    upsertTimelineEvent({
+      id: `evt_${Date.now()}`,
+      year: new Date().getFullYear().toString(),
+      label: "New Event",
+      desc: "Event description",
+      color: T.accent,
+      sort_order: timelineList.length
+    });
+  };
 
   return (
   <div style={{ flex: 1, overflow: "auto", padding: 32 }}>
-    <h2 style={{ fontFamily: T.fontDisplay, fontSize: 22, color: T.text, marginBottom: 6, fontWeight: 400 }}>Story Timeline</h2>
-    <p style={{ fontSize: 12, color: T.textMuted, fontFamily: T.fontBody, marginBottom: 36, margin: "0 0 36px" }}>The Lighthouse Keeper's Daughter · 1952 → 2024</p>
-    <div style={{ position: "relative", paddingBottom: 60, minWidth: 600 }}>
-      <div style={{ position: "absolute", top: 21, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${T.border} 5%,${T.border} 95%,transparent)` }} />
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-        {timelineList.map((ev, i) => {
-          const even = i % 2 === 0;
-          return (
-            <div key={ev.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-              <div style={{ width: 14, height: 14, borderRadius: "50%", background: ev.color, border: `2px solid ${T.bg}`, boxShadow: `0 0 10px ${ev.color}66`, zIndex: 1, marginTop: 14 }} />
-              {even && <div style={{ width: 1, height: 28, background: `${ev.color}55` }} />}
-              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderTop: `2px solid ${ev.color}`, borderRadius: T.rSm, padding: 12, maxWidth: 130, width: "90%", marginTop: even ? 0 : 44, position: even ? "relative" : "absolute", top: even ? "auto" : -128 }}>
-                <div style={{ fontFamily: T.fontMono, fontSize: 13, color: ev.color, fontWeight: 700, marginBottom: 4 }}>{ev.year}</div>
-                <div style={{ fontFamily: T.fontUI, fontSize: 10, color: T.text, fontWeight: 600, marginBottom: 4 }}>{ev.label}</div>
-                <p style={{ fontFamily: T.fontBody, fontSize: 10, color: T.textMuted, lineHeight: 1.6, margin: 0 }}>{ev.desc}</p>
-              </div>
-            </div>
-          );
-        })}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36 }}>
+      <div>
+        <h2 style={{ fontFamily: T.fontDisplay, fontSize: 22, color: T.text, marginBottom: 6, fontWeight: 400 }}>Story Timeline</h2>
+        <p style={{ fontSize: 12, color: T.textMuted, fontFamily: T.fontBody, margin: 0 }}>{projectTitle || 'Untitled'} · Chronological Events</p>
       </div>
+      <button onClick={handleAdd} style={{ padding: "8px 16px", borderRadius: T.r, border: `1px solid ${T.accent}44`, background: T.accentSoft, color: T.accent, cursor: "pointer", fontSize: 12, fontFamily: T.fontUI }}>+ Add Event</button>
     </div>
+    
+    {timelineList.length === 0 ? (
+      <div style={{ padding: 60, textAlign: "center", color: T.textDim, fontFamily: T.fontUI }}>No timeline events tracked.</div>
+    ) : (
+      <div style={{ position: "relative", paddingBottom: 60, minWidth: 600 }}>
+        <div style={{ position: "absolute", top: 21, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${T.border} 5%,${T.border} 95%,transparent)` }} />
+        <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+          {timelineList.map((ev, i) => {
+            const even = i % 2 === 0;
+            return (
+              <div key={ev.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                <div style={{ width: 14, height: 14, borderRadius: "50%", background: ev.color, border: `2px solid ${T.bg}`, boxShadow: `0 0 10px ${ev.color}66`, zIndex: 1, marginTop: 14 }} />
+                {even && <div style={{ width: 1, height: 28, background: `${ev.color}55` }} />}
+                <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderTop: `2px solid ${ev.color}`, borderRadius: T.rSm, padding: 12, maxWidth: 130, width: "90%", marginTop: even ? 0 : 44, position: even ? "relative" : "absolute", top: even ? "auto" : -128 }}>
+                  <div style={{ fontFamily: T.fontMono, fontSize: 13, color: ev.color, fontWeight: 700, marginBottom: 4 }}>{ev.year}</div>
+                  <div style={{ fontFamily: T.fontUI, fontSize: 10, color: T.text, fontWeight: 600, marginBottom: 4 }}>{ev.label}</div>
+                  <p style={{ fontFamily: T.fontBody, fontSize: 10, color: T.textMuted, lineHeight: 1.6, margin: 0 }}>{ev.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+    
     <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 60, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
       {[["historical",T.red],["character",T.accent],["world",T.blue],["mystery",T.purple],["present",T.amber]].map(([type, c]) => (
         <div key={type} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1460,18 +1531,31 @@ const TimelineView = () => {
 // ═══════════════════════════════════════════════════════════════════════
 const ResearchView = () => {
   const [cat, setCat] = useState("all");
-  const { researchNotes } = useStoryStore();
-  const researchList = researchNotes?.length > 0 ? researchNotes : MOCK_RESEARCH;
+  const { researchNotes, upsertResearchNote } = useStoryStore();
+  const researchList = researchNotes || [];
   const cats = ["all","lighthouse","maritime","psychology","history","craft","setting"];
   const filtered = cat === "all" ? researchList : researchList.filter(n => n.tag.toLowerCase().includes(cat));
+
+  const handleAdd = () => {
+    upsertResearchNote({
+      id: `res_${Date.now()}`,
+      title: "New Note",
+      body: "Add your research notes here.",
+      tag: cat === "all" ? "history" : cat,
+      color: T.blue
+    });
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, flexWrap: "wrap" }}>
         {cats.map(c => <button key={c} onClick={() => setCat(c)} style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${cat === c ? T.accent : T.border}`, background: cat === c ? T.accentSoft : "transparent", color: cat === c ? T.accent : T.textMuted, fontSize: 10, fontFamily: T.fontUI, cursor: "pointer" }}>{c.charAt(0).toUpperCase() + c.slice(1)}</button>)}
-        <button style={{ marginLeft: "auto", ...btnSt(24), fontSize: 18 }}>+</button>
+        <button onClick={handleAdd} style={{ marginLeft: "auto", ...btnSt(24), fontSize: 18 }}>+</button>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: 24, display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14, alignContent: "start" }}>
-        {filtered.map(n => (
+        {filtered.length === 0 ? (
+          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: T.textDim, fontFamily: T.fontUI }}>No research notes found.</div>
+        ) : filtered.map(n => (
           <div key={n.id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 18, borderLeft: `3px solid ${n.color}` }}>
             <Badge label={n.tag} color={n.color} />
             <h4 style={{ fontFamily: T.fontUI, fontSize: 13, color: T.text, fontWeight: 600, margin: "8px 0", lineHeight: 1.3 }}>{n.title}</h4>
@@ -1543,7 +1627,17 @@ const ExportView = () => {
               </label>
             ))}
           </div>
-          <button onClick={() => doExport("proj_001", fmt, {})} disabled={exporting} style={{ padding: "13px 0", borderRadius: T.r, border: `1px solid ${T.accent}55`, background: exporting ? T.surface : `linear-gradient(135deg,${T.accentSoft},${T.accentGlow})`, color: exporting ? T.textMuted : T.accent, cursor: exporting ? "not-allowed" : "pointer", fontFamily: T.fontUI, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <button onClick={async () => {
+            const pid = useStoryStore.getState().projectId;
+            if (!pid) return;
+            const url = await doExport(pid, fmt, {});
+            if (url) {
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `Manuscript_${pid}.docx`; // fallback download name
+              a.click();
+            }
+          }} disabled={exporting || !useStoryStore.getState().projectId} style={{ padding: "13px 0", borderRadius: T.r, border: `1px solid ${T.accent}55`, background: exporting ? T.surface : `linear-gradient(135deg,${T.accentSoft},${T.accentGlow})`, color: exporting ? T.textMuted : T.accent, cursor: exporting ? "not-allowed" : "pointer", fontFamily: T.fontUI, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <Ico n="export" s={16} c={exporting ? T.textMuted : T.accent} />
             {exporting ? "Exporting…" : "Export Manuscript"}
           </button>

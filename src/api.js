@@ -434,6 +434,67 @@ export async function loadEditorData(projectId, token) {
     return fetchJSON(`/editor/data/${projectId}`, { headers: _authHeaders(token) })
 }
 
+export async function saveEditorData(projectId, data, token) {
+    return fetchJSON(`/editor/data/${projectId}`, {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify(data),
+    })
+}
+
+export async function createScene(data, token) {
+    return fetchJSON('/scenes', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function saveSceneContent(id, content, token) {
+    return fetchJSON(`/scenes/${id}/content`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify({ content }) })
+}
+export async function saveSceneMeta(id, data, token) {
+    return fetchJSON(`/scenes/${id}/meta`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function deleteSceneAPI(id, token) {
+    return fetchJSON(`/scenes/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function saveCharacter(data, token) {
+    return fetchJSON('/characters', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function updateCharacter(id, data, token) {
+    return fetchJSON(`/characters/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function deleteCharacterAPI(id, token) {
+    return fetchJSON(`/characters/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function saveLocation(data, token) {
+    return fetchJSON('/locations', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function updateLocation(id, data, token) {
+    return fetchJSON(`/locations/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function deleteLocationAPI(id, token) {
+    return fetchJSON(`/locations/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function saveTimelineEvent(data, token) {
+    return fetchJSON('/timeline', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function updateTimelineEvent(id, data, token) {
+    return fetchJSON(`/timeline/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function deleteTimelineEventAPI(id, token) {
+    return fetchJSON(`/timeline/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function saveResearchNote(data, token) {
+    return fetchJSON('/research', { method: 'POST', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function updateResearchNote(id, data, token) {
+    return fetchJSON(`/research/${id}`, { method: 'PUT', headers: _authHeaders(token), body: JSON.stringify(data) })
+}
+export async function deleteResearchNoteAPI(id, token) {
+    return fetchJSON(`/research/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
 // ─── SSO API ─────────────────────────────────────────────────────────────
 
 export async function loadCharacterStates(projectId, token) {
