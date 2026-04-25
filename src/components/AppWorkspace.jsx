@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     HiOutlineArrowLeft, HiOutlineCog6Tooth, HiOutlineArrowRightOnRectangle,
     HiOutlineLockClosed, HiOutlineSparkles, HiOutlineStar, HiOutlineCheckBadge,
-    HiOutlineDocumentText, HiOutlineWrenchScrewdriver, HiOutlineLightningBolt
+    HiOutlineDocumentText, HiOutlineWrenchScrewdriver, HiOutlineBolt
 } from 'react-icons/hi2'
 import { useAuth } from '../contexts/AuthContext'
 import MidnightChronicleEditor from './Editor/MidnightChronicleEditor'

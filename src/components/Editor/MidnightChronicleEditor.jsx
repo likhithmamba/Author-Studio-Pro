@@ -20,6 +20,7 @@
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer } from "react";
 import { useStoryStore } from "../../store/storyStore";
+import ThinkingPanel from '../ThinkingPanel/ThinkingPanel';
 
 // ═══════════════════════════════════════════════════════════════════════
 // 1. DESIGN TOKENS
@@ -187,6 +188,27 @@ const apiFetch = async (endpoint, options = {}) => {
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
 };
+
+const syncAllPendingDrafts = async () => {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith("asp_draft_")) {
+      const sceneId = key.replace("asp_draft_", "");
+      const content = localStorage.getItem(key);
+      try {
+        await apiFetch(`/scenes/${sceneId}/content`, { method: "PUT", body: JSON.stringify({ content }) });
+        localStorage.removeItem(key);
+      } catch (err) {
+        console.error("Failed to sync offline draft for", sceneId);
+      }
+    }
+  }
+};
+
+// Auto-run on load
+if (typeof window !== "undefined") {
+  setTimeout(syncAllPendingDrafts, 3000);
+}
 
 /** PUT /api/scenes/:id/content — 2s debounce, localStorage fallback */
 const useAutoSave = (sceneId, content) => {
@@ -999,11 +1021,12 @@ const InspectorPanel = ({ activeScene }) => {
   const { characters } = useStoryStore();
   const charsArray = Object.values(characters || {});
   const [tab, setTab] = useState("stats");
+  const [thinkTab, setThinkTab] = useState("ideas");
   const { analysis } = useAnalysis();
   const { feedback }  = useAI();
   const { versions, restore } = useVersionHistory(activeScene);
 
-  const TABS = [["stats","Stats"],["analysis","Analysis"],["ai","AI Editor"],["notes","Notes"],["history","Versions"]];
+  const TABS = [["stats","Stats"],["analysis","Analysis"],["ai","AI Editor"],["notes","Notes"],["history","Versions"],["think","Think"]];
 
   return (
     <div style={{ width: 248, background: T.panel, borderLeft: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
@@ -1147,6 +1170,18 @@ const InspectorPanel = ({ activeScene }) => {
             ))}
           </div>
         )}
+
+        {/* THINK */}
+        {tab === "think" && (
+          <ThinkingPanel 
+            projectId="demo-project-1" 
+            width={248} 
+            open={true} 
+            onToggleOpen={() => {}} 
+            activeTab={thinkTab} 
+            onTabChange={setThinkTab} 
+          />
+        )}
       </div>
     </div>
   );
@@ -1224,16 +1259,25 @@ const CorkboardView = () => {
 // 13. CHARACTERS VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const CharactersView = () => {
-  const [sel, setSel] = useState(MOCK_CHARS[0]);
+  const { characters } = useStoryStore();
+  const charsList = Object.keys(characters || {}).length > 0 ? Object.values(characters) : MOCK_CHARS;
+  const [sel, setSel] = useState(charsList[0]);
+  
+  useEffect(() => {
+    if (charsList.length > 0 && !charsList.find(c => c.id === sel?.id)) {
+      setSel(charsList[0]);
+    }
+  }, [charsList, sel]);
+
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
       <div style={{ width: 220, background: T.panel, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
         <div style={{ padding: "12px 14px 8px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>CHARACTERS · {MOCK_CHARS.length}</span>
+          <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>CHARACTERS · {charsList.length}</span>
           <button style={{ ...btnSt(20), fontSize: 18 }}>+</button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "6px 8px" }}>
-          {MOCK_CHARS.map(ch => (
+          {charsList.map(ch => (
             <div key={ch.id} onClick={() => setSel(ch)} style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, borderRadius: T.rSm, cursor: "pointer", marginBottom: 2, background: sel?.id === ch.id ? T.accentSoft : "transparent", borderLeft: `2px solid ${sel?.id === ch.id ? T.accent : "transparent"}` }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: `${ch.color}20`, border: `1px solid ${ch.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: ch.color, fontFamily: T.fontDisplay, fontWeight: 700, flexShrink: 0 }}>{ch.name[0]}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1294,6 +1338,9 @@ const CharactersView = () => {
 // ═══════════════════════════════════════════════════════════════════════
 const WorldView = () => {
   const [cat, setCat] = useState("locations");
+  const { locations } = useStoryStore();
+  const locList = Object.keys(locations || {}).length > 0 ? Object.values(locations) : MOCK_LOCS;
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", padding: "8px 20px", gap: 8, background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
@@ -1305,7 +1352,7 @@ const WorldView = () => {
       <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
         {cat === "locations" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
-            {MOCK_LOCS.map(loc => (
+            {locList.map(loc => (
               <div key={loc.id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.r, padding: 20, cursor: "pointer", borderTop: `3px solid ${loc.color}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <div>
@@ -1344,14 +1391,18 @@ const WorldView = () => {
 // ═══════════════════════════════════════════════════════════════════════
 // 15. TIMELINE VIEW
 // ═══════════════════════════════════════════════════════════════════════
-const TimelineView = () => (
+const TimelineView = () => {
+  const { timelineEvents } = useStoryStore();
+  const timelineList = timelineEvents?.length > 0 ? timelineEvents : MOCK_TIMELINE;
+
+  return (
   <div style={{ flex: 1, overflow: "auto", padding: 32 }}>
     <h2 style={{ fontFamily: T.fontDisplay, fontSize: 22, color: T.text, marginBottom: 6, fontWeight: 400 }}>Story Timeline</h2>
     <p style={{ fontSize: 12, color: T.textMuted, fontFamily: T.fontBody, marginBottom: 36, margin: "0 0 36px" }}>The Lighthouse Keeper's Daughter · 1952 → 2024</p>
     <div style={{ position: "relative", paddingBottom: 60, minWidth: 600 }}>
       <div style={{ position: "absolute", top: 21, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${T.border} 5%,${T.border} 95%,transparent)` }} />
       <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-        {MOCK_TIMELINE.map((ev, i) => {
+        {timelineList.map((ev, i) => {
           const even = i % 2 === 0;
           return (
             <div key={ev.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
@@ -1376,15 +1427,18 @@ const TimelineView = () => (
       ))}
     </div>
   </div>
-);
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // 16. RESEARCH VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const ResearchView = () => {
   const [cat, setCat] = useState("all");
+  const { researchNotes } = useStoryStore();
+  const researchList = researchNotes?.length > 0 ? researchNotes : MOCK_RESEARCH;
   const cats = ["all","lighthouse","maritime","psychology","history","craft","setting"];
-  const filtered = cat === "all" ? MOCK_RESEARCH : MOCK_RESEARCH.filter(n => n.tag.toLowerCase().includes(cat));
+  const filtered = cat === "all" ? researchList : researchList.filter(n => n.tag.toLowerCase().includes(cat));
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, flexWrap: "wrap" }}>
