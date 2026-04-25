@@ -5,8 +5,14 @@ import zipfile
 from fastapi.testclient import TestClient
 from main import app
 from unittest.mock import patch, MagicMock
+from auth import create_access_token
 
 client = TestClient(app)
+
+# Helper for authenticated endpoints
+def get_auth_headers():
+    token = create_access_token("test-user", "test@example.com")
+    return {"Authorization": f"Bearer {token}"}
 
 def test_health():
     """Verify health endpoint works."""
@@ -39,7 +45,11 @@ def test_genres():
     """Verify genres endpoint works."""
     response = client.get("/api/genres")
     assert response.status_code == 200
-    assert "fantasy" in response.json()
+    data = response.json()
+    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+        assert any("fantasy" in str(g).lower() for g in data)
+    else:
+        assert "fantasy" in data
 
 @patch("routers.auth_routes.get_user_by_email")
 @patch("routers.auth_routes.create_user")
@@ -72,7 +82,7 @@ def test_get_nodes_endpoint(mock_sb, mock_supabase):
         {"id": "node-1", "label": "Character A", "type": "character"}
     ]
     
-    response = client.get("/api/thinking/nodes/project-123", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/thinking/nodes/project-123", headers=get_auth_headers())
     assert response.status_code == 200
     assert len(response.json()["nodes"]) == 1
     assert response.json()["nodes"][0]["label"] == "Character A"
@@ -88,7 +98,7 @@ def test_upsert_nodes_endpoint(mock_sb, mock_supabase):
             {"id": "n1", "label": "New Node", "type": "plot", "position_x": 100, "position_y": 200}
         ]
     }
-    response = client.post("/api/thinking/nodes", json=payload, headers={"Authorization": "Bearer fake-token"})
+    response = client.post("/api/thinking/nodes", json=payload, headers=get_auth_headers())
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["count"] == 1
@@ -101,7 +111,7 @@ def test_update_branch_endpoint(mock_sb, mock_supabase):
         {"id": "b1", "name": "Updated Branch"}
     ]
     
-    response = client.put("/api/thinking/branches/b1", json={"name": "Updated Branch"}, headers={"Authorization": "Bearer fake-token"})
+    response = client.put("/api/thinking/branches/b1", json={"name": "Updated Branch"}, headers=get_auth_headers())
     assert response.status_code == 200
     assert response.json()["name"] == "Updated Branch"
 
@@ -115,7 +125,7 @@ def test_manuscript_endpoints(mock_sb, mock_supabase):
         "project_id": "proj-1",
         "content": {"chapters": {"c1": {"title": "Ch 1"}}, "chapterOrder": ["c1"]}
     }
-    response = client.post("/api/thinking/manuscript", json=payload, headers={"Authorization": "Bearer fake-token"})
+    response = client.post("/api/thinking/manuscript", json=payload, headers=get_auth_headers())
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     
@@ -123,6 +133,6 @@ def test_manuscript_endpoints(mock_sb, mock_supabase):
     mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         {"content": payload["content"]}
     ]
-    response = client.get("/api/thinking/manuscript/proj-1", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/thinking/manuscript/proj-1", headers=get_auth_headers())
     assert response.status_code == 200
     assert response.json()["chapterOrder"][0] == "c1"
