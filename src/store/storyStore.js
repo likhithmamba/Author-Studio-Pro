@@ -276,18 +276,25 @@ export const useStoryStore = create(
       set({ isRehydrating: true, projectId })
       
       try {
-        const { loadNodes, loadManuscript, loadCharacterStates, loadConflictStates, loadProgressionMarkers, loadEditorData } = await import('../api.js')
-        const [graphData, manuscriptData, charStates, confStates, progMarkers, editorData] = await Promise.all([
-          loadNodes(projectId, token),
-          loadManuscript(projectId, token),
-          loadCharacterStates(projectId, token),
-          loadConflictStates(projectId, token),
-          loadProgressionMarkers(projectId, token),
-          loadEditorData(projectId, token)
-        ])
+        const api = await import('../api.js')
+        
+        // Load each data source independently — one failure should not block others
+        let graphData = { nodes: [], edges: [] }
+        let manuscriptData = { chapters: {}, chapterOrder: [] }
+        let charStates = []
+        let confStates = []
+        let progMarkers = []
+        let editorData = { scenes: [], characters: [], locations: [], timeline_events: [], research_notes: [] }
+
+        try { graphData = await api.loadNodes(projectId, token) } catch (e) { console.warn("Graph load failed:", e.message) }
+        try { manuscriptData = await api.loadManuscript(projectId, token) } catch (e) { console.warn("Manuscript load failed:", e.message) }
+        try { charStates = await api.loadCharacterStates(projectId, token) } catch (e) { console.warn("Character states load failed:", e.message) }
+        try { confStates = await api.loadConflictStates(projectId, token) } catch (e) { console.warn("Conflict states load failed:", e.message) }
+        try { progMarkers = await api.loadProgressionMarkers(projectId, token) } catch (e) { console.warn("Progression markers load failed:", e.message) }
+        try { editorData = await api.loadEditorData(projectId, token) } catch (e) { console.warn("Editor data load failed:", e.message) }
         
         const byId = {}
-        if (graphData.nodes) graphData.nodes.forEach(n => { byId[n.id] = n })
+        if (graphData?.nodes) graphData.nodes.forEach(n => { byId[n.id] = n })
         
         const charsById = {}
         if (charStates && Array.isArray(charStates)) charStates.forEach(c => { charsById[c.character_id] = c })
@@ -299,7 +306,7 @@ export const useStoryStore = create(
         const eData = editorData || {}
         const scenesById = {}
         const sceneOrderArr = []
-        if (eData.scenes) {
+        if (eData.scenes && Array.isArray(eData.scenes)) {
           eData.scenes.forEach(s => {
             scenesById[s.id] = s
             sceneOrderArr.push(s.id)
@@ -307,16 +314,25 @@ export const useStoryStore = create(
         }
         
         const editorChars = {}
-        if (eData.characters) eData.characters.forEach(c => { editorChars[c.id] = c })
+        if (eData.characters && Array.isArray(eData.characters)) eData.characters.forEach(c => { editorChars[c.id] = c })
         
         const editorLocs = {}
-        if (eData.locations) eData.locations.forEach(l => { editorLocs[l.id] = l })
+        if (eData.locations && Array.isArray(eData.locations)) eData.locations.forEach(l => { editorLocs[l.id] = l })
+
+        // Seed a default chapter if manuscript has no chapters
+        let finalChapters = manuscriptData?.chapters || {}
+        let finalChapterOrder = manuscriptData?.chapterOrder || []
+        if (Object.keys(finalChapters).length === 0) {
+          const defaultChId = `ch_${Date.now()}`
+          finalChapters = { [defaultChId]: { id: defaultChId, title: 'Chapter 1', content: '', wordCount: 0, order: 0 } }
+          finalChapterOrder = [defaultChId]
+        }
         
         set({ 
           nodes: byId, 
-          edges: graphData.edges || [],
-          chapters: manuscriptData.chapters || {},
-          chapterOrder: manuscriptData.chapterOrder || [],
+          edges: graphData?.edges || [],
+          chapters: finalChapters,
+          chapterOrder: finalChapterOrder,
           characterStates: charsById,
           conflictStates: confsById,
           progressionMarkers: progMarkers || [],
@@ -326,6 +342,7 @@ export const useStoryStore = create(
           locations: editorLocs,
           timelineEvents: eData.timeline_events || [],
           researchNotes: eData.research_notes || [],
+          editor: { activeChapterId: finalChapterOrder[0] || null, isTyping: false, wordCount: 0 },
           isRehydrating: false 
         })
       } catch (err) {

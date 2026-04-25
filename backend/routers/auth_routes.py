@@ -38,9 +38,9 @@ def get_current_user(request: Request) -> dict:
         raise HTTPException(401, "Invalid or expired token")
     user_id = payload["sub"]
     # Synthetic demo user — not stored in DB
-    if user_id == "demo-user-001":
+    if user_id == "00000000-0000-0000-0000-000000000000":
         return {
-            "id": "demo-user-001",
+            "id": "00000000-0000-0000-0000-000000000000",
             "email": payload.get("email", "demo@example.com"),
             "password_hash": "",
             "created_at": "2024-01-01T00:00:00Z",
@@ -102,7 +102,7 @@ async def login(request: Request, body: LoginRequest):
         # Provide a synthetic user so downstream code never sees None
         if not user:
             user = {
-                "id": "demo-user-001",
+                "id": "00000000-0000-0000-0000-000000000000",
                 "email": "demo@example.com",
                 "password_hash": "",
                 "created_at": "2024-01-01T00:00:00Z",

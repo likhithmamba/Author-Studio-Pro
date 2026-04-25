@@ -43,7 +43,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
     // ─── Project Rehydration ─────────────────────────────────────────────────
     useEffect(() => {
         if (user && token && !isRehydrating) {
-            const projectId = 'demo-project-1'
+            const projectId = '00000000-0000-0000-0000-000000000001'
             initializeProject(projectId, token)
         }
     }, [user, token, initializeProject])
@@ -214,7 +214,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                                     aiModel={aiModel} 
                                     hasKey={hasKey} 
                                     settings={settings} 
-                                    projectId="demo-project-1"
+                                    projectId="00000000-0000-0000-0000-000000000001"
                                 />
                             </Suspense>
                         </motion.main>

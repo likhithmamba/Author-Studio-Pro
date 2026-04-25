@@ -258,7 +258,7 @@ const useWritingSession = (projectId) => {
     const delta = Math.max(0, count - prevWords.current);
     if (delta > 0) {
       prevWords.current = count;
-      try { await apiFetch("/sessions", { method: "POST", body: JSON.stringify({ projectId, wordsAdded: delta }) }); } catch {}
+      try { await apiFetch("/sessions", { method: "POST", body: JSON.stringify({ project_id: projectId, words_added: delta }) }); } catch {}
     }
   }, [projectId]);
 
@@ -428,7 +428,12 @@ const DAYS    = ["M","T","W","T","F","S","S","M","T","W","T","F","S","S"];
 // ═══════════════════════════════════════════════════════════════════════
 // 6. CHROME — TITLEBAR · TOPNAV · GLOBAL STATUS
 // ═══════════════════════════════════════════════════════════════════════
-const TitleBar = () => (
+const TitleBar = () => {
+  const { projectTitle, chapters, sync } = useStoryStore();
+  const totalWords = Object.values(chapters || {}).reduce((s, c) => s + (c.wordCount || 0), 0);
+  const syncLabel = sync?.status === 'saving' ? 'SAVING…' : sync?.status === 'error' ? 'SYNC ERROR' : 'AUTO-SAVED';
+  const syncColor = sync?.status === 'saving' ? T.amber : sync?.status === 'error' ? T.red : T.green;
+  return (
   <div style={{ display: "flex", alignItems: "center", height: 38, padding: "0 16px", gap: 12, background: T.panelRaised, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
     <div style={{ display: "flex", gap: 6 }}>
       {["#e05252","#e0b452","#52b452"].map((c, i) => <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: c, boxShadow: `0 0 6px ${c}66` }} />)}
@@ -436,14 +441,14 @@ const TitleBar = () => (
     <div style={{ width: 1, height: 16, background: T.border }} />
     <span style={{ fontFamily: T.fontTitle, fontSize: 14, color: T.accent, fontStyle: "italic" }}>Author Studio Pro</span>
     <span style={{ fontFamily: T.fontUI, fontSize: 11, color: T.textDim }}>—</span>
-    <span style={{ fontFamily: T.fontUI, fontSize: 11, color: T.textMuted }}>The Lighthouse Keeper's Daughter</span>
+    <span style={{ fontFamily: T.fontUI, fontSize: 11, color: T.textMuted }}>{projectTitle || 'Untitled Novel'}</span>
     <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-      <Badge label="DRAFT 2" color={T.blue} />
-      <Badge label="AUTO-SAVED" color={T.green} />
-      <Badge label="47,218 WORDS" />
+      <Badge label={syncLabel} color={syncColor} />
+      <Badge label={`${totalWords.toLocaleString()} WORDS`} />
     </div>
   </div>
-);
+  );
+};
 
 const NAV = [
   { id: "dashboard",  label: "Dashboard",    icon: "dash"   },
@@ -656,8 +661,12 @@ const BinderPanel = ({ activeScene, onSelect }) => {
 // 9. WRITING CANVAS  (the full editor — the heart of the app)
 // ═══════════════════════════════════════════════════════════════════════
 const WritingCanvas = ({ activeScene }) => {
-  const { scenes, upsertScene } = useStoryStore();
+  const { scenes, upsertScene, chapters, chapterOrder, updateChapterContent, editor } = useStoryStore();
   const scene = activeScene ? scenes[activeScene] : null;
+
+  // Fallback to active chapter if no scene is selected
+  const activeChapterId = editor?.activeChapterId || chapterOrder[0];
+  const activeChapter = activeChapterId ? chapters[activeChapterId] : null;
 
   // Typography
   const [fontFamily, setFontFamily] = useState("Crimson Text");
@@ -677,31 +686,41 @@ const WritingCanvas = ({ activeScene }) => {
   const [comments,       setComments]       = useState(true);
   const [trackCh,        setTrackCh]        = useState(false);
   const [viewMode,       setViewMode]       = useState("write");
-  const [activePara,     setActivePara]     = useState(null);
   const [ambient,        setAmbient]        = useState(null);
+  const [synOpen,        setSynOpen]        = useState(false);
+  const [synTarget,      setSynTarget]      = useState(null);
 
-  // Content
+  // Content — source from scene OR chapter
   const [content, setContent] = useState("");
 
   useEffect(() => {
     if (scene) {
       setContent(scene.content || "");
+    } else if (activeChapter) {
+      // Strip HTML tags from chapter content for plain text editing
+      const raw = (activeChapter.content || "").replace(/<[^>]*>/g, "");
+      setContent(raw);
     } else {
       setContent("");
     }
-  }, [activeScene, scene?.id]);
+  }, [activeScene, scene?.id, activeChapterId, activeChapter?.id]);
 
   const handleContentChange = (newContent) => {
     setContent(newContent);
     if (scene) {
-      // Update local store immediately for word count etc
+      // Update scene in store
       upsertScene({ ...scene, content: newContent });
+    } else if (activeChapterId) {
+      // Update chapter in store
+      const wordCount = newContent.split(/\s+/).filter(Boolean).length;
+      updateChapterContent(activeChapterId, newContent, wordCount);
     }
   };
 
-  // Hooks
-  const { saving }      = useAutoSave(activeScene, content);
-  const { sessionTime } = useWritingSession("proj_001");
+  // Hooks — use scene ID if available, chapter ID as fallback
+  const saveTargetId = activeScene || activeChapterId;
+  const { saving }      = useAutoSave(scene ? activeScene : null, content);
+  const { sessionTime } = useWritingSession("00000000-0000-0000-0000-000000000001");
   const { words, chars, paras } = useWordCount(content);
   const findState       = useFind(content, setContent);
 
@@ -922,10 +941,10 @@ const WritingCanvas = ({ activeScene }) => {
         {/* Chapter title */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ height: 1, flex: 1, background: T.borderSoft }} />
-          <span style={{ fontSize: 10, color: T.accent, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: T.fontUI }}>Chapter Three</span>
+          <span style={{ fontSize: 10, color: T.accent, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: T.fontUI }}>{scene ? `Scene · ${scene.status || 'draft'}` : `Chapter ${chapterOrder.indexOf(activeChapterId) + 1}`}</span>
           <div style={{ height: 1, flex: 1, background: T.borderSoft }} />
         </div>
-        <h2 style={{ fontFamily: T.fontDisplay, fontSize: 26, color: T.text, fontWeight: 400, lineHeight: 1.3, marginBottom: 10, textAlign: "center" }}>The Girl on the Rocks</h2>
+        <h2 style={{ fontFamily: T.fontDisplay, fontSize: 26, color: T.text, fontWeight: 400, lineHeight: 1.3, marginBottom: 10, textAlign: "center" }}>{scene?.title || activeChapter?.title || 'Untitled'}</h2>
         <div style={{ height: 1, width: 40, background: T.accent, margin: "0 auto 36px" }} />
 
         {/* PROSE */}
@@ -1018,8 +1037,14 @@ const WritingCanvas = ({ activeScene }) => {
 // 10. INSPECTOR PANEL  (5 tabs)
 // ═══════════════════════════════════════════════════════════════════════
 const InspectorPanel = ({ activeScene }) => {
-  const { characters } = useStoryStore();
+  const { characters, chapters, chapterOrder, scenes, sceneOrder } = useStoryStore();
   const charsArray = Object.values(characters || {});
+  const totalWords = Object.values(chapters || {}).reduce((s, c) => s + (c.wordCount || 0), 0);
+  const totalChars = Object.values(chapters || {}).reduce((s, c) => s + ((c.content || '').length), 0);
+  const sceneCount = Object.keys(scenes || {}).length || chapterOrder.length;
+  const readTime = Math.round(totalWords / 200);
+  const readH = Math.floor(readTime / 60);
+  const readM = readTime % 60;
   const [tab, setTab] = useState("stats");
   const [thinkTab, setThinkTab] = useState("ideas");
   const { analysis } = useAnalysis();
@@ -1042,7 +1067,7 @@ const InspectorPanel = ({ activeScene }) => {
           <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>DOCUMENT STATS</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {[["Words","47,218",T.text],["Today","1,243",T.green],["Scenes","31",T.blue],["Streak","14d",T.amber],["Chars","248k",T.textMuted],["Read","3h 57m",T.purple]].map(([l,v,c]) => (
+              {[["Words",totalWords.toLocaleString(),T.text],["Chapters",`${chapterOrder.length}`,T.green],["Scenes",`${sceneCount}`,T.blue],["Characters",`${charsArray.length}`,T.amber],["Chars",totalChars > 1000 ? `${(totalChars/1000).toFixed(0)}k` : `${totalChars}`,T.textMuted],["Read",readH > 0 ? `${readH}h ${readM}m` : `${readM}m`,T.purple]].map(([l,v,c]) => (
                 <div key={l} style={{ padding: 10, borderRadius: T.rSm, background: T.surface, border: `1px solid ${T.border}` }}>
                   <div style={{ fontSize: 9, color: T.textDim, fontFamily: T.fontUI, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{l}</div>
                   <div style={{ fontSize: 20, color: c, fontFamily: T.fontDisplay, fontWeight: 400, lineHeight: 1 }}>{v}</div>
@@ -1174,7 +1199,7 @@ const InspectorPanel = ({ activeScene }) => {
         {/* THINK */}
         {tab === "think" && (
           <ThinkingPanel 
-            projectId="demo-project-1" 
+            projectId="00000000-0000-0000-0000-000000000001" 
             width={248} 
             open={true} 
             onToggleOpen={() => {}} 

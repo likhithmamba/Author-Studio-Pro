@@ -164,8 +164,8 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
             <RunButton 
                 onClick={run} 
                 loading={status === 'loading'} 
-                label={file ? "Analyse Uploaded File →" : sharedManuscript ? "Analyse Cached Manuscript →" : "Analyse Manuscript →"} 
-                disabled={!file && !sharedManuscript}
+                label={file ? "Analyse Uploaded File →" : (useStoryStore.getState().chapterOrder.length > 0 ? "Analyse from Editor →" : sharedManuscript ? "Analyse Cached Manuscript →" : "Analyse Manuscript →")} 
+                disabled={!file && !sharedManuscript && !(useStoryStore.getState().chapterOrder.length > 0)}
             />
             <StatusBox status={status} onClear={() => setStatus(null)} />
 

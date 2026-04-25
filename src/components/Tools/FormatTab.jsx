@@ -29,18 +29,26 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
     }, [])
 
     const run = async () => {
-        if ((!file && !sharedManuscript) || !author.trim() || !title.trim()) {
-            setStatus({ err: 'Please provide the manuscript file, author name, and title.' })
+        const store = useStoryStore.getState();
+        const hasEditorChapters = store.chapterOrder.length > 0;
+
+        if (!file && !sharedManuscript && !hasEditorChapters) {
+            setStatus({ err: 'Please upload a manuscript file, or write content in the Studio editor first.' })
+            return
+        }
+        if (!author.trim() || !title.trim()) {
+            setStatus({ err: 'Please provide author name and title.' })
             return
         }
         setStatus('loading')
         try {
             let result;
-            const store = useStoryStore.getState();
-            if (!file && store.chapterOrder.length > 0) {
+
+            if (!file && hasEditorChapters) {
+                // Path 1: Format from editor store chapters
                 const chapterData = store.chapterOrder.map(id => ({
-                    title: store.chapters[id].title,
-                    paragraphs: [store.chapters[id].content?.replace(/<[^>]*>/g, '') || '']
+                    title: store.chapters[id]?.title || 'Untitled',
+                    paragraphs: [(store.chapters[id]?.content || '').replace(/<[^>]*>/g, '')]
                 }));
                 result = await formatText({
                     author: author.trim(),
@@ -48,15 +56,24 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                     templateKey: template,
                     chapters: chapterData
                 })
-            } else if (!file && sharedManuscript?.parsed?.chapters) {
-                let activeFile = file;
-                if (!activeFile && sharedManuscript) {
-                    activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
-                    activeFile.name = sharedManuscript.filename;
-                }
+            } else if (file) {
+                // Path 2: Format from uploaded file
                 result = await formatManuscript({
-                    file: activeFile, 
-                    author: author.trim(), 
+                    file,
+                    author: author.trim(),
+                    title: title.trim(),
+                    templateKey: template,
+                    useAI: useAI && hasKey,
+                    apiKey: useAI ? apiKey : '',
+                    aiModel,
+                })
+            } else if (sharedManuscript?.parsed?.rawText) {
+                // Path 3: Format from previously uploaded manuscript in cache
+                const activeFile = new Blob([sharedManuscript.parsed.rawText], { type: 'text/plain' });
+                activeFile.name = sharedManuscript.filename || 'manuscript.txt';
+                result = await formatManuscript({
+                    file: activeFile,
+                    author: author.trim(),
                     title: title.trim(),
                     templateKey: template,
                     useAI: useAI && hasKey,
@@ -64,20 +81,22 @@ export default function FormatTab({ apiKey, aiModel, hasKey }) {
                     aiModel,
                 })
             }
+
+            if (!result || !result.blob) {
+                setStatus({ err: 'Formatting returned no data. Please check the backend server is running.' })
+                return
+            }
+
             downloadBlob(result.blob, result.filename)
             
-            let wcMsg = `${result.wordCount?.toLocaleString() || '—'} words`;
-            let wcDiff = file ? null : (sharedManuscript?.wordCount && result.wordCount !== sharedManuscript.wordCount);
-            if (wcDiff) {
-                wcMsg = `${sharedManuscript.wordCount.toLocaleString()} → ${result.wordCount.toLocaleString()} words`;
-            }
+            const wcMsg = `${result.wordCount?.toLocaleString() || '—'} words`;
             
             setStatus({ 
                 ok: `✅ Formatted! ${wcMsg}. Downloaded as ${result.filename}.`, 
                 warnings: [...(result.warnings || []), ...(result.aiFixes || [])]
             })
         } catch (e) {
-            setStatus({ err: e.detail || e.message || 'Formatting failed.' })
+            setStatus({ err: e.detail || e.message || 'Formatting failed. Ensure the backend server is running.' })
         }
     }
 
