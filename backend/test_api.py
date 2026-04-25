@@ -11,7 +11,7 @@ client = TestClient(app)
 
 # Helper for authenticated endpoints
 def get_auth_headers():
-    token = create_access_token("test-user", "test@example.com")
+    token = create_access_token("demo-user-001", "demo@example.com")
     return {"Authorization": f"Bearer {token}"}
 
 def test_health():
