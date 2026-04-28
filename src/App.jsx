@@ -8,7 +8,16 @@ import ErrorBoundary from './components/ErrorBoundary'
 import QuickCapture from './components/QuickCapture/QuickCapture'
 import QuickCaptureInbox from './components/QuickCapture/QuickCaptureInbox'
 import GlobalSearch from './components/GlobalSearch/GlobalSearch'
+import { useEntryGate } from './hooks/useEntryGate'
+import { Navigate } from 'react-router-dom'
 import './App.css'
+
+function LandingGate({ settings, onSettingsClick }) {
+    const { shouldRedirect } = useEntryGate();
+    if (shouldRedirect === null) return null; // loading
+    if (shouldRedirect) return <Navigate to="/app" replace />;
+    return <LandingPage settings={settings} onSettingsClick={onSettingsClick} />;
+}
 
 function App() {
     const [settingsOpen, setSettingsOpen] = useState(false)
@@ -96,7 +105,7 @@ function App() {
                     <Route
                         path="/"
                         element={
-                            <LandingPage
+                            <LandingGate
                                 settings={settings}
                                 onSettingsClick={() => setSettingsOpen(true)}
                             />

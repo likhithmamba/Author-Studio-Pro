@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel
+import hashlib
 from datetime import datetime
 
 from database import get_supabase
@@ -88,6 +89,51 @@ class EditorDataSync(BaseModel):
     timeline_events: Optional[List[Dict[str, Any]]] = None
     research_notes: Optional[List[Dict[str, Any]]] = None
 
+def sanitize_character(c):
+    return {
+        "id": c.get("id"),
+        "project_id": c.get("project_id"),
+        "name": c.get("name") or "Unnamed Character",
+        "role": c.get("role"),
+        "description": c.get("description"),
+        "traits": c.get("traits") or [],
+        "goals": c.get("goals"),
+        "meta": c.get("meta") or {},
+    }
+
+def sanitize_location(l):
+    return {
+        "id": l.get("id"),
+        "project_id": l.get("project_id"),
+        "name": l.get("name") or "Unnamed Location",
+        "description": l.get("description"),
+        "history": l.get("history"),
+        "tags": l.get("tags") or [],
+        "meta": l.get("meta") or {},
+    }
+
+def sanitize_timeline_event(e):
+    return {
+        "id": e.get("id"),
+        "project_id": e.get("project_id"),
+        "title": e.get("title") or "Untitled Event",
+        "description": e.get("description"),
+        "event_date": e.get("event_date"),
+        "sort_order": int(e.get("sort_order") or 0),
+        "meta": e.get("meta") or {},
+    }
+
+def sanitize_research_note(n):
+    return {
+        "id": n.get("id"),
+        "project_id": n.get("project_id"),
+        "title": n.get("title") or "Untitled Note",
+        "content": n.get("content") or "",
+        "url": n.get("url"),
+        "tags": n.get("tags") or [],
+        "meta": n.get("meta") or {},
+    }
+
 @router.post("/api/editor/data/{project_id}", tags=["Editor"])
 async def save_editor_data(request: Request, project_id: str, body: EditorDataSync):
     uid = get_user_id(request)
@@ -100,20 +146,24 @@ async def save_editor_data(request: Request, project_id: str, body: EditorDataSy
             sb.table("scenes").upsert(body.scenes).execute()
             
         if body.characters:
-            for c in body.characters: c["user_id"] = uid; c["project_id"] = project_id
-            sb.table("characters").upsert(body.characters).execute()
+            chars = [sanitize_character(c) for c in body.characters]
+            for c in chars: c["user_id"] = uid; c["project_id"] = project_id
+            sb.table("characters").upsert(chars).execute()
             
         if body.locations:
-            for l in body.locations: l["user_id"] = uid; l["project_id"] = project_id
-            sb.table("locations").upsert(body.locations).execute()
+            locs = [sanitize_location(l) for l in body.locations]
+            for l in locs: l["user_id"] = uid; l["project_id"] = project_id
+            sb.table("locations").upsert(locs).execute()
             
         if body.timeline_events:
-            for t in body.timeline_events: t["user_id"] = uid; t["project_id"] = project_id
-            sb.table("timeline_events").upsert(body.timeline_events).execute()
+            evts = [sanitize_timeline_event(e) for e in body.timeline_events]
+            for e in evts: e["user_id"] = uid; e["project_id"] = project_id
+            sb.table("timeline_events").upsert(evts).execute()
             
         if body.research_notes:
-            for r in body.research_notes: r["user_id"] = uid; r["project_id"] = project_id
-            sb.table("research_notes").upsert(body.research_notes).execute()
+            notes = [sanitize_research_note(n) for n in body.research_notes]
+            for n in notes: n["user_id"] = uid; n["project_id"] = project_id
+            sb.table("research_notes").upsert(notes).execute()
             
         return {"status": "success"}
     except Exception as e:
@@ -262,6 +312,7 @@ async def restore_version(request: Request, scene_id: str, version_id: str):
 
 class ProseAnalysisRequest(BaseModel):
     text: str
+    project_id: Optional[str] = None
 
 @router.post("/api/analysis/prose", tags=["Editor"])
 async def analyse_prose(request: Request, body: ProseAnalysisRequest):
@@ -269,6 +320,17 @@ async def analyse_prose(request: Request, body: ProseAnalysisRequest):
     text = body.text.strip()
     if len(text) < 50:
         return {"error": "Text too short for analysis"}
+        
+    sb = get_supabase()
+    cache_key = ""
+    if sb:
+        cache_key = f"prose:{hashlib.sha256(text.encode('utf-8')).hexdigest()}"
+        try:
+            cached = sb.table("ai_analysis_cache").select("result").eq("cache_key", cache_key).gte("expires_at", datetime.utcnow().isoformat()).execute()
+            if cached.data:
+                return cached.data[0]["result"]
+        except Exception:
+            pass
     
     words = text.split()
     word_count = len(words)
@@ -312,7 +374,7 @@ async def analyse_prose(request: Request, body: ProseAnalysisRequest):
     score = (readability * 0.3 + variety * 0.2 + max(0, 100 - passive_pct * 5) * 0.2 + max(0, 100 - adverb_pct * 8) * 0.15 + min(100, dialogue_ratio * 3) * 0.15)
     grade = "A+" if score >= 90 else "A" if score >= 85 else "A-" if score >= 80 else "B+" if score >= 75 else "B" if score >= 70 else "B-" if score >= 65 else "C+" if score >= 60 else "C" if score >= 55 else "C-"
     
-    return {
+    result = {
         "grade": grade,
         "summary": f"{word_count} words, {sentence_count} sentences. Avg sentence: {avg_sentence_len:.0f} words.",
         "readability": readability,
@@ -326,12 +388,28 @@ async def analyse_prose(request: Request, body: ProseAnalysisRequest):
         "overusedWords": overused,
         "sentenceLengths": sentence_lengths,
     }
+    
+    if sb and cache_key:
+        try:
+            cache_data = {
+                "cache_key": cache_key,
+                "mode": "prose",
+                "result": result
+            }
+            if body.project_id:
+                cache_data["project_id"] = body.project_id
+            sb.table("ai_analysis_cache").upsert(cache_data).execute()
+        except Exception:
+            pass
+
+    return result
 
 # --- AI Assist endpoint for editor ---
 
 class AIAssistRequest(BaseModel):
     mode: str = "critique"
     text: str = ""
+    project_id: Optional[str] = None
 
 @router.post("/api/ai/assist", tags=["Editor"])
 async def ai_assist(request: Request, body: AIAssistRequest):
@@ -340,6 +418,17 @@ async def ai_assist(request: Request, body: AIAssistRequest):
     text = body.text.strip()
     if not text or len(text) < 30:
         return {"feedback": [{"type": "suggest", "icon": "→", "color": "#c9915a", "title": "SUGGESTION", "text": "Write at least a few sentences to get AI feedback."}]}
+        
+    sb = get_supabase()
+    cache_key = ""
+    if sb:
+        cache_key = f"{body.mode}:{hashlib.sha256(text.encode('utf-8')).hexdigest()}"
+        try:
+            cached = sb.table("ai_analysis_cache").select("result").eq("cache_key", cache_key).gte("expires_at", datetime.utcnow().isoformat()).execute()
+            if cached.data:
+                return cached.data[0]["result"]
+        except Exception:
+            pass
     
     sentences = [s.strip() for s in text.replace("!", ".").replace("?", ".").split(".") if s.strip()]
     words = text.split()
@@ -388,8 +477,23 @@ async def ai_assist(request: Request, body: AIAssistRequest):
             "title": "CLEAN PROSE",
             "text": "No major issues detected. Solid writing."
         })
+        
+    result = {"feedback": feedback}
     
-    return {"feedback": feedback}
+    if sb and cache_key:
+        try:
+            cache_data = {
+                "cache_key": cache_key,
+                "mode": body.mode,
+                "result": result
+            }
+            if body.project_id:
+                cache_data["project_id"] = body.project_id
+            sb.table("ai_analysis_cache").upsert(cache_data).execute()
+        except Exception:
+            pass
+            
+    return result
 
 # --- Metadata (Characters, Locations, etc.) ---
 

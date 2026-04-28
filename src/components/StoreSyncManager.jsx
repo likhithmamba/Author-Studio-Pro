@@ -20,27 +20,29 @@ export default function StoreSyncManager() {
     const syncGraph = useStoryStore(state => state.syncGraph)
     const syncManuscript = useStoryStore(state => state.syncManuscript)
 
+    const isSyncing = useStoryStore(state => state.sync.isSyncing)
+
     // Debounced Graph Sync — only when there are actual pending changes
     useEffect(() => {
-        if (!projectId || !token || pendingChanges === 0) return
+        if (!projectId || !token || pendingChanges === 0 || isSyncing) return
 
         const timer = setTimeout(() => {
             syncGraph(token)
         }, 3000)
 
         return () => clearTimeout(timer)
-    }, [projectId, token, pendingChanges, syncGraph])
+    }, [projectId, token, pendingChanges, isSyncing, syncGraph])
 
     // Debounced Manuscript Sync — only when there are actual pending changes
     useEffect(() => {
-        if (!projectId || !token || Object.keys(chapters).length === 0 || pendingChanges === 0) return
+        if (!projectId || !token || Object.keys(chapters).length === 0 || pendingChanges === 0 || isSyncing) return
 
         const timer = setTimeout(() => {
             syncManuscript(token)
         }, 5000) // 5s debounce for heavier manuscript sync
 
         return () => clearTimeout(timer)
-    }, [chapters, chapterOrder, projectId, token, pendingChanges, syncManuscript])
+    }, [chapters, chapterOrder, projectId, token, pendingChanges, isSyncing, syncManuscript])
 
     return null // Invisible background component
 }

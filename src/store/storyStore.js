@@ -17,6 +17,7 @@ export const useStoryStore = create(
     // ─── Chapters (by-id map + ordered list) ──────────────────────────
     chapters: {},
     chapterOrder: [],
+    chapterSceneMap: {}, // chapter_id -> scene_id for the main scene
 
     // ─── Story Graph ──────────────────────────────────────────────────
     nodes: {},
@@ -47,6 +48,8 @@ export const useStoryStore = create(
       status: 'idle',        // 'idle' | 'saving' | 'error'
       lastSaved: null,
       pendingChanges: 0,
+      isSyncing: false,
+      dirtyEntities: new Set(),
     },
 
     isRehydrating: false,
@@ -192,7 +195,7 @@ export const useStoryStore = create(
     
     upsertScene: (scene) => set(state => ({
       scenes: { ...state.scenes, [scene.id]: { ...state.scenes[scene.id], ...scene } },
-      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1, dirtyEntities: new Set([...state.sync.dirtyEntities, 'scenes']) }
     })),
     
     removeScene: (id) => set(state => {
@@ -208,7 +211,7 @@ export const useStoryStore = create(
     
     upsertCharacter: (char) => set(state => ({ 
       characters: { ...state.characters, [char.id]: char },
-      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1, dirtyEntities: new Set([...state.sync.dirtyEntities, 'characters']) }
     })),
     
     removeCharacter: (id) => set(state => {
@@ -224,7 +227,7 @@ export const useStoryStore = create(
     
     upsertLocation: (loc) => set(state => ({ 
       locations: { ...state.locations, [loc.id]: loc },
-      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1, dirtyEntities: new Set([...state.sync.dirtyEntities, 'locations']) }
     })),
     
     removeLocation: (id) => set(state => {
@@ -238,7 +241,7 @@ export const useStoryStore = create(
       const existing = state.timelineEvents.filter(e => e.id !== event.id)
       return { 
         timelineEvents: [...existing, event].sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)),
-        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+        sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1, dirtyEntities: new Set([...state.sync.dirtyEntities, 'timeline_events']) }
       }
     }),
     
@@ -251,7 +254,7 @@ export const useStoryStore = create(
     
     upsertResearchNote: (note) => set(state => ({
       researchNotes: [...state.researchNotes.filter(n => n.id !== note.id), note],
-      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1 }
+      sync: { ...state.sync, pendingChanges: state.sync.pendingChanges + 1, dirtyEntities: new Set([...state.sync.dirtyEntities, 'research_notes']) }
     })),
     
     removeResearchNote: (id) => set(state => ({ 
@@ -265,11 +268,16 @@ export const useStoryStore = create(
       const state = get()
       if (!state.projectId || !token) return
       
-      set(state => ({ sync: { ...state.sync, status: 'saving' } }))
+      set(state => ({ sync: { ...state.sync, status: 'saving', isSyncing: true } }))
       
       try {
         const { saveNodes, saveEdges, saveCharacterState, saveConflictState, saveProgressionMarker, saveEditorData } = await import('../api.js')
+        const { toDbCharacter, toDbLocation, toDbTimelineEvent, toDbResearchNote } = await import('./editorMappers.js')
+        
         const nodes = Object.values(state.nodes)
+        
+        const dirty = state.sync.dirtyEntities
+        const pid = state.projectId
         
         await Promise.all([
           saveNodes(state.projectId, nodes, token),
@@ -278,20 +286,20 @@ export const useStoryStore = create(
           ...Object.values(state.conflictStates).map(c => saveConflictState(c, token)),
           ...state.progressionMarkers.map(p => saveProgressionMarker(p, token)),
           saveEditorData(state.projectId, {
-              scenes: Object.values(state.scenes || {}),
-              characters: Object.values(state.characters || {}),
-              locations: Object.values(state.locations || {}),
-              timeline_events: state.timelineEvents || [],
-              research_notes: state.researchNotes || []
+              scenes: dirty.has('scenes') ? Object.values(state.scenes || {}) : undefined,
+              characters: dirty.has('characters') ? Object.values(state.characters || {}).map(c => toDbCharacter(c, pid)) : undefined,
+              locations: dirty.has('locations') ? Object.values(state.locations || {}).map(l => toDbLocation(l, pid)) : undefined,
+              timeline_events: dirty.has('timeline_events') ? (state.timelineEvents || []).map(e => toDbTimelineEvent(e, pid)) : undefined,
+              research_notes: dirty.has('research_notes') ? (state.researchNotes || []).map(n => toDbResearchNote(n, pid)) : undefined
           }, token)
         ])
         
         set(state => ({ 
-          sync: { ...state.sync, status: 'idle', lastSaved: new Date().toISOString() } 
+          sync: { ...state.sync, status: 'idle', isSyncing: false, pendingChanges: 0, dirtyEntities: new Set(), lastSaved: new Date().toISOString() } 
         }))
       } catch (err) {
         console.error("Graph sync failed:", err)
-        set(state => ({ sync: { ...state.sync, status: 'error' } }))
+        set(state => ({ sync: { ...state.sync, status: 'error', isSyncing: false } }))
       }
     },
 
@@ -352,11 +360,37 @@ export const useStoryStore = create(
           finalChapterOrder = [defaultChId]
         }
         
+        const chapterSceneMap = {}
+        for (const chId of finalChapterOrder) {
+          const mainScene = eData.scenes?.find(s => s.chapter_id === chId && s.title === '__main__')
+          if (mainScene) {
+            chapterSceneMap[chId] = mainScene.id
+          } else {
+            try {
+               const content = finalChapters[chId]?.content || ''
+               const res = await api.createScene({
+                 project_id: projectId,
+                 chapter_id: chId,
+                 title: '__main__',
+                 content: content
+               }, token)
+               if (res && res.id) {
+                 chapterSceneMap[chId] = res.id
+                 scenesById[res.id] = res
+                 sceneOrderArr.push(res.id)
+               }
+            } catch (err) {
+               console.warn("Failed to create __main__ scene:", err)
+            }
+          }
+        }
+        
         set({ 
           nodes: byId, 
           edges: graphData?.edges || [],
           chapters: finalChapters,
           chapterOrder: finalChapterOrder,
+          chapterSceneMap,
           characterStates: charsById,
           conflictStates: confsById,
           progressionMarkers: progMarkers || [],
@@ -390,12 +424,18 @@ export const useStoryStore = create(
       
       try {
         const { saveManuscript } = await import('../api.js')
-        const content = {
-          chapters: state.chapters,
+        // Only saving titles and order now, content is in scenes
+        const chaptersWithoutContent = {}
+        for (const [id, ch] of Object.entries(state.chapters)) {
+           const { content, ...rest } = ch
+           chaptersWithoutContent[id] = rest
+        }
+        const payload = {
+          chapters: chaptersWithoutContent,
           chapterOrder: state.chapterOrder
         }
         
-        await saveManuscript(state.projectId, content, token)
+        await saveManuscript(state.projectId, payload, token)
         
         set(state => ({ 
           sync: { ...state.sync, status: 'idle', lastSaved: new Date().toISOString() } 

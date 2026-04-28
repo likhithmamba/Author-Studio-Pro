@@ -84,15 +84,16 @@ export function AuthProvider({ children }) {
         setUser(null)
         setSubscription(null)
         localStorage.removeItem('asp_token')
+        localStorage.removeItem('asp_entered_app')
     }
 
     return (
         <AuthContext.Provider value={{
             user,
             token,
-            subscription: subscription || { status: 'active', plan: 'Pro (Unlocked)' },
+            subscription,
             loading,
-            isSubscribed: true,
+            isSubscribed,
             register,
             login,
             logout,

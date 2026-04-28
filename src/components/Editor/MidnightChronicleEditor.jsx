@@ -308,24 +308,21 @@ const useVersionHistory = (sceneId) => {
 /** POST /api/format-text → DOCX Blob */
 const useExport = () => {
   const [exporting, setExporting] = useState(false);
-  
-  const doExport = useCallback(async (projectId, format, options) => {
+  const doExport = useCallback(async (projectId, format) => {
     setExporting(true);
     try {
       const state = useStoryStore.getState();
       const chapters = [];
-      
       const chScenes = Object.values(state.scenes || {}).reduce((acc, sc) => {
         if (!acc[sc.chapter_id]) acc[sc.chapter_id] = [];
         acc[sc.chapter_id].push(sc);
         return acc;
       }, {});
-
+      
       state.chapterOrder.forEach(cid => {
         const ch = state.chapters[cid];
         if (!ch) return;
         const paragraphs = [];
-        
         if (ch.content) {
           paragraphs.push(...ch.content.split('\n').filter(p => p.trim()));
         } else {
@@ -334,36 +331,30 @@ const useExport = () => {
             if (sc.content) {
               paragraphs.push(...sc.content.split('\n').filter(p => p.trim()));
             }
-            if (idx < scList.length - 1) paragraphs.push("***"); // Scene break
+            if (idx < scList.length - 1) paragraphs.push("***");
           });
         }
-        
-        chapters.push({
-          title: ch.title || "Chapter",
-          paragraphs
-        });
+        chapters.push({ title: ch.title || "Chapter", paragraphs });
       });
 
       const payload = {
         author: "Author",
         title: state.projectTitle || "Untitled Novel",
-        template_key: format || "us_standard",
+        templateKey: format || "us_standard",
         overrides: {},
         chapters
       };
 
-      const { fetchBlob } = await import('../../api');
-      const { blob } = await fetchBlob('/format-text', { 
-          method: "POST", 
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload) 
-      }); 
-      return URL.createObjectURL(blob); 
+      const { formatText } = await import('../../api');
+      const { blob, filename } = await formatText(payload);
+      return { url: URL.createObjectURL(blob), filename };
+    } catch (e) { 
+      console.error("Export error:", e); 
+      return null; 
+    } finally { 
+      setExporting(false); 
     }
-    catch (e) { console.error("Export error:", e); return null; } 
-    finally { setExporting(false); }
   }, []);
-  
   return { exporting, doExport };
 };
 
@@ -732,8 +723,9 @@ const WritingCanvas = ({ activeScene }) => {
 
   // Hooks — use scene ID if available, chapter ID as fallback
   const saveTargetId = activeScene || activeChapterId;
-  const { saving }      = useAutoSave(scene ? activeScene : null, content);
-  const { sessionTime } = useWritingSession("00000000-0000-0000-0000-000000000001");
+  const projectId = useStoryStore(s => s.projectId) || "local_draft";
+  const { saving }      = useAutoSave(saveTargetId, content);
+  const { sessionTime } = useWritingSession(projectId);
   const { words, chars, paras } = useWordCount(content);
   const findState       = useFind(content, setContent);
 
@@ -1146,12 +1138,14 @@ const InspectorPanel = ({ activeScene }) => {
         )}
 
         {/* AI EDITOR */}
-        {tab === "ai" && (
+        {tab === "ai" && (() => {
+          const contentText = activeScene ? scenes[activeScene]?.content || '' : '';
+          return (
           <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 11 }}>
             <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>AI DEVELOPMENTAL EDITOR</div>
             <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
               {["Critique","Expand","Rewrite","Pacing","Dialogue"].map(m => (
-                <button key={m} style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${m === "Critique" ? T.accent : T.border}`, background: m === "Critique" ? T.accentSoft : "transparent", color: m === "Critique" ? T.accent : T.textMuted, fontSize: 9, fontFamily: T.fontUI, cursor: "pointer" }}>{m}</button>
+                <button key={m} onClick={() => getAssist(m.toLowerCase(), contentText)} style={{ padding: "3px 9px", borderRadius: 20, border: `1px solid ${T.border}`, background: "transparent", color: T.textMuted, fontSize: 9, fontFamily: T.fontUI, cursor: "pointer" }}>{m}</button>
               ))}
             </div>
             {feedback.map((item, i) => (
@@ -1170,7 +1164,8 @@ const InspectorPanel = ({ activeScene }) => {
               </button>
             ))}
           </div>
-        )}
+          );
+        })()}
 
         {/* NOTES */}
         {tab === "notes" && (
@@ -1212,7 +1207,7 @@ const InspectorPanel = ({ activeScene }) => {
         {/* THINK */}
         {tab === "think" && (
           <ThinkingPanel 
-            projectId="00000000-0000-0000-0000-000000000001" 
+            projectId={useStoryStore(s => s.projectId) || "local_draft"} 
             width={248} 
             open={true} 
             onToggleOpen={() => {}} 
@@ -1296,7 +1291,24 @@ const CorkboardView = () => {
             </div>
             );
           })}
-          <div style={{ width: 200, minHeight: 140, background: "transparent", border: `2px dashed ${T.border}`, borderRadius: T.rSm, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: T.textDim, flexDirection: "column", gap: 8 }}>
+          <div onClick={async () => {
+            const pid = useStoryStore.getState().projectId;
+            const token = localStorage.getItem('asp_token');
+            if (!pid || !selCh) return;
+            try {
+              const { createScene } = await import('../../api.js');
+              const res = await createScene({
+                project_id: pid,
+                chapter_id: selCh,
+                title: "New Scene"
+              }, token);
+              if (res && res.id) {
+                useStoryStore.getState().upsertScene(res);
+                const so = useStoryStore.getState().sceneOrder || [];
+                useStoryStore.setState({ sceneOrder: [...so, res.id] });
+              }
+            } catch (err) { console.error("Error creating scene:", err); }
+          }} style={{ width: 200, minHeight: 140, background: "transparent", border: `2px dashed ${T.border}`, borderRadius: T.rSm, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: T.textDim, flexDirection: "column", gap: 8 }}>
             <Ico n="plus" s={20} c={T.textDim} /><span style={{ fontSize: 11, fontFamily: T.fontUI }}>Add Scene</span>
           </div>
         </div>
@@ -1630,11 +1642,11 @@ const ExportView = () => {
           <button onClick={async () => {
             const pid = useStoryStore.getState().projectId;
             if (!pid) return;
-            const url = await doExport(pid, fmt, {});
-            if (url) {
+            const res = await doExport(pid, fmt);
+            if (res && res.url) {
               const a = document.createElement("a");
-              a.href = url;
-              a.download = `Manuscript_${pid}.docx`; // fallback download name
+              a.href = res.url;
+              a.download = res.filename || `Manuscript_${pid}.docx`;
               a.click();
             }
           }} disabled={exporting || !useStoryStore.getState().projectId} style={{ padding: "13px 0", borderRadius: T.r, border: `1px solid ${T.accent}55`, background: exporting ? T.surface : `linear-gradient(135deg,${T.accentSoft},${T.accentGlow})`, color: exporting ? T.textMuted : T.accent, cursor: exporting ? "not-allowed" : "pointer", fontFamily: T.fontUI, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
