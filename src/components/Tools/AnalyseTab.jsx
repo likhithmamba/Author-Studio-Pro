@@ -69,7 +69,8 @@ export default function AnalyseTab({ apiKey, aiModel, hasKey, currentProjectId }
             saveManuscript({ 
                 filename: file.name, 
                 parsed, 
-                wordCount: parsed.totalWords 
+                wordCount: parsed.totalWords,
+                file // Added to store binary for AI query later
             }).catch(() => {});
         }
 

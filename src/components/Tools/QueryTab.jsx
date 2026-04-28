@@ -3,7 +3,7 @@ import { HiOutlineEnvelope } from 'react-icons/hi2'
 import { generateQueryManual, generateQueryAI, downloadBlob } from '../../api.js'
 import { scoreQuery } from '../../utils/queryScorer.js'
 import { GENRES } from './constants.jsx'
-import { saveManuscript, loadManuscript } from '../../utils/localCache.js'
+import { saveManuscript, loadManuscript, loadManuscriptFile } from '../../utils/localCache.js'
 import { parseDocx } from '../../utils/docxParser.js'
 import { TabPanel, Field, AIToggle, RunButton, StatusBox, FileDrop } from './SharedUI.jsx'
 
@@ -110,44 +110,59 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
             setStatus({ err: 'Please upload a manuscript file for AI generation.' }); return
         }
 
-        const hasStoryContent =
-            (form.synopsis_plot || '').trim().length > 50 ||
-            (form.protagonist.trim() && form.central_conflict.trim() && form.stakes.trim())
+        // In AI mode, story content is extracted FROM the manuscript by AI.
+        // Only enforce story content requirement for Manual mode.
+        if (!useAI || !hasKey) {
+            const hasStoryContent =
+                (form.synopsis_plot || '').trim().length > 50 ||
+                (form.protagonist.trim() && form.central_conflict.trim() && form.stakes.trim())
 
-        if (!hasStoryContent) {
-            setStatus({
-                err: 'Add your synopsis (50+ words) or fill in Protagonist, Central Conflict, and Stakes before generating. Without story content the query letter cannot be personalised to your book.'
-            })
-            return
+            if (!hasStoryContent) {
+                setStatus({
+                    err: 'Add your synopsis (50+ words) or fill in Protagonist, Central Conflict, and Stakes before generating. Without story content the query letter cannot be personalised to your book.'
+                })
+                return
+            }
         }
 
         setStatus('loading')
         setQueryScore(null)
         try {
             if (useAI && hasKey) {
+                // Determine the file to send — must be a real .docx
                 let activeFile = file;
                 if (!activeFile && sharedManuscript) {
-                    // Use cached parsed data directly or re-create Blob if needed
+                    // Try to retrieve the original .docx from local cache
+                    try {
+                        activeFile = await loadManuscriptFile();
+                    } catch {
+                        // Fall through — will error below
+                    }
                 }
-                
+
+                if (!activeFile) {
+                    setStatus({ err: 'No manuscript file available. Please upload your .docx file to use AI mode.' });
+                    return;
+                }
+
                 if (file) {
                     const parsed = await parseDocx(file);
-                    saveManuscript({ filename: file.name, parsed, wordCount: parsed.totalWords }).catch(()=>{});
+                    saveManuscript({ filename: file.name, parsed, wordCount: parsed.totalWords, file }).catch(() => { });
                 }
 
                 const result = await generateQueryAI({
-                    file: file || new Blob([sharedManuscript?.parsed?.rawText || ''], { type: 'text/plain' }),
+                    file: activeFile,
                     payload: { ...form, aiModel, word_count: parseInt(form.word_count) || 0 }
                 })
                 downloadBlob(result.blob, result.filename)
-                setStatus({ ok: `✅ AI Package generated! Downloaded as ${result.filename}.`, downloaded: true })
+                setStatus({ ok: `\u2705 AI Package generated! Downloaded as ${result.filename}.`, downloaded: true })
             } else {
                 const result = await generateQueryManual({
                     ...form,
                     word_count: parseInt(form.word_count) || 0,
                 })
                 downloadBlob(result.blob, result.filename)
-                setStatus({ ok: `✅ Package generated! Downloaded as ${result.filename}.`, downloaded: true })
+                setStatus({ ok: `\u2705 Package generated! Downloaded as ${result.filename}.`, downloaded: true })
             }
         } catch (e) {
             setStatus({ err: e.detail || e.message || 'Query generation failed.' })
@@ -198,7 +213,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                     {sharedManuscript && !file && (
                         <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
                             📌 Using previously uploaded: <strong>{sharedManuscript.filename}</strong>
-                            <button 
+                            <button
                                 onClick={() => { setSharedManuscript(null); setFile(null); }}
                                 style={{ marginLeft: '1rem', color: 'var(--accent-rose)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                             >
@@ -289,7 +304,7 @@ export default function QueryTab({ apiKey, aiModel, hasKey }) {
                 </button>
             </div>
             <StatusBox status={status} onClear={() => setStatus(null)} />
-            
+
             {status?.downloaded && (
                 <details className="status-box success" style={{ marginTop: '1rem', cursor: 'pointer' }}>
                     <summary style={{ fontWeight: 600 }}>Before sending your downloaded package...</summary>

@@ -127,16 +127,45 @@ export async function clearProjectCache(projectId) {
 
 // ─── Shared Manuscript ───────────────────────────────────────────────────────
 export async function saveManuscript(data) {
-    // data: { filename, parsed, wordCount, lastUploaded }
-    await safeSet('shared_manuscript', { 
-        ...data, 
-        lastUploaded: new Date().toISOString() 
-    });
+    // data: { filename, parsed, wordCount, file? (File object) }
+    const toStore = {
+        filename: data.filename,
+        parsed: data.parsed,
+        wordCount: data.wordCount,
+        lastUploaded: new Date().toISOString(),
+    };
+    // Store the original .docx binary so AI query can send a real .docx later
+    if (data.file && data.file instanceof File) {
+        try {
+            toStore.fileBuffer = await data.file.arrayBuffer();
+            toStore.fileType = data.file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } catch {
+            // Can't read file — store without binary
+        }
+    }
+    await safeSet('shared_manuscript', toStore);
 }
 
 export async function loadManuscript() {
     const cached = await safeGet('shared_manuscript');
     return cached || null;
+}
+
+/**
+ * Retrieve the original .docx File from IndexedDB cache.
+ * Returns a File object suitable for FormData upload, or null.
+ */
+export async function loadManuscriptFile() {
+    const cached = await safeGet('shared_manuscript');
+    if (!cached || !cached.fileBuffer) return null;
+    try {
+        const blob = new Blob([cached.fileBuffer], {
+            type: cached.fileType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+        return new File([blob], cached.filename || 'manuscript.docx', { type: blob.type });
+    } catch {
+        return null;
+    }
 }
 
 // ─── Cache Size ─────────────────────────────────────────────────────────────

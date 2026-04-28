@@ -376,6 +376,7 @@ Respond ONLY with valid JSON. No prose outside the JSON."""
         return result or {}
 
     def _call_api(self, user_prompt: str) -> Optional[Dict]:
+        """Call the AI API. Raises RuntimeError on any failure — never silently returns None."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -388,20 +389,38 @@ Respond ONLY with valid JSON. No prose outside the JSON."""
                 {"role": "system", "content": self.SYSTEM_PROMPT},
                 {"role": "user",   "content": user_prompt},
             ],
-            "max_tokens": 900,
+            "max_tokens": 2000,
             "temperature": 0.3,
         }
         try:
             resp = requests.post(OPENROUTER_URL, headers=headers,
                                  json=payload, timeout=REQUEST_TIMEOUT)
             resp.raise_for_status()
-            raw = resp.json()["choices"][0]["message"]["content"].strip()
+            body = resp.json()
+            if not body.get("choices"):
+                raise RuntimeError(f"AI API returned no choices. Response: {str(body)[:300]}")
+            raw = body["choices"][0]["message"]["content"].strip()
+            if not raw:
+                raise RuntimeError("AI API returned an empty response.")
             raw = re.sub(r"^```(?:json)?\s*", "", raw)
             raw = re.sub(r"\s*```$", "", raw).strip()
-            return json.loads(raw)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as je:
+                raise RuntimeError(
+                    f"AI returned invalid JSON (likely truncated). "
+                    f"Parse error: {je}. Raw excerpt: {raw[:200]}..."
+                )
+        except RuntimeError:
+            raise
+        except requests.exceptions.Timeout:
+            raise RuntimeError(
+                f"AI API timed out after {REQUEST_TIMEOUT}s. Try again or use a faster model."
+            )
+        except requests.exceptions.HTTPError as he:
+            raise RuntimeError(f"AI API HTTP error: {he}")
         except Exception as e:
-            print(f"[AIAnalyst] API call failed: {e}")
-            return None
+            raise RuntimeError(f"AI API call failed: {e}")
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -423,23 +442,32 @@ def run_ai_analysis(
     opening_section, midpoint_section, closing_section = sampler.extract_sections(parsed)
 
     # Analyse each section (3 API calls maximum)
+    # These now raise RuntimeError on API failure instead of returning None
     opening_analysis  = analyst.analyse_section(opening_section,  genre=genre)
+    if not opening_analysis:
+        raise RuntimeError("AI failed to analyse the opening section of the manuscript.")
     time.sleep(0.5)
 
     midpoint_analysis = None
     if midpoint_section:
         midpoint_analysis = analyst.analyse_section(midpoint_section, genre=genre)
+        if not midpoint_analysis:
+            raise RuntimeError("AI failed to analyse the midpoint section of the manuscript.")
         time.sleep(0.5)
 
     closing_analysis = None
     if closing_section:
         closing_analysis = analyst.analyse_section(closing_section, genre=genre)
+        if not closing_analysis:
+            raise RuntimeError("AI failed to analyse the closing section of the manuscript.")
         time.sleep(0.5)
 
     # Synthesise cross-manuscript (1 API call)
     synthesis = analyst.synthesise_cross_manuscript(
         opening_analysis, midpoint_analysis, closing_analysis, genre=genre
     )
+    if not synthesis:
+        raise RuntimeError("AI failed to generate the cross-manuscript synthesis.")
 
     report = AIManuscriptReport(
         opening_analysis=opening_analysis,

@@ -3,34 +3,41 @@ import { HiOutlineEnvelope, HiOutlineScale, HiOutlineGlobeAlt, HiOutlineClipboar
 import { useStoryStore } from '../../../store/storyStore';
 import { generateQueryAI, downloadBlob } from '../../../api'; 
 import { useAuth } from '../../../contexts/AuthContext';
+import { loadManuscriptFile } from '../../../utils/localCache';
 
 export default function StrategistTab({ projectId }) {
     const [subTab, setSubTab] = useState('query'); // 'query' | 'market' | 'tracker'
     const { projectTitle, chapters, chapterOrder } = useStoryStore();
     const { token } = useAuth();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState(null);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
+        setError(null);
         try {
-            // Build text blob from chapters
-            const orderedChapters = Object.values(chapters).sort((a,b) => a.order - b.order);
-            const textContent = orderedChapters.map(c => `${c.title || 'Chapter'}\n${c.content || ''}`).join('\n\n');
-            const file = new File([textContent || 'Blank Manuscript'], 'manuscript.txt', { type: 'text/plain' });
+            // Try to retrieve the original .docx from cache
+            const cachedFile = await loadManuscriptFile();
+            if (!cachedFile) {
+                setError('No .docx manuscript found in cache. Please upload your manuscript in the Publishing Tools → Query tab first, then return here.');
+                return;
+            }
+
+            const totalWords = Object.values(chapters).reduce((s, c) => s + (c.wordCount || 0), 0);
 
             const payload = {
                 title: projectTitle || 'Untitled',
-                author_name: 'Author Name', // Would come from settings ideally
-                word_count: Object.values(chapters).reduce((s,c)=>s+(c.wordCount || 0), 0)
+                author_name: 'Author', // Placeholder — user should set in Query tab
+                word_count: totalWords,
             };
 
-            const res = await generateQueryAI({ file, payload });
+            const res = await generateQueryAI({ file: cachedFile, payload });
             if (res && res.blob) {
                 downloadBlob(res.blob, res.filename);
             }
         } catch (e) {
             console.error(e);
-            alert("Failed to generate query package.");
+            setError(e.detail || e.message || 'AI query generation failed. Please try again.');
         } finally {
             setIsGenerating(false);
         }
@@ -67,9 +74,18 @@ export default function StrategistTab({ projectId }) {
                     >
                         {isGenerating ? '⏳ Generating AI Package...' : '🚀 Generate Query Package'}
                     </button>
+
+                    {error && (
+                        <div style={{ 
+                            fontSize: '11px', color: '#f87171', background: 'rgba(248,113,113,0.08)',
+                            padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(248,113,113,0.2)'
+                        }}>
+                            ⚠️ {error}
+                        </div>
+                    )}
                     
                     <div style={{ fontSize: '10px', opacity: 0.4, fontStyle: 'italic' }}>
-                        AI will draft your synopsis and query based on your character nodes and plot threads.
+                        Upload your .docx manuscript in Publishing Tools → Query tab first. AI reads the actual manuscript to draft your synopsis and query letter.
                     </div>
                 </div>
             )}

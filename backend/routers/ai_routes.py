@@ -377,6 +377,125 @@ async def query_ai(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# QUERY — AI mode (from text/browser state)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class QueryTextRequest(BaseModel):
+    raw_text: str
+    chapters: list
+    total_words: int
+    title: str
+    author_name: str
+    genre: str = "literary_fiction"
+    api_key: str = ""
+    ai_model: str = "mistralai/mistral-7b-instruct:free"
+    
+    # Optional fields
+    series_note: str = ""
+    email: str = ""
+    phone: str = ""
+    address: str = ""
+    bio_credits: str = ""
+    comp_override_1: str = ""
+    comp_override_2: str = ""
+
+@router.post("/api/query/ai-text", tags=["Query"])
+@limiter.limit("5/minute")
+async def query_ai_text(request: Request, body: QueryTextRequest, _auth=Depends(require_api_key)):
+    """
+    AI query generation directly from text state (used by Strategist Tab / Editor).
+    """
+    if not body.raw_text or not body.raw_text.strip():
+        raise HTTPException(400, "raw_text must be non-empty")
+    if len(body.raw_text) > 500_000:
+        raise HTTPException(400, "Text too large. Maximum 500,000 characters.")
+    if not body.api_key:
+        raise HTTPException(400, "api_key is required for AI mode")
+    if not body.title or not body.author_name:
+        raise HTTPException(400, "title and author_name are required")
+
+    m = _mods()
+    GENRES = m["GENRES"]
+    genre = body.genre if body.genre in GENRES else "literary_fiction"
+    genre_name = GENRES[genre].name
+
+    try:
+        from parser import ParsedParagraph, PARA_CHAPTER, PARA_BODY
+        parsed = []
+        for ch in body.chapters:
+            ch_title = ch.get("title", "Chapter")
+            paragraphs = ch.get("paragraphs", [])
+            parsed.append(ParsedParagraph(
+                index=len(parsed), raw=ch_title, cleaned=ch_title,
+                ptype=PARA_CHAPTER, issues=[]
+            ))
+            for para in paragraphs:
+                cl = para.strip()
+                if cl:
+                    parsed.append(ParsedParagraph(
+                        index=len(parsed), raw=para, cleaned=cl,
+                        ptype=PARA_BODY, issues=[]
+                    ))
+
+        if not parsed:
+            raise HTTPException(400, "No paragraphs could be parsed from the text.")
+
+        generated = m["run_ai_query_generation"](
+            parsed=parsed,
+            api_key=san(body.api_key, 500),
+            model=san(body.ai_model, 200),
+            author_name=san(body.author_name, 200),
+            title=san(body.title, 300),
+            genre=genre_name,
+            word_count=body.total_words,
+            series_note=san(body.series_note, 300),
+            email=san(body.email, 200),
+            phone=san(body.phone, 100),
+            address=san(body.address, 300),
+            bio_credits=san(body.bio_credits, 2000),
+            comp_override_1=san(body.comp_override_1, 200),
+            comp_override_2=san(body.comp_override_2, 200),
+        )
+
+        zip_bytes = m["QueryLetterBuilder"]().build_submission_package(
+            title=san(body.title, 300),
+            author_name=san(body.author_name, 200),
+            genre=genre_name,
+            word_count=body.total_words,
+            series_note=san(body.series_note, 300),
+            query_letter_text=generated.query_letter_draft or "",
+            synopsis_text=generated.synopsis_draft or "",
+            email=san(body.email, 200),
+            phone=san(body.phone, 100),
+            address=san(body.address, 300),
+            include_back_matter=True,
+        )
+
+        safe = re.sub(r"[^\w\s-]", "", body.title).strip().replace(" ", "_")[:50]
+        intelligence = json.dumps({
+            "protagonist_summary": (generated.protagonist_summary or "")[:200],
+            "genre_detected":   generated.genre_detected,
+            "tone_detected":    generated.tone_detected,
+            "ai_powered":       generated.ai_powered,
+            "model_used":       generated.model_used,
+            "warnings":         generated.warnings,
+        })
+
+        return StreamingResponse(
+            io.BytesIO(zip_bytes),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe}_AI_submission_package.zip"',
+                "X-Story-Intelligence": intelligence,
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"AI text-query error: {str(e)}")
+        raise HTTPException(500, f"AI query generation failed: {str(e)[:200]}")
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ANALYSE-TEXT — accepts JSON text (not file upload)
 # Browser extracts text via mammoth.js, sends only text to backend.
 # ═══════════════════════════════════════════════════════════════════════════════

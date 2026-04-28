@@ -159,6 +159,27 @@ export async function generateQueryAI({ file, payload }) {
     }
 }
 
+// ─── Query — AI (from Text) ───────────────────────────────────────────────
+export async function generateQueryAIText(payload) {
+    const localKey = loadApiKey(getDeviceFingerprint()) || ''
+    const updatedPayload = { ...payload, api_key: localKey }
+
+    const { blob, headers } = await fetchBlob('/query/ai-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPayload)
+    })
+    
+    let storyIntelligence = null
+    try { storyIntelligence = JSON.parse(headers.get('x-story-intelligence') || 'null') } catch { }
+
+    return {
+        blob,
+        filename: _extractFilename(headers, 'AI_submission_package.zip'),
+        storyIntelligence,
+    }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function _extractFilename(headers, fallback = 'download') {
     const cd = headers.get('content-disposition') || ''

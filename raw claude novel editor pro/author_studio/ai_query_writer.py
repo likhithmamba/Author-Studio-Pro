@@ -223,7 +223,10 @@ Based on ONLY what you can read from this manuscript, provide a JSON object with
 Be specific. Use the actual character names, settings, and events from the manuscript.
 Do not invent details that are not in the text."""
 
-        return self._call_api(user_prompt) or {}
+        result = self._call_api(user_prompt)
+        if not result or not isinstance(result, dict):
+            raise RuntimeError("AI failed to extract story intelligence. The API returned empty or invalid JSON.")
+        return result
 
     # ── Call 2: Synopsis Draft ────────────────────────────────────────────────
 
@@ -372,6 +375,7 @@ The letter should be ready to send after personalising only the agent's name."""
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _call_api(self, user_prompt: str) -> Optional[Dict]:
+        """Call the AI API. Raises RuntimeError on any failure — never silently returns None."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -384,20 +388,40 @@ The letter should be ready to send after personalising only the agent's name."""
                 {"role": "system", "content": self.SYSTEM_PROMPT},
                 {"role": "user",   "content": user_prompt},
             ],
-            "max_tokens": 1000,
+            "max_tokens": 2500,
             "temperature": 0.4,
         }
         try:
             resp = requests.post(OPENROUTER_URL, headers=headers,
                                  json=payload, timeout=REQUEST_TIMEOUT)
             resp.raise_for_status()
-            raw = resp.json()["choices"][0]["message"]["content"].strip()
+            body = resp.json()
+            if not body.get("choices"):
+                raise RuntimeError(f"AI API returned no choices. Response: {str(body)[:300]}")
+            raw = body["choices"][0]["message"]["content"].strip()
+            if not raw:
+                raise RuntimeError("AI API returned an empty response.")
+            # Strip markdown code fences if present
             raw = re.sub(r"^```(?:json)?\s*", "", raw)
             raw = re.sub(r"\s*```$", "", raw).strip()
-            return json.loads(raw)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as je:
+                raise RuntimeError(
+                    f"AI returned text that is not valid JSON (likely truncated due to token limit). "
+                    f"Parse error: {je}. Raw excerpt: {raw[:200]}..."
+                )
+        except RuntimeError:
+            raise  # re-raise our own errors
+        except requests.exceptions.Timeout:
+            raise RuntimeError(
+                f"AI API timed out after {REQUEST_TIMEOUT}s. "
+                f"Try again or use a faster model."
+            )
+        except requests.exceptions.HTTPError as he:
+            raise RuntimeError(f"AI API HTTP error: {he}")
         except Exception as e:
-            print(f"[AIQueryWriter] API call failed: {e}")
-            return None
+            raise RuntimeError(f"AI API call failed: {e}")
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -440,18 +464,20 @@ def run_ai_query_generation(
     )
     time.sleep(0.5)
 
-    if story_intel:
-        content.hook_sentence       = story_intel.get("hook_sentence") or ""
-        content.plot_paragraph      = story_intel.get("plot_paragraph") or ""
-        content.theme_sentence      = story_intel.get("theme_sentence") or ""
-        p_name = story_intel.get("protagonist_name") or ""
-        p_trait = story_intel.get("protagonist_trait") or ""
-        content.protagonist_summary = f"{p_name} — {p_trait}" if p_name or p_trait else ""
-        content.central_conflict    = story_intel.get("central_conflict") or ""
-        content.stakes              = story_intel.get("stakes") or ""
-        content.comp_suggestions    = story_intel.get("comp_suggestions") or []
-        content.genre_detected      = story_intel.get("genre_confirmed") or genre
-        content.tone_detected       = story_intel.get("tone_detected") or ""
+    if not story_intel or not isinstance(story_intel, dict):
+        raise RuntimeError("AI API failed to generate story intelligence — returned empty or invalid data.")
+    
+    content.hook_sentence       = story_intel.get("hook_sentence") or ""
+    content.plot_paragraph      = story_intel.get("plot_paragraph") or ""
+    content.theme_sentence      = story_intel.get("theme_sentence") or ""
+    p_name = story_intel.get("protagonist_name") or ""
+    p_trait = story_intel.get("protagonist_trait") or ""
+    content.protagonist_summary = f"{p_name} — {p_trait}" if p_name or p_trait else ""
+    content.central_conflict    = story_intel.get("central_conflict") or ""
+    content.stakes              = story_intel.get("stakes") or ""
+    content.comp_suggestions    = story_intel.get("comp_suggestions") or []
+    content.genre_detected      = story_intel.get("genre_confirmed") or genre
+    content.tone_detected       = story_intel.get("tone_detected") or ""
 
     # Call 2: synopsis
     synopsis = writer.generate_synopsis_draft(
@@ -462,6 +488,8 @@ def run_ai_query_generation(
         genre=genre,
     )
     time.sleep(0.5)
+    if not synopsis or len(synopsis.strip()) < 50:
+        raise RuntimeError("AI failed to generate a synopsis draft — response was empty or too short.")
     content.synopsis_draft = synopsis
 
     # Call 3: complete query letter
@@ -479,6 +507,9 @@ def run_ai_query_generation(
         comp_override_1=comp_override_1,
         comp_override_2=comp_override_2,
     )
+    if not query_letter:
+        raise RuntimeError("AI API failed to generate the complete query letter.")
+    
     content.query_letter_draft = query_letter
 
     return content
