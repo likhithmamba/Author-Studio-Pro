@@ -25,8 +25,23 @@ const KANBAN_COLUMNS = [
 const LS_KEY = 'asp_submissions'
 
 function processDuplicates(subs) {
+    // ⚡ Bolt Optimization: O(N) duplicate detection
+    // Replace O(N^2) filter nested in map with an O(N) frequency map
+    const nameCounts = {};
+    for (const s of subs) {
+        if (s.agentName) {
+            const normalized = s.agentName.toLowerCase().trim();
+            nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
+        }
+    }
+
     return subs.map(s => {
-        const isDuplicate = subs.filter(other => other.id !== s.id && other.agentName && other.agentName.toLowerCase().trim() === (s.agentName || '').toLowerCase().trim()).length > 0;
+        let isDuplicate = false;
+        if (s.agentName) {
+            const normalized = s.agentName.toLowerCase().trim();
+            isDuplicate = nameCounts[normalized] > 1;
+        }
+
         let daysSince = null;
         let isOverdue = false;
         if (s.dateSent && ['Queried', 'Requested', 'Full Sent'].includes(s.status)) {
