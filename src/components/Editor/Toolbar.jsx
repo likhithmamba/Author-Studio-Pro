@@ -71,13 +71,13 @@ export default function Toolbar({
             <div className="editor-toolbar-inner">
                 {/* Formatting */}
                 <div className="editor-tb-group">
-                    <button className={`editor-tb-btn ${editor.isActive('bold') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
+                    <button className={`editor-tb-btn ${editor.isActive('bold') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold" aria-label="Bold">
                         <strong>B</strong>
                     </button>
-                    <button className={`editor-tb-btn ${editor.isActive('italic') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
+                    <button className={`editor-tb-btn ${editor.isActive('italic') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic" aria-label="Italic">
                         <em>I</em>
                     </button>
-                    <button className={`editor-tb-btn ${editor.isActive('strike') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleStrike?.().run()} title="Strikethrough">
+                    <button className={`editor-tb-btn ${editor.isActive('strike') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleStrike?.().run()} title="Strikethrough" aria-label="Strikethrough">
                         <s>S</s>
                     </button>
                 </div>
@@ -86,10 +86,10 @@ export default function Toolbar({
 
                 {/* Structure */}
                 <div className="editor-tb-group">
-                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 1 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">H1</button>
-                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 2 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">H2</button>
-                    <button className={`editor-tb-btn ${editor.isActive('blockquote') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Blockquote">"</button>
-                    <button className="editor-tb-btn" onClick={insertSceneBreak} title="Scene break">⁂</button>
+                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 1 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1" aria-label="Heading 1">H1</button>
+                    <button className={`editor-tb-btn ${editor.isActive('heading', { level: 2 }) ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2" aria-label="Heading 2">H2</button>
+                    <button className={`editor-tb-btn ${editor.isActive('blockquote') ? 'active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Blockquote" aria-label="Blockquote">"</button>
+                    <button className="editor-tb-btn" onClick={insertSceneBreak} title="Scene break" aria-label="Insert scene break">⁂</button>
                 </div>
 
                 <div className="editor-tb-divider" />
@@ -124,11 +124,11 @@ export default function Toolbar({
 
                 {/* Modes */}
                 <div className="editor-tb-group">
-                    <button className={`editor-tb-btn ${focusMode ? 'active' : ''}`} onClick={onToggleFocus} title="Focus mode (double-Esc to exit)">
+                    <button className={`editor-tb-btn ${focusMode ? 'active' : ''}`} onClick={onToggleFocus} title="Focus mode (double-Esc to exit)" aria-label="Toggle focus mode">
                         Focus
                     </button>
                     {window.innerWidth >= 768 && (
-                        <button className={`editor-tb-btn ${typewriterMode ? 'active' : ''}`} onClick={onToggleTypewriter} title="Typewriter scroll">
+                        <button className={`editor-tb-btn ${typewriterMode ? 'active' : ''}`} onClick={onToggleTypewriter} title="Typewriter scroll" aria-label="Toggle typewriter scroll">
                             Typewriter
                         </button>
                     )}
