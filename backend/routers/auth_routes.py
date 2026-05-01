@@ -1,5 +1,6 @@
 import os
 import logging
+import hmac
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, EmailStr
 
@@ -38,7 +39,9 @@ def get_current_user(request: Request) -> dict:
         raise HTTPException(401, "Invalid or expired token")
     user_id = payload["sub"]
     # Synthetic demo user — not stored in DB
-    if user_id == "00000000-0000-0000-0000-000000000000":
+    is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if is_mock and env != "production" and user_id == "00000000-0000-0000-0000-000000000000":
         return {
             "id": "00000000-0000-0000-0000-000000000000",
             "email": payload.get("email", "demo@example.com"),
@@ -96,9 +99,18 @@ async def login(request: Request, body: LoginRequest):
     
     # Developer Mock Auth Bypass
     is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
-    is_demo = email == "demo@example.com" and body.password == "password123"
+    env = os.getenv("ENVIRONMENT", "development").lower()
 
-    if is_mock and is_demo:
+    mock_email = os.getenv("MOCK_DEMO_EMAIL", "demo@example.com")
+    mock_password = os.getenv("MOCK_DEMO_PASSWORD", "password123")
+
+    # mitigate timing attacks with hmac.compare_digest
+    is_demo = (
+        hmac.compare_digest(email.encode("utf-8"), mock_email.encode("utf-8")) and
+        hmac.compare_digest(body.password.encode("utf-8"), mock_password.encode("utf-8"))
+    )
+
+    if is_mock and env != "production" and is_demo:
         # Provide a synthetic user so downstream code never sees None
         if not user:
             user = {
@@ -123,7 +135,7 @@ async def login(request: Request, body: LoginRequest):
         },
         "subscription": {
             "plan": sub["plan"] if sub else "free",
-            "status": "active" if (is_mock and is_demo) else (sub["status"] if sub else "none"),
+            "status": "active" if (is_mock and env != "production" and is_demo) else (sub["status"] if sub else "none"),
             "expires_at": sub.get("expires_at") if sub else None,
         },
     }

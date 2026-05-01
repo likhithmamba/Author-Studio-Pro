@@ -13,6 +13,10 @@ def get_supabase() -> Client:
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
         is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
+        env = os.getenv("ENVIRONMENT", "development").lower()
+
+        # mock mode is disabled in production
+        is_mock = is_mock and env != "production"
 
         if not (url and key) and not is_mock:
             raise RuntimeError(
@@ -45,13 +49,14 @@ def create_user(email: str, password_hash: str) -> dict:
 
 def get_user_by_email(email: str) -> Optional[dict]:
     """Fetch a user by email. Returns None if not found."""
-    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
-        if email.lower() == "demo@example.com":
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true" and env != "production":
+        mock_email = os.getenv("MOCK_DEMO_EMAIL", "demo@example.com").lower()
+        if email.lower() == mock_email:
             return {
                 "id": "00000000-0000-0000-0000-000000000000",
-                "email": "demo@example.com",
-                # bcrypt hash of 'password123'
-                "password_hash": "$2b$12$rmoaMSqN5lT2OPA1gddlUMOmGG6xHYgwXWthXeiOROibsGzU",
+                "email": mock_email,
+                "password_hash": os.getenv("MOCK_DEMO_PASSWORD_HASH", "$2b$12$rmoaMSqN5lT2OPA1gddlUMOmGG6xHYgwXWthXeiOROibsGzU"),
                 "created_at": "2024-01-01T00:00:00Z"
             }
 
@@ -63,11 +68,12 @@ def get_user_by_email(email: str) -> Optional[dict]:
 
 def get_user_by_id(user_id: str) -> Optional[dict]:
     """Fetch a user by UUID."""
-    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true" and env != "production":
         if user_id == "00000000-0000-0000-0000-000000000000":
             return {
                 "id": "00000000-0000-0000-0000-000000000000",
-                "email": "demo@example.com",
+                "email": os.getenv("MOCK_DEMO_EMAIL", "demo@example.com"),
                 "created_at": "2024-01-01T00:00:00Z"
             }
 
@@ -105,7 +111,8 @@ def create_subscription(
 
 def get_active_subscription(user_id: str) -> Optional[dict]:
     """Get the active subscription for a user (if any)."""
-    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true":
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true" and env != "production":
         if user_id == "00000000-0000-0000-0000-000000000000":
             return {
                 "id": "mock-sub-id",
