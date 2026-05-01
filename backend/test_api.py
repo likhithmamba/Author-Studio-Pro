@@ -1,3 +1,4 @@
+import os
 import pytest
 import json
 import io
@@ -6,6 +7,9 @@ from fastapi.testclient import TestClient
 from main import app
 from unittest.mock import patch, MagicMock
 from auth import create_access_token
+
+# Force the environment to use mock auth so the tests that rely on the demo user ID will pass
+os.environ["DEVELOPER_MOCK_AUTH"] = "true"
 
 client = TestClient(app)
 
