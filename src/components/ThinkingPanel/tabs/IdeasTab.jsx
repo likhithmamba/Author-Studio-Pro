@@ -200,10 +200,10 @@ export default function IdeasTab({ projectId }) {
                     <HiOutlinePlus /> New Card
                 </button>
                 <div style={{ flex: 1 }} />
-                <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer' }}><HiOutlineMagnifyingGlassMinus /></button>
+                <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer' }} title="Zoom Out" aria-label="Zoom Out"><HiOutlineMagnifyingGlassMinus /></button>
                 <span style={{ color: '#6b6560', fontSize: '12px', minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(z => Math.min(3, z + 0.1))} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer' }}><HiOutlineMagnifyingGlassPlus /></button>
-                <button onClick={fitAll} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer', marginLeft: '8px' }} title="Fit All"><HiOutlineArrowsPointingOut /></button>
+                <button onClick={() => setZoom(z => Math.min(3, z + 0.1))} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer' }} title="Zoom In" aria-label="Zoom In"><HiOutlineMagnifyingGlassPlus /></button>
+                <button onClick={fitAll} style={{ background:'none', border:'none', color:'#6b6560', cursor:'pointer', marginLeft: '8px' }} title="Fit All" aria-label="Fit All"><HiOutlineArrowsPointingOut /></button>
             </div>
 
             {/* Canvas */}
@@ -307,7 +307,7 @@ export default function IdeasTab({ projectId }) {
                 }}>
                     <div style={{ display: 'flex', gap: '4px', padding: '8px' }}>
                         {['white', 'yellow', 'blue', 'green', 'red', 'purple'].map(c => (
-                            <button key={c} onClick={() => changeCardColor(contextMenu.cardId, c)} style={{
+                            <button key={c} onClick={() => changeCardColor(contextMenu.cardId, c)} title={`Set card color to ${c}`} aria-label={`Set card color to ${c}`} style={{
                                 width: '16px', height: '16px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)',
                                 background: {white: '#2e2e2e', yellow: '#3d3200', blue: '#002a3d', green: '#0a2e1a', red: '#3d0a0a', purple: '#1e0a3d'}[c],
                                 cursor: 'pointer'
