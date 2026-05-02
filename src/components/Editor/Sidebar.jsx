@@ -86,7 +86,7 @@ export default function Sidebar({
     if (collapsed) {
         return (
             <div className="editor-sidebar collapsed">
-                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Expand sidebar" style={{ marginTop: '1rem' }}>
+                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Expand sidebar" aria-label="Expand sidebar" style={{ marginTop: '1rem' }}>
                     <HiOutlineChevronRight />
                 </button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center', marginTop: '2rem' }}>
@@ -112,7 +112,7 @@ export default function Sidebar({
         <div className="editor-sidebar">
             <div className="sidebar-header">
                 <h3 className="sidebar-title">Manuscript</h3>
-                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Collapse sidebar" style={{ background: 'none', color: 'var(--text-muted)' }}>
+                <button className="sidebar-toggle" onClick={onToggleCollapse} title="Collapse sidebar" aria-label="Collapse sidebar" style={{ background: 'none', color: 'var(--text-muted)' }}>
                     <HiOutlineChevronLeft />
                 </button>
             </div>
