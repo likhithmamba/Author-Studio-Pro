@@ -84,17 +84,49 @@ export default function SubmissionTab() {
 
     useEffect(() => { saveSubmissions(submissions) }, [submissions])
 
+    const groupedSubmissions = useMemo(() => {
+        // ⚡ Bolt: Pre-group submissions to avoid O(N * C) filters during render
+        // This makes Kanban column rendering O(1) instead of O(N), preventing
+        // jank and blocking during drag-and-drop operations with many items.
+        const groups = {};
+        for (const col of KANBAN_COLUMNS) {
+            groups[col.id] = [];
+        }
+        for (const s of submissions) {
+            const col = KANBAN_COLUMNS.find(c => c.statuses.includes(s.status));
+            if (col) {
+                groups[col.id].push(s);
+            }
+        }
+        return groups;
+    }, [submissions]);
+
     const stats = useMemo(() => {
-        const total = submissions.length
-        const pending = submissions.filter(s => ['Queried', 'Requested', 'Full Sent'].includes(s.status)).length
-        const rejected = submissions.filter(s => s.status === 'Rejected').length
-        const offers = submissions.filter(s => s.status === 'Offer').length
-        const avgDays = submissions
-            .filter(s => s.responseDate && s.dateSent)
-            .map(s => (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24))
-        const avgResponseDays = avgDays.length > 0 ? Math.round(avgDays.reduce((a, b) => a + b, 0) / avgDays.length) : 0
-        return { total, pending, rejected, offers, avgResponseDays }
-    }, [submissions])
+        // ⚡ Bolt: Consolidated 4 O(N) filters and maps into a single O(N) loop
+        // Reduces array traversals and prevents intermediate array allocations,
+        // speeding up re-renders when the submissions list changes.
+        const total = submissions.length;
+        let pending = 0, rejected = 0, offers = 0;
+        let sumDays = 0, countDays = 0;
+
+        for (const s of submissions) {
+            if (s.status === 'Queried' || s.status === 'Requested' || s.status === 'Full Sent') {
+                pending++;
+            } else if (s.status === 'Rejected') {
+                rejected++;
+            } else if (s.status === 'Offer') {
+                offers++;
+            }
+
+            if (s.responseDate && s.dateSent) {
+                sumDays += (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24);
+                countDays++;
+            }
+        }
+
+        const avgResponseDays = countDays > 0 ? Math.round(sumDays / countDays) : 0;
+        return { total, pending, rejected, offers, avgResponseDays };
+    }, [submissions]);
 
     const handleAdd = () => {
         if (!form.agentName) { setStatus({ err: 'Agent name is required.' }); return }
@@ -277,11 +309,11 @@ export default function SubmissionTab() {
                                 }}
                             >
                                 <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>
-                                    {col.title} ({submissions.filter(c => col.statuses.includes(c.status)).length})
+                                    {col.title} ({groupedSubmissions[col.id]?.length || 0})
                                 </h3>
     
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {submissions.filter(c => col.statuses.includes(c.status)).map(card => (
+                                    {(groupedSubmissions[col.id] || []).map(card => (
                                         <div 
                                             key={card.id}
                                             draggable
