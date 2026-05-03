@@ -51,6 +51,7 @@ export default function ThinkingPanel({
                 borderLeft: '1px solid #2a2a2a'
             }}>
                 <button
+                    aria-label="Expand Thinking Panel"
                     onClick={() => onToggleOpen(true)}
                     style={{
                         position: 'absolute',
@@ -101,6 +102,7 @@ export default function ThinkingPanel({
             overflow: 'hidden'
         }}>
             <button
+                aria-label="Collapse Thinking Panel"
                 onClick={() => onToggleOpen(false)}
                 style={{
                     position: 'absolute',
