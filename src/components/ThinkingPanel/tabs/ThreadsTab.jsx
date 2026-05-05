@@ -23,6 +23,19 @@ export default function ThreadsTab({ projectId }) {
         { id: 'resolved', title: 'RESOLVED' }
     ];
 
+    // ⚡ Bolt: Group thread cards by column for faster rendering
+    // Eliminates repeated O(N) array filtering within the O(C) columns render loop
+    // by using a single O(N) pre-computed grouping map.
+    const columnsData = React.useMemo(() => {
+        const grouped = { todo: [], in_progress: [], resolved: [] };
+        for (const card of cards) {
+            if (grouped[card.status]) {
+                grouped[card.status].push(card);
+            }
+        }
+        return grouped;
+    }, [cards]);
+
     const handleDragStart = (e, id) => {
         setDraggingId(id);
         e.dataTransfer.setData('text/plain', id);
@@ -129,7 +142,7 @@ export default function ThreadsTab({ projectId }) {
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {cards.filter(c => c.status === col.id).map(card => (
+                        {columnsData[col.id]?.map(card => (
                             <div 
                                 key={card.id}
                                 draggable

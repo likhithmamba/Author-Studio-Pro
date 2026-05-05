@@ -85,16 +85,47 @@ export default function SubmissionTab() {
     useEffect(() => { saveSubmissions(submissions) }, [submissions])
 
     const stats = useMemo(() => {
-        const total = submissions.length
-        const pending = submissions.filter(s => ['Queried', 'Requested', 'Full Sent'].includes(s.status)).length
-        const rejected = submissions.filter(s => s.status === 'Rejected').length
-        const offers = submissions.filter(s => s.status === 'Offer').length
-        const avgDays = submissions
-            .filter(s => s.responseDate && s.dateSent)
-            .map(s => (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24))
-        const avgResponseDays = avgDays.length > 0 ? Math.round(avgDays.reduce((a, b) => a + b, 0) / avgDays.length) : 0
-        return { total, pending, rejected, offers, avgResponseDays }
+        // ⚡ Bolt: Optimize submission stats and grouping
+        // Loop fusion: calculating all stats in a single O(N) pass instead of 4 iterations.
+        let pending = 0;
+        let rejected = 0;
+        let offers = 0;
+        let totalDays = 0;
+        let validResponseCount = 0;
+
+        for (const s of submissions) {
+            if (['Queried', 'Requested', 'Full Sent'].includes(s.status)) pending++;
+            else if (s.status === 'Rejected') rejected++;
+            else if (s.status === 'Offer') offers++;
+
+            if (s.responseDate && s.dateSent) {
+                totalDays += (new Date(s.responseDate) - new Date(s.dateSent)) / 86400000;
+                validResponseCount++;
+            }
+        }
+
+        const avgResponseDays = validResponseCount > 0 ? Math.round(totalDays / validResponseCount) : 0;
+        return { total: submissions.length, pending, rejected, offers, avgResponseDays };
     }, [submissions])
+
+    // ⚡ Bolt: Group submissions by column for faster rendering
+    // Replaces repeated array iterations during the render loop (filter)
+    // with a single pre-calculated map, reducing operations from O(columns * N) to O(N)
+    const columnsData = useMemo(() => {
+        const grouped = {};
+        for (const col of KANBAN_COLUMNS) {
+            grouped[col.id] = [];
+        }
+        for (const sub of submissions) {
+            for (const col of KANBAN_COLUMNS) {
+                if (col.statuses.includes(sub.status)) {
+                    grouped[col.id].push(sub);
+                    break;
+                }
+            }
+        }
+        return grouped;
+    }, [submissions]);
 
     const handleAdd = () => {
         if (!form.agentName) { setStatus({ err: 'Agent name is required.' }); return }
@@ -277,11 +308,11 @@ export default function SubmissionTab() {
                                 }}
                             >
                                 <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>
-                                    {col.title} ({submissions.filter(c => col.statuses.includes(c.status)).length})
+                                    {col.title} ({columnsData[col.id]?.length || 0})
                                 </h3>
     
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {submissions.filter(c => col.statuses.includes(c.status)).map(card => (
+                                    {(columnsData[col.id] || []).map(card => (
                                         <div 
                                             key={card.id}
                                             draggable
