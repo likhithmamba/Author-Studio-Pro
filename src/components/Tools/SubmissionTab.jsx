@@ -296,7 +296,7 @@ export default function SubmissionTab() {
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                 <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{card.agentName}</div>
-                                                <button onClick={() => handleDelete(card.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.5 }}>
+                                                <button onClick={() => handleDelete(card.id)} aria-label="Delete submission" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.5 }}>
                                                     <HiOutlineTrash />
                                                 </button>
                                             </div>
@@ -384,7 +384,7 @@ export default function SubmissionTab() {
                                         </td>
                                         <td style={{ padding: '0.6rem 0.5rem', opacity: 0.7 }}>{sub.responseDate || '—'}</td>
                                         <td style={{ padding: '0.6rem 0.5rem' }}>
-                                            <button onClick={() => handleDelete(sub.id)} style={{
+                                            <button onClick={() => handleDelete(sub.id)} aria-label="Delete submission" style={{
                                                 background: 'none', border: 'none', color: '#ef4444',
                                                 cursor: 'pointer', opacity: 0.6, fontSize: '1rem',
                                             }}>
