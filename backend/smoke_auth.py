@@ -1,5 +1,5 @@
 """
-Author Studio Pro — Backend Health Check
+Inkforge — Backend Health Check
 Run this BEFORE testing in the browser to confirm everything works.
 Usage: python test_auth.py
 """
@@ -28,7 +28,7 @@ def test(name, fn):
         return False
 
 print(f"\n{BOLD}{'='*50}", flush=True)
-print(" Author Studio Pro — Backend Health Check", flush=True)
+print(" Inkforge — Backend Health Check", flush=True)
 print(f"{'='*50}{RESET}\n", flush=True)
 
 all_ok = True

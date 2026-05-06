@@ -40,7 +40,7 @@ CRITICAL
 1400+ line monolith; dual editor state; stale closures
 Sources: Original Audit (v4.0) + Codex Gap Analysis + Studio Reality Check — All findings merged
 0. Executive Summary
-Three independent analyses (v4.0 audit, Codex gap review, and Studio tool reality check) converge on the same critical finding: Author Studio Pro has solid endpoint and hook foundations, but the data pipeline between UI state and the database is structurally broken for half the Studio tools. The app compiles and runs, but Characters, Worldbuilding, Timeline, and Research create frontend objects whose field names do not match the database schema — meaning every sync call either silently drops data or overwrites with defaults.
+Three independent analyses (v4.0 audit, Codex gap review, and Studio tool reality check) converge on the same critical finding: Inkforge has solid endpoint and hook foundations, but the data pipeline between UI state and the database is structurally broken for half the Studio tools. The app compiles and runs, but Characters, Worldbuilding, Timeline, and Research create frontend objects whose field names do not match the database schema — meaning every sync call either silently drops data or overwrites with defaults.
 The core architecture problem is a missing enforcement layer: there is no canonical mapper between UI model and DB model for most entities. This, combined with raw object upserts, no transaction boundaries, a runtime export bug, a hardcoded subscription bypass, and a placeholder AI assist endpoint, means the app cannot be considered production-safe in its current state.
 Category
 Finding
@@ -90,7 +90,7 @@ MOCK
 Storage
 Supabase + localStorage
 PARTIAL
-localStorage key asp_editor_project never set; device fingerprint key may be lost on clear
+localStorage key inkforge_editor_project never set; device fingerprint key may be lost on clear
 1.2 Integration Connection Map
 Legend: WIRED = frontend calls exist and connect to working backend. PARTIAL = one side exists. BROKEN = call exists but fails at runtime. NONE = UI exists, no backend call.
 UI Component
@@ -584,7 +584,7 @@ updateChapterContent saves to manuscripts table (JSON blob). Backend source of t
 HIGH
 BUG-12
 QuickCapture.jsx
-projectId reads from localStorage key 'asp_editor_project' which is never set anywhere. projectId is always null. All captures are project-less orphans; cannot be filtered or queried per project.
+projectId reads from localStorage key 'inkforge_editor_project' which is never set anywhere. projectId is always null. All captures are project-less orphans; cannot be filtered or queried per project.
 HIGH
 BUG-13
 InspectorPanel (versions tab)
@@ -1066,7 +1066,7 @@ QUICKCAPTURE FIX (BUG-12):
 Replace the broken localStorage read in handleSave():
 
 // REMOVE:
-const raw = localStorage.getItem('asp_editor_project');
+const raw = localStorage.getItem('inkforge_editor_project');
 if (raw) projectId = JSON.parse(raw).id;
 
 // REPLACE WITH:
@@ -1333,4 +1333,4 @@ QuickCapture: Save note → check DB → project_id is set to current project
 Kill network mid-session → offline draft survives; reconnect → syncs without data loss
 Burst typing 60 seconds → check StoreSyncManager logs → max 1 sync per 3 second debounce window
 Same AI prompt twice → second call returns cached result; zero LLM API calls on repeat
-Author Studio Pro — v5.0 Consolidated Audit Report — April 2026 — Confidential
+Inkforge — v5.0 Consolidated Audit Report — April 2026 — Confidential

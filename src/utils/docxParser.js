@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Browser-side DOCX parser using mammoth.js.
+ * Inkforge — Browser-side DOCX parser using mammoth.js.
  * Extracts text, detects chapter headings, returns structured data.
  * The .docx binary never goes to the backend — only extracted text does.
  */

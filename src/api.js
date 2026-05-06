@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — API Service Layer
+ * Inkforge — API Service Layer
  * All backend calls go through this module.
  * Implements request signing, error normalisation, and response caching.
  */
@@ -504,6 +504,10 @@ export async function updateTimelineEvent(id, data, token) {
 }
 export async function deleteTimelineEventAPI(id, token) {
     return fetchJSON(`/timeline/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
+}
+
+export async function fetchStreak(token) {
+    return fetchJSON('/sessions/streak', { headers: _authHeaders(token) })
 }
 
 export async function saveResearchNote(data, token) {

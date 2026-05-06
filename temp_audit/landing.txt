@@ -93,7 +93,7 @@ opacity: 0.015;
 Additionally: all section backgrounds alternate between --bg-base and --bg-alt to create visual breathing room without using hard borders.
 §3  SIGNATURE ELEMENT — FLOATING MANUSCRIPT SPINE
 This is the one thing users must remember. If this is not implemented, the page has no identity.
-Replace every generic floating card, hero illustration, or placeholder screenshot with the Floating Manuscript Spine. This is the signature visual that becomes Author Studio Pro's brand identity on first visit.
+Replace every generic floating card, hero illustration, or placeholder screenshot with the Floating Manuscript Spine. This is the signature visual that becomes Inkforge's brand identity on first visit.
 What It Is
 A stack of slightly angled book spines rendered in CSS/SVG (no image asset required), where each spine represents one module of the product. The spines float independently using staggered vertical sine-wave animation, giving them organic movement.
 The Six Spines
@@ -255,7 +255,7 @@ A 'Download Template' ghost button appears on hover
 5.7  Comparison Table — Aggressive, Not Polite
 Stop being diplomatic about competitors. Name the weaknesses directly.
 Feature
-Author Studio Pro
+Inkforge
 Scrivener
 Atticus
 Dabble
@@ -294,7 +294,7 @@ From ₹0 / month
 One-time ₹7,500+
 ₹4,000/yr
 ₹2,500/yr
-Author Studio Pro column: gold header, #FFFBF4 cell background, gold-dark text for values
+Inkforge column: gold header, #FFFBF4 cell background, gold-dark text for values
 Competitor weakness cells: rendered in --text-muted with italic styling
 Table extends 12px beyond right container edge (deliberate bleed — editorial signature)
 5.8  Pricing — Feel Expensive, Not Cheap
@@ -379,12 +379,12 @@ Once a user enters the app, they must never be returned here automatically. This
 7.1  Visibility Rules
 The landing page renders ONLY when BOTH of these conditions are true simultaneously:
 The user has NO valid Supabase session  (await supabase.auth.getSession() returns null)
-localStorage does NOT contain the key  asp_entered_app  with value  'true'
+localStorage does NOT contain the key  inkforge_entered_app  with value  'true'
 If EITHER condition is false, navigate to /app immediately. Use React Router navigate() — never window.location.href.
 7.2  Gate Check Implementation
 // App.jsx — / route guard
 const { data: { session } } = await supabase.auth.getSession();
-const hasEntered = localStorage.getItem('asp_entered_app') === 'true';
+const hasEntered = localStorage.getItem('inkforge_entered_app') === 'true';
 if (session || hasEntered) {
   return <Navigate to="/app" replace />;
 }
@@ -392,14 +392,14 @@ return <LandingPage />;
 7.3  CTA Click Handler
 // Inside LandingPage.jsx  — handleEnter()
 const handleEnter = () => {
-  localStorage.setItem('asp_entered_app', 'true');
+  localStorage.setItem('inkforge_entered_app', 'true');
   navigate('/app');
 };
 7.4  Logout Handler  (extend existing AuthContext)
 // AuthContext.jsx  — extend logout()
 const logout = async () => {
   await supabase.auth.signOut();
-  localStorage.removeItem('asp_entered_app');
+  localStorage.removeItem('inkforge_entered_app');
   navigate('/');
 };
 7.5  Route Map
@@ -418,7 +418,7 @@ export function useEntryGate() {
   const [shouldRedirect, setShouldRedirect] = useState(null);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const entered = localStorage.getItem('asp_entered_app') === 'true';
+      const entered = localStorage.getItem('inkforge_entered_app') === 'true';
       setShouldRedirect(!!session || entered);
     });
   }, []);
@@ -519,5 +519,5 @@ AuthModal opens on Sign In click and closes correctly on successful auth
 No console errors on fresh load in Chromium and Firefox
 No 404s for static assets or imported modules
 API health ping fires on app mount (not on landing page load)
-Author Studio Pro  ·  Landing Page Implementation Brief  ·  Rev 2.0  ·  ImperialX
+Inkforge  ·  Landing Page Implementation Brief  ·  Rev 2.0  ·  ImperialX
 github.com/likhithmamba  ·  Likhith Mamba

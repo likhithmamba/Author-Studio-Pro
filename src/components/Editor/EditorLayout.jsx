@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Editor Layout v3
+ * Inkforge — Editor Layout v3
  * Container connecting Sidebar, NovelEditor, ThinkingPanel.
  * Clean three-panel layout. No modals — formatting is in Publishing Tools.
  */

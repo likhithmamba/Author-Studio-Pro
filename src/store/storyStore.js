@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Zustand State Store
+ * Inkforge — Zustand State Store
  * Single runtime source of truth for chapters, story nodes, edges, and sync status.
  * WritingSystemContext continues to handle UI state (panel open/closed, active tab, etc.)
  */
@@ -54,9 +54,46 @@ export const useStoryStore = create(
 
     isRehydrating: false,
 
+    // ─── Intelligence Analysis State ──────────────────────────────
+    analysis: {
+      status: 'idle',        // 'idle' | 'running' | 'complete' | 'error'
+      lastRun: null,
+      result: null,          // Output from ssoOrchestrator.runLocalAnalysis
+      healthScore: null,
+    },
+
+    // ─── Writing Goals ────────────────────────────────────────────────
+    streak: 0,
+
     // ─── Actions ──────────────────────────────────────────────────────
 
     setProject: (id, title) => set({ projectId: id, projectTitle: title }),
+
+    // ─── Intelligence Pipeline ────────────────────────────────────
+    runAnalysis: () => {
+      const state = get()
+      if (!state.projectId || state.chapterOrder.length === 0) return
+
+      set(s => ({ analysis: { ...s.analysis, status: 'running' } }))
+
+      try {
+        // Dynamic import to avoid circular deps and keep bundle split
+        import('../utils/ssoOrchestrator.js').then(({ runLocalAnalysis }) => {
+          const result = runLocalAnalysis(state)
+          set(s => ({
+            analysis: {
+              status: 'complete',
+              lastRun: new Date().toISOString(),
+              result,
+              healthScore: result.healthScore,
+            }
+          }))
+        })
+      } catch (err) {
+        console.error('Analysis pipeline error:', err)
+        set(s => ({ analysis: { ...s.analysis, status: 'error' } }))
+      }
+    },
 
     loadChapters: (chapters) => {
       const byId = {}
@@ -108,6 +145,68 @@ export const useStoryStore = create(
           [id]: { ...state.chapters[id], title }
         }
       })),
+
+    loadStreak: async () => {
+      try {
+        const { fetchStreak } = await import('../api');
+        const token = localStorage.getItem('inkforge_token');
+        const data = await fetchStreak(token);
+        if (data && typeof data.streak === 'number') {
+          set({ streak: data.streak });
+        }
+      } catch (e) {
+        console.error("Failed to load streak", e);
+      }
+    },
+
+    applyTemplate: async (templateId) => {
+      try {
+        const { default: tpl } = await import(`../data/templates/${templateId}.json`);
+        const chapters = tpl.chapters || [];
+        const state = get();
+        
+        const newChapters = { ...state.chapters };
+        const newChapterOrder = [...state.chapterOrder];
+        const newScenes = { ...state.scenes };
+        
+        let lastChapterId = null;
+        
+        chapters.forEach((ch, idx) => {
+          const id = `ch_${Date.now()}_${idx}`;
+          const scId = `sc_${Date.now()}_${idx}`;
+          
+          newChapters[id] = { id, title: ch.title, content: '', wordCount: 0, order: newChapterOrder.length };
+          newChapterOrder.push(id);
+          lastChapterId = id;
+          
+          newScenes[scId] = {
+            id: scId,
+            chapter_id: id,
+            title: ch.title,
+            content: `**${ch.title}**\n\n${ch.description}\n`,
+            position: 0
+          };
+        });
+        
+        set({
+          chapters: newChapters,
+          chapterOrder: newChapterOrder,
+          scenes: newScenes,
+          editor: { ...state.editor, activeChapterId: lastChapterId || state.editor.activeChapterId }
+        });
+        
+        // Ensure changes are synced
+        set(s => {
+            const dirty = new Set(s.sync.dirtyEntities);
+            dirty.add('chapters');
+            dirty.add('scenes');
+            return { sync: { ...s.sync, pendingChanges: s.sync.pendingChanges + 1, dirtyEntities: dirty } };
+        });
+        
+      } catch (err) {
+        console.error("Failed to load template", err);
+      }
+    },
 
     // ─── Story Graph Actions ──────────────────────────────────────────
 
@@ -286,7 +385,7 @@ export const useStoryStore = create(
           ...Object.values(state.conflictStates).map(c => saveConflictState(c, token)),
           ...state.progressionMarkers.map(p => saveProgressionMarker(p, token)),
           saveEditorData(state.projectId, {
-              scenes: dirty.has('scenes') ? Object.values(state.scenes || {}) : undefined,
+              scenes: dirty.has('scenes') ? Object.values(state.scenes || {}).map(s => { const { content, ...meta } = s; return meta; }) : undefined,
               characters: dirty.has('characters') ? Object.values(state.characters || {}).map(c => toDbCharacter(c, pid)) : undefined,
               locations: dirty.has('locations') ? Object.values(state.locations || {}).map(l => toDbLocation(l, pid)) : undefined,
               timeline_events: dirty.has('timeline_events') ? (state.timelineEvents || []).map(e => toDbTimelineEvent(e, pid)) : undefined,

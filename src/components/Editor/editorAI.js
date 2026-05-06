@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Editor AI utility.
+ * Inkforge — Editor AI utility.
  * AI writing assists: continue scene, rewrite paragraph, suggest names.
  */
 

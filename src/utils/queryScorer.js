@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Query Letter Confidence Scorer.
+ * Inkforge — Query Letter Confidence Scorer.
  * 5-dimension scoring with actionable feedback. No competitor has this.
  */
 

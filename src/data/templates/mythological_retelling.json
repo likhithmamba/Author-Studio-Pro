@@ -1,0 +1,55 @@
+{
+  "id": "mythological_retelling",
+  "name": "Mythological Retelling",
+  "description": "A structured 12-chapter template for modern retellings of Indian epics.",
+  "chapters": [
+    {
+      "title": "The Divine Prophecy",
+      "description": "Introduce the protagonist's ordinary life and the subtle signs of their true destiny."
+    },
+    {
+      "title": "The Call of Dharma",
+      "description": "A crisis disrupts the status quo, forcing the protagonist to choose between duty and desire."
+    },
+    {
+      "title": "The Guru's Ashram",
+      "description": "The protagonist seeks out a mentor or begins training, learning ancient truths."
+    },
+    {
+      "title": "The Rival's Shadow",
+      "description": "Introduction of the antagonist or a bitter rivalry that will define the conflict."
+    },
+    {
+      "title": "The Cosmic Weapon",
+      "description": "Acquiring a significant tool, blessing, or realization (the Astra)."
+    },
+    {
+      "title": "The Assembly of Allies",
+      "description": "Gathering companions, each representing different facets of Indian society or mythology."
+    },
+    {
+      "title": "The Illusion of Maya",
+      "description": "A major deception or betrayal that throws the protagonist off their path."
+    },
+    {
+      "title": "The Exile",
+      "description": "A period of isolation, reflection, and suffering."
+    },
+    {
+      "title": "The Righteous Anger",
+      "description": "The turning point where the protagonist resolves to fight back, embracing their destiny."
+    },
+    {
+      "title": "The Battlefield",
+      "description": "The grand confrontation between dharma and adharma."
+    },
+    {
+      "title": "The Sacrifice",
+      "description": "A heavy price is paid for victory; a moral ambiguity is explored."
+    },
+    {
+      "title": "The Ascent",
+      "description": "Resolution and the restoration of cosmic order."
+    }
+  ]
+}

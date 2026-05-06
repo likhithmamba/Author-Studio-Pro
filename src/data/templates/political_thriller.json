@@ -1,0 +1,55 @@
+{
+  "id": "political_thriller",
+  "name": "Indian Political Thriller",
+  "description": "Machiavellian schemes, elections, and power struggles in Delhi or state capitals.",
+  "chapters": [
+    {
+      "title": "The Power Broker",
+      "description": "Behind-the-scenes dealing; introducing the corrupt but brilliant politician."
+    },
+    {
+      "title": "The Assassination/Scandal",
+      "description": "A major event that creates a power vacuum."
+    },
+    {
+      "title": "The Idealist",
+      "description": "Introduction of the clean protagonist entering the dirty game."
+    },
+    {
+      "title": "The Coalition",
+      "description": "Making unsavory alliances to survive the immediate threat."
+    },
+    {
+      "title": "The Media Trial",
+      "description": "A targeted smear campaign; fighting the narrative."
+    },
+    {
+      "title": "The Riot/Protest",
+      "description": "Engineered chaos to swing public opinion."
+    },
+    {
+      "title": "The Betrayal of the Mentor",
+      "description": "The idealist realizes their patron is the real mastermind."
+    },
+    {
+      "title": "The Counter-Strike",
+      "description": "Using dirty tricks for a 'good' cause; crossing the moral line."
+    },
+    {
+      "title": "The Election Day",
+      "description": "Tension, booth capturing, and manipulating the numbers."
+    },
+    {
+      "title": "The Floor Test",
+      "description": "The climax in the assembly; horse-trading and last-minute flips."
+    },
+    {
+      "title": "The Swearing-In",
+      "description": "Victory, but at what cost?"
+    },
+    {
+      "title": "The Cycle Continues",
+      "description": "The idealist has become the very thing they fought against."
+    }
+  ]
+}

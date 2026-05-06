@@ -156,10 +156,6 @@ async def format_manuscript(
         if ov.get("spacing"): tpl.line_spacing  = ov["spacing"]
         if ov.get("page"):    tpl.page_size     = ov["page"]
 
-        # Build formatted doc
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
-            out = f.name
-
         # Extra AI Metadata
         learned_scene_break = None
         first_para_markers = []
@@ -170,21 +166,31 @@ async def format_manuscript(
             first_para_markers = getattr(pat, 'first_para_markers', [])
             chapter_epigraph_markers = getattr(pat, 'chapter_epigraph_markers', [])
 
-        # NovelFormatter(template, author, title, word_count)
-        fmt = m["NovelFormatter"](
-            tpl, 
-            author=author, 
-            title=title, 
-            word_count=word_count,
-            learned_scene_break=learned_scene_break,
-            first_para_markers=first_para_markers,
-            chapter_epigraph_markers=chapter_epigraph_markers
-        )
-        # .build(paragraphs, output_path) → (output_path, warnings, ai_fixes)
-        _, warnings, ai_fixes = fmt.build(parsed, out)
+        if template_key == "pratilipi":
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+                out = f.name
+            fmt = m["PratilipiFormatter"](author=author, title=title, word_count=word_count)
+            _, warnings, ai_fixes = fmt.build(parsed, out)
+            media_type = "text/plain"
+            filename_suffix = "pratilipi.txt"
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
+                out = f.name
+            fmt = m["NovelFormatter"](
+                tpl, 
+                author=author, 
+                title=title, 
+                word_count=word_count,
+                learned_scene_break=learned_scene_break,
+                first_para_markers=first_para_markers,
+                chapter_epigraph_markers=chapter_epigraph_markers
+            )
+            _, warnings, ai_fixes = fmt.build(parsed, out)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            filename_suffix = f"{template_key}_formatted.docx"
 
         safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:50]
-        filename   = f"{safe_title}_{template_key}_formatted.docx"
+        filename   = f"{safe_title}_{filename_suffix}"
 
         with open(out, "rb") as f:
             content = f.read()
@@ -194,7 +200,7 @@ async def format_manuscript(
 
         return StreamingResponse(
             io.BytesIO(content),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            media_type=media_type,
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
                 "X-Word-Count":        str(word_count),
@@ -251,31 +257,40 @@ async def format_text(request: Request, bg: BackgroundTasks, body: FormatTextReq
         if ov.get("spacing"): tpl.line_spacing  = ov["spacing"]
         if ov.get("page"):    tpl.page_size     = ov["page"]
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
-            out = f.name
-
-        # Calculate word count for cover page
-        word_count = sum(len(p.cleaned.split()) for p in parsed if p.ptype == PARA_BODY)
-        
         # Extra AI Metadata
         learned_scene_break = None
         first_para_markers = []
         chapter_epigraph_markers = []
         # If ai feature is needed for text format, pass them here. For now, empty.
 
-        fmt = m["NovelFormatter"](
-            tpl, 
-            author=author, 
-            title=title, 
-            word_count=word_count,
-            learned_scene_break=learned_scene_break,
-            first_para_markers=first_para_markers,
-            chapter_epigraph_markers=chapter_epigraph_markers
-        )
-        _, warnings, ai_fixes = fmt.build(parsed, out)
+        # Calculate word count for cover page
+        word_count = sum(len(p.cleaned.split()) for p in parsed if p.ptype == PARA_BODY)
+
+        if template_key == "pratilipi":
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+                out = f.name
+            fmt = m["PratilipiFormatter"](author=author, title=title, word_count=word_count)
+            _, warnings, ai_fixes = fmt.build(parsed, out)
+            media_type = "text/plain"
+            filename_suffix = "pratilipi.txt"
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as f:
+                out = f.name
+            fmt = m["NovelFormatter"](
+                tpl, 
+                author=author, 
+                title=title, 
+                word_count=word_count,
+                learned_scene_break=learned_scene_break,
+                first_para_markers=first_para_markers,
+                chapter_epigraph_markers=chapter_epigraph_markers
+            )
+            _, warnings, ai_fixes = fmt.build(parsed, out)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            filename_suffix = "editor_export.docx"
 
         safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:50]
-        filename   = f"{safe_title}_editor_export.docx"
+        filename   = f"{safe_title}_{filename_suffix}"
 
         with open(out, "rb") as f:
             content = f.read()
@@ -284,7 +299,7 @@ async def format_text(request: Request, bg: BackgroundTasks, body: FormatTextReq
 
         return StreamingResponse(
             io.BytesIO(content),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            media_type=media_type,
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
                 "X-Word-Count":        str(word_count),

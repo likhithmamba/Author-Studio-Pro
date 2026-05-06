@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Editor Sidebar
+ * Inkforge — Editor Sidebar
  * Chapter list with drag-to-reorder, add/delete, and word count targets.
  */
 

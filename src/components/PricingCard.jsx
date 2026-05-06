@@ -24,7 +24,7 @@ export default function PricingCard({ tier, price, description, features, recomm
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: price * 100,
         currency: 'INR',
-        name: 'Author Studio Pro',
+        name: 'Inkforge',
         description: `${tier} Subscription`,
         order_id: data.id,
         handler: async (response) => {

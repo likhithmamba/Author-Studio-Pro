@@ -11,7 +11,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
-    const [token, setToken] = useState(localStorage.getItem('asp_token') || null)
+    const [token, setToken] = useState(localStorage.getItem('inkforge_token') || null)
     const [subscription, setSubscription] = useState(null)
     const [loading, setLoading] = useState(true)
 
@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
                     setUser(null)
                     setToken(null)
                     setSubscription(null)
-                    localStorage.removeItem('asp_token')
+                    localStorage.removeItem('inkforge_token')
                 }
             } finally {
                 setLoading(false)
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
         setToken(res.token)
         setUser(res.user)
         setSubscription(res.subscription || null)
-        localStorage.setItem('asp_token', res.token)
+        localStorage.setItem('inkforge_token', res.token)
         return res
     }
 
@@ -75,7 +75,7 @@ export function AuthProvider({ children }) {
         setToken(res.token)
         setUser(res.user)
         setSubscription(res.subscription || null)
-        localStorage.setItem('asp_token', res.token)
+        localStorage.setItem('inkforge_token', res.token)
         return res
     }
 
@@ -83,8 +83,8 @@ export function AuthProvider({ children }) {
         setToken(null)
         setUser(null)
         setSubscription(null)
-        localStorage.removeItem('asp_token')
-        localStorage.removeItem('asp_entered_app')
+        localStorage.removeItem('inkforge_token')
+        localStorage.removeItem('inkforge_entered_app')
     }
 
     return (

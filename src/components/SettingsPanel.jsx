@@ -98,7 +98,7 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
 
     const clearAllData = () => {
         if (confirm('This will clear all saved preferences and your API key. Continue?')) {
-            localStorage.removeItem('asp_settings')
+            localStorage.removeItem('inkforge_settings')
             removeApiKey()
             if (onRemoveKey) onRemoveKey()
             onSettingsChange({
@@ -148,7 +148,7 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                             <HiOutlineCpuChip /> AI Configuration
                         </h3>
                         <p className="settings-group-desc">
-                            Author Studio Pro uses{' '}
+                            Inkforge uses{' '}
                             <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">
                                 OpenRouter
                             </a>{' '}

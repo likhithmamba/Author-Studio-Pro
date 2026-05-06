@@ -468,3 +468,57 @@ def extract_raw_paragraphs(path: str) -> List[str]:
                         paragraphs.append(para.text)
 
     return paragraphs
+
+class PratilipiFormatter:
+    """
+    Builds a plain text manuscript formatted for Pratilipi submission.
+    Adds ##CHAPTER_START## and similar markers.
+    """
+    def __init__(self, author: str, title: str, word_count: int = 0):
+        self.author = author.strip()
+        self.title = title.strip()
+        self.word_count = word_count
+        self._ai_fixes = []
+
+    def build(self, paragraphs: List[ParsedParagraph], output_path: str) -> Tuple[str, List[str], List[str]]:
+        warnings = []
+        lines = []
+        lines.append(f"TITLE: {self.title}")
+        lines.append(f"AUTHOR: {self.author}")
+        if self.word_count:
+            lines.append(f"WORD COUNT: {self.word_count}")
+        lines.append("")
+        lines.append("=" * 40)
+        lines.append("")
+        
+        chapter_count = 0
+        for item in paragraphs:
+            ptype = item.ptype
+            text = item.cleaned.strip()
+            
+            if ptype == PARA_EMPTY or ptype == PARA_FRONT_MATTER:
+                continue
+                
+            if ptype == PARA_CHAPTER:
+                lines.append("")
+                lines.append("##CHAPTER_START##")
+                lines.append(text)
+                lines.append("")
+                chapter_count += 1
+            elif ptype == PARA_SCENE_BREAK:
+                lines.append("")
+                lines.append("***")
+                lines.append("")
+            elif ptype == PARA_BODY:
+                if text:
+                    lines.append(text)
+                    lines.append("")
+        
+        if chapter_count == 0:
+            warnings.append("No chapter headings detected. Outputting as continuous text.")
+            
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+            
+        return output_path, warnings, self._ai_fixes
+

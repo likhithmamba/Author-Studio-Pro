@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Local persistence via IndexedDB (idb-keyval).
+ * Inkforge — Local persistence via IndexedDB (idb-keyval).
  * All functions are async, wrapped in try/catch, and return null on failure.
  * If IndexedDB is unavailable (private browsing, quota), stub functions are used.
  */

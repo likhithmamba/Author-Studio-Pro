@@ -5,6 +5,7 @@ export default function StatusBar({ chapterName, wordCount, characterCount, savi
     const readingTime = Math.ceil((wordCount || 0) / 200);
     const syncStatus = useStoryStore(state => state.sync.status);
     const syncLastSaved = useStoryStore(state => state.sync.lastSaved);
+    const healthGrade = useStoryStore(state => state.analysis?.healthScore?.grade);
     const [now, setNow] = useState(Date.now());
 
     // Update "Xs ago" display every 5 seconds
@@ -60,10 +61,19 @@ export default function StatusBar({ chapterName, wordCount, characterCount, savi
                 {chapterName || 'No Chapter Selected'}
             </div>
             
-            <div style={{ flex: 2, display: 'flex', justifyContent: 'center', gap: '24px' }}>
+            <div style={{ flex: 2, display: 'flex', justifyContent: 'center', gap: '24px', alignItems: 'center' }}>
                 <span>{wordCount || 0} words</span>
                 <span>{characterCount || 0} chars</span>
                 <span>{readingTime} min read</span>
+                {healthGrade && (
+                    <span style={{
+                        background: healthGrade === 'A' ? 'rgba(76,175,80,0.15)' : healthGrade === 'B' ? 'rgba(139,195,74,0.15)' : healthGrade === 'C' ? 'rgba(255,193,7,0.15)' : 'rgba(212,97,74,0.15)',
+                        color: healthGrade === 'A' ? '#4CAF50' : healthGrade === 'B' ? '#8BC34A' : healthGrade === 'C' ? '#FFC107' : '#D4614A',
+                        padding: '1px 6px', borderRadius: '3px', fontWeight: 'bold', fontSize: '10px',
+                    }}>
+                        {healthGrade}
+                    </span>
+                )}
             </div>
 
             <div style={{ flex: 1, textAlign: 'right', color: saveColor, transition: 'color 0.3s' }}>

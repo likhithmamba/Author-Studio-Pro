@@ -15,9 +15,8 @@ export default function Footer() {
                 <div className="footer-grid">
                     <div className="footer-brand">
                         <div className="footer-logo">
-                            <span className="footer-logo-icon">✍️</span>
-                            <span className="footer-logo-text">Author Studio</span>
-                            <span className="footer-logo-badge">PRO</span>
+                            <img src="/logo.png" alt="" style={{ width: 20, height: 20, objectFit: "contain", marginRight: 8 }} />
+                            <span className="footer-logo-text">Inkforge</span>
                         </div>
                         <p className="footer-tagline">
                             The complete professional author&apos;s toolkit. Format, analyse, query, publish.
@@ -44,7 +43,7 @@ export default function Footer() {
 
                 <div className="footer-bottom">
                     <p className="footer-copyright">
-                        © 2025 Author Studio Pro. All rights reserved.
+                        © 2025 Inkforge. All rights reserved.
                     </p>
                     <p className="footer-made-with">
                         Made with <HiOutlineHeart className="footer-heart" /> for authors everywhere

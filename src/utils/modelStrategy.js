@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — AI model routing strategy.
+ * Inkforge — AI model routing strategy.
  * Routes free-tier models to the best match per feature type.
  */
 

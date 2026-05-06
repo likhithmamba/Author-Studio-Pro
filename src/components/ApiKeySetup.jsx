@@ -30,7 +30,10 @@ export default function ApiKeySetup({ onKeysaved, initialMessage }) {
     return (
         <div className="api-key-modal-overlay">
             <div className="api-key-modal">
-                <h1 className="brand-logo">Author Studio <span>Pro</span></h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                    <img src="/logo.png" alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+                    <h1 className="brand-logo" style={{ margin: 0 }}>Inkforge</h1>
+                </div>
                 <h2>Enter Your API Key to Get Started</h2>
 
                 {message && <p className="error-message">{message}</p>}

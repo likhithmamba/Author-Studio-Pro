@@ -1,5 +1,5 @@
 """
-Author Studio Pro — JWT + Password Hashing utilities.
+Inkforge — JWT + Password Hashing utilities.
 Uses bcrypt directly (passlib has compatibility issues with Python 3.12).
 """
 

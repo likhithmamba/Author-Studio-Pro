@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Basic smoke-test script for the Author Studio Pro API backend.
+Basic smoke-test script for the Inkforge API backend.
 Run with: python test_api.py
 """
 import requests
@@ -19,7 +19,7 @@ def test(name, fn):
     except Exception as e:
         print(f"  ❌ {name}: {e}")
 
-print("\n🔍 Author Studio Pro API — Smoke Tests")
+print("\n🔍 Inkforge API — Smoke Tests")
 print("=" * 50)
 
 # Health

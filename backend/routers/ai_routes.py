@@ -644,6 +644,7 @@ async def analyse_text(request: Request, body: AnalyseTextRequest):
 
 class SignalAnalysisRequest(BaseModel):
     mode: str = "normal"
+    track: str = None
     signals: list
     current_phase: str = "setup"
     progression: dict = None
@@ -687,6 +688,17 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest):
     sys_prompt = sys_prompt.replace("{{signal_history_json}}", "[]")
     sys_prompt = sys_prompt.replace("{{character_evolution_json}}", json.dumps(body.character_states))
     sys_prompt = sys_prompt.replace("{{conflict_evolution_json}}", json.dumps(body.conflict_states))
+
+    # Inject Indian Fiction Intelligence if track is specified
+    if body.track:
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), "..", "prompts"))
+            from india_fiction_system import inject_indian_intelligence
+            sys_prompt = inject_indian_intelligence(sys_prompt, body.track)
+        except Exception as e:
+            logger.warning(f"Failed to inject Indian intelligence: {e}")
 
     try:
         import requests

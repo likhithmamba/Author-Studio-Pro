@@ -1,0 +1,14 @@
+{
+  "translation": {
+    "dashboard": "Dashboard",
+    "write": "Write",
+    "corkboard": "Corkboard",
+    "characters": "Characters",
+    "worldbuilding": "Worldbuilding",
+    "timeline": "Timeline",
+    "research": "Research",
+    "export": "Export",
+    "welcome": "Good morning, Author.",
+    "continue_writing": "Continue Writing"
+  }
+}

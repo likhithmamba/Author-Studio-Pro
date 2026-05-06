@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Author Studio Pro — FastAPI Backend  (v2 — corrected against actual source)
+# Inkforge — FastAPI Backend  (v2 — corrected against actual source)
 # ─────────────────────────────────────────────────────────────────────────────
 # Run:  uvicorn main:app --reload --port 8000
 # ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ from routers.ai_routes import router as ai_router
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Author Studio Pro API",
+    title="Inkforge API",
     description="Professional manuscript formatting, analysis, and query generation.",
     version="2.0.0",
     docs_url="/api/docs",
@@ -184,13 +184,13 @@ from api_utils import (
 
 @app.on_event("startup")
 async def _startup():
-    logger.info(f"Author Studio Pro API v2.0 starting")
+    logger.info(f"Inkforge API v2.0 starting")
     logger.info(f"Allowed origins: {ALLOWED_ORIGINS}")
 
 
 @app.on_event("shutdown")
 async def _shutdown():
-    logger.info("Author Studio Pro API shutting down")
+    logger.info("Inkforge API shutting down")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -250,7 +250,7 @@ async def create_order(request: Request, body: CreateOrderRequest):
         order = razorpay_client.order.create({
             "amount": PLAN_AMOUNTS[plan_id],
             "currency": "INR",
-            "receipt": f"asp_{user['id'][:8]}_{int(time.time())}",
+            "receipt": f"inkforge_{user['id'][:8]}_{int(time.time())}",
             "notes": {
                 "user_id": user["id"],
                 "plan_id": plan_id,
@@ -441,7 +441,7 @@ async def validate_ai_key(request: Request, body: ValidateKeyRequest):
 
 
 
-if __name__if __name__ == "__main__":
+if __name__ == "__main__":
     import uvicorn
     import os
     

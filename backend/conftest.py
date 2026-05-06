@@ -1,5 +1,5 @@
 """
-Shared pytest fixtures for Author Studio Pro backend tests.
+Shared pytest fixtures for Inkforge backend tests.
 """
 import os
 import pytest

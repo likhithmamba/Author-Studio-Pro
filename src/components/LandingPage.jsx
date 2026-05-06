@@ -169,14 +169,17 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="author-studio-landing">
+    <div className="inkforge-landing">
 
 <div className="cursor" id="cursor"></div>
 <div className="cursor-ring" id="cursorRing"></div>
 
 
 <nav id="nav">
-  <a href="#" className="nav-logo">Author <span>Studio</span> Pro</a>
+  <a href="#" className="nav-logo">
+    <img src="/logo.png" alt="" style={{ width: 24, height: 24, objectFit: "contain", marginRight: 8 }} />
+    Ink<span>forge</span>
+  </a>
   <ul className="nav-links">
     <li><a href="#features">Tools</a></li>
     <li><a href="#genre">Market</a></li>
@@ -208,7 +211,7 @@ export default function LandingPage() {
       Agents reject 97% of queries before finishing page one.
       Not because the story fails — because the presentation signals amateur.
       <strong>Wrong format. Wrong word count. Broken query letter.</strong>
-      Author Studio Pro fixes all three. Before you hit send.
+      Inkforge fixes all three. Before you hit send.
     </p>
 
     <div className="hero-stat-strip">
@@ -523,10 +526,10 @@ export default function LandingPage() {
           "Good opening image. The toast/letter parallel works. Maybe consider whether the mother detail is too much, too soon? Could tighten. Overall tone is strong — keep going with this voice."
         </div>
       </div>
-      <div className="ai-panel asp">
-        <div className="ai-panel-label">Author Studio Pro — 11 seconds</div>
+      <div className="ai-panel inkforge">
+        <div className="ai-panel-label">Inkforge — 11 seconds</div>
         <div className="ai-passage">"The morning the letter arrived, Mira was burning toast and thinking about her mother's hands — the way they moved when she shelved books, quick and certain, like they knew where every story belonged."</div>
-        <div className="ai-note-asp">
+        <div className="ai-note-inkforge">
           <div className="ai-insight">
             <div className="ai-insight-num">1</div>
             <div className="ai-insight-text"><strong>Hook structure:</strong> Simultaneous mundane/significant contrast (toast/letter) is a reliable entry mechanism — executes cleanly. No revision needed.</div>
@@ -627,23 +630,23 @@ export default function LandingPage() {
         <thead>
           <tr>
             <th style={{width: '24%'}}>Capability</th>
-            <th className="asp-col" style={{width: '19%'}}>Author Studio Pro</th>
+            <th className="inkforge-col" style={{width: '19%'}}>Inkforge</th>
             <th style={{width: '19%'}}>Scrivener</th>
             <th style={{width: '19%'}}>ProWritingAid</th>
             <th style={{width: '19%'}}>ChatGPT</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>Industry format (Courier/header)</td><td className="asp-col"><span className="check">✓</span></td><td><span className="partial-check">~</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Genre word count validation</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Query letter generation</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="partial-check">~</span></td></tr>
-          <tr><td>Agent market intelligence</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Submission tracking</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Prose + developmental analysis</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="check">✓</span></td><td><span className="partial-check">~</span></td></tr>
-          <tr><td>Distraction-free writing environment</td><td className="asp-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Zero training on your work</td><td className="asp-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Browser-first privacy</td><td className="asp-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
-          <tr><td>Bring Your Own API Key</td><td className="asp-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Industry format (Courier/header)</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="partial-check">~</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Genre word count validation</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Query letter generation</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="partial-check">~</span></td></tr>
+          <tr><td>Agent market intelligence</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Submission tracking</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Prose + developmental analysis</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="check">✓</span></td><td><span className="partial-check">~</span></td></tr>
+          <tr><td>Distraction-free writing environment</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Zero training on your work</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Browser-first privacy</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
+          <tr><td>Bring Your Own API Key</td><td className="inkforge-col"><span className="check">✓</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td><td><span className="cross">—</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -746,7 +749,7 @@ export default function LandingPage() {
       <div className="testi-card">
         <div className="testi-feature">QUERY</div>
         <div className="testi-quote">
-          "My query letter was 600 words of plot summary. Author Studio Pro told me in 30 seconds. I rewrote it in an hour. <strong>Got 3 full manuscript requests in a week.</strong>"
+          "My query letter was 600 words of plot summary. Inkforge told me in 30 seconds. I rewrote it in an hour. <strong>Got 3 full manuscript requests in a week.</strong>"
         </div>
         <div className="testi-author">Literary Fiction author — on submission 2024</div>
       </div>
@@ -774,7 +777,7 @@ export default function LandingPage() {
     <div className="faq-grid reveal">
       <div className="faq-item">
         <div className="faq-q">Does the AI write for me? <span className="faq-toggle">+</span></div>
-        <div className="faq-a">No. Author Studio Pro analyses your writing and helps you present it professionally. It does not generate fiction on your behalf. Your voice stays yours. The query letter is built from your synopsis and characters — it's still your story, told better.</div>
+        <div className="faq-a">No. Inkforge analyses your writing and helps you present it professionally. It does not generate fiction on your behalf. Your voice stays yours. The query letter is built from your synopsis and characters — it's still your story, told better.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Can agents tell I used this? <span className="faq-toggle">+</span></div>
@@ -822,7 +825,7 @@ export default function LandingPage() {
     <li><a href="#">Blog</a></li>
     <li><a href="#">Contact</a></li>
   </ul>
-  <div className="footer-copy">© 2026 Author Studio Pro. All rights reserved.</div>
+  <div className="footer-copy">© 2026 Inkforge. All rights reserved.</div>
 </footer>
     </div>
   );

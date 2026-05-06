@@ -275,6 +275,88 @@ INTERNATIONAL_A4 = NovelTemplate(
 )
 
 
+# =============================================================================
+#  TEMPLATE 6 — Indian Publisher Standard
+#  Authority: HarperCollins India, Penguin Random House India, Westland, Hachette India
+# =============================================================================
+INDIAN_PUBLISHER = NovelTemplate(
+    id="indian_publisher",
+    name="Indian Publisher Standard",
+    description=(
+        "The universal standard expected by acquisitions editors at Indian traditional "
+        "publishers including HarperCollins India, Penguin Random House India, and Westland. "
+        "A4 page size with wide 1.5-inch margins. Double-spacing and 12pt Times New Roman "
+        "are strictly enforced."
+    ),
+    best_for="Submitting to Indian traditional publishers and agents",
+    authority="HarperCollins India / Penguin Random House India",
+
+    font_name="Times New Roman",
+    font_size_pt=12,
+    chapter_font_size_pt=14,
+
+    line_spacing="double",
+    space_before_para_pt=0,
+    space_after_para_pt=0,
+
+    first_line_indent_in=0.5,
+    margin_top_in=1.5, margin_bottom_in=1.5,
+    margin_left_in=1.5, margin_right_in=1.5,
+
+    chapter_bold=True, chapter_italic=False,
+    chapter_centered=True, chapter_all_caps=False,
+    chapter_page_break_before=True, chapter_start_position="third_down",
+    chapter_blank_lines_above=8,
+
+    page_size="a4",
+    include_running_header=True, header_align_right=True,
+    header_format="{author} / {title} / {page}",
+
+    scene_break_text="# ",
+    body_justified=False,
+)
+
+
+# =============================================================================
+#  TEMPLATE 7 — Pratilipi Standard
+#  Authority: Pratilipi Creator Guidelines
+# =============================================================================
+PRATILIPI_STANDARD = NovelTemplate(
+    id="pratilipi",
+    name="Pratilipi Standard",
+    description=(
+        "Plain text format specifically built for Pratilipi serial uploads. "
+        "Outputs a .txt file with structural markers (##CHAPTER_START##) "
+        "to ensure perfect separation of episodes for mobile-first reading."
+    ),
+    best_for="Uploading episodes directly to the Pratilipi self-publishing platform",
+    authority="Pratilipi Creator Guidelines",
+
+    font_name="System",
+    font_size_pt=12,
+    chapter_font_size_pt=12,
+
+    line_spacing="single",
+    space_before_para_pt=0,
+    space_after_para_pt=0,
+
+    first_line_indent_in=0,
+    margin_top_in=1.0, margin_bottom_in=1.0,
+    margin_left_in=1.0, margin_right_in=1.0,
+
+    chapter_bold=False, chapter_italic=False,
+    chapter_centered=False, chapter_all_caps=False,
+    chapter_page_break_before=False, chapter_start_position="top",
+    chapter_blank_lines_above=0,
+
+    page_size="a4",
+    include_running_header=False, header_align_right=False,
+    header_format="",
+
+    scene_break_text="***",
+    body_justified=False,
+)
+
 # ── Public Registry ──────────────────────────────────────────────────────────
 TEMPLATES: Dict[str, NovelTemplate] = {
     t.id: t for t in [
@@ -283,5 +365,7 @@ TEMPLATES: Dict[str, NovelTemplate] = {
         KDP_SELF_PUBLISH,
         ACADEMIC_PRESS,
         INTERNATIONAL_A4,
+        INDIAN_PUBLISHER,
+        PRATILIPI_STANDARD,
     ]
 }

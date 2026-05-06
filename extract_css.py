@@ -1,6 +1,6 @@
 import re
 
-html_path = r'D:\Downloads\CLADE DIRECTORY\author-studio-pro-landing.html'
+html_path = r'D:\Downloads\CLADE DIRECTORY\inkforge-landing.html'
 css_dest = r'src\components\LandingPage.css'
 
 with open(html_path, 'r', encoding='utf-8') as f:

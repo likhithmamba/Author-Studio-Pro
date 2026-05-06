@@ -68,7 +68,7 @@ def rm(path: str):
 def _mods():
     """Import all author_studio modules. Raises 503 on failure."""
     try:
-        from formatter       import NovelFormatter, count_words_in_docx, extract_raw_paragraphs
+        from formatter       import NovelFormatter, count_words_in_docx, extract_raw_paragraphs, PratilipiFormatter
         from parser          import ManuscriptParser
         from analyzer        import ManuscriptAnalyzer
         from genre_db        import GENRES, get_word_count_assessment
@@ -78,6 +78,7 @@ def _mods():
         from ai_query_writer import run_ai_query_generation
         return dict(
             NovelFormatter=NovelFormatter,
+            PratilipiFormatter=PratilipiFormatter,
             count_words_in_docx=count_words_in_docx,
             extract_raw_paragraphs=extract_raw_paragraphs,
             ManuscriptParser=ManuscriptParser,

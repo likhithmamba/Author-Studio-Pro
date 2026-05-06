@@ -1,0 +1,55 @@
+{
+  "id": "partition_literature",
+  "name": "Partition Literature",
+  "description": "Emotional, historical narrative dealing with the trauma, displacement, and survival during 1947.",
+  "chapters": [
+    {
+      "title": "The Peaceful Village",
+      "description": "Life before the divide; communities living together in harmony."
+    },
+    {
+      "title": "The Rumors",
+      "description": "Whispers of lines being drawn; the slow poisoning of minds."
+    },
+    {
+      "title": "The Line in the Sand",
+      "description": "The announcement of the border; realizing they are on the 'wrong' side."
+    },
+    {
+      "title": "The Night of Terror",
+      "description": "Riots break out; neighbors turn against neighbors."
+    },
+    {
+      "title": "The Escape",
+      "description": "Leaving everything behind; the desperate journey to the border."
+    },
+    {
+      "title": "The Train Journey",
+      "description": "A harrowing, dangerous passage filled with loss and horror."
+    },
+    {
+      "title": "The Refugee Camp",
+      "description": "Arriving with nothing; disease, hunger, and searching for lost family."
+    },
+    {
+      "title": "The Unlikely Savior",
+      "description": "An act of extreme kindness from someone of the 'other' side."
+    },
+    {
+      "title": "Rebuilding from Ashes",
+      "description": "Finding a new home; the struggle for daily survival in a new city."
+    },
+    {
+      "title": "The Ghost of the Past",
+      "description": "A reminder of what was lost; dealing with PTSD and survivor's guilt."
+    },
+    {
+      "title": "The Next Generation",
+      "description": "Passing on the stories, or choosing silence to protect the children."
+    },
+    {
+      "title": "The Acceptance",
+      "description": "Finding peace, even if the longing for the ancestral home never dies."
+    }
+  ]
+}

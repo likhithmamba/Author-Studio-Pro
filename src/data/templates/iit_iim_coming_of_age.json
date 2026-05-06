@@ -1,0 +1,55 @@
+{
+  "id": "iit_iim_coming_of_age",
+  "name": "IIT/IIM Coming of Age",
+  "description": "The quintessential Indian campus novel focusing on ambition, friendship, and intense academic pressure.",
+  "chapters": [
+    {
+      "title": "The Entrance Exam",
+      "description": "The grueling preparation, coaching classes in Kota, and the results day."
+    },
+    {
+      "title": "First Day on Campus",
+      "description": "Ragging (or intro sessions), meeting the idiosyncratic roommates."
+    },
+    {
+      "title": "The Grading Curve",
+      "description": "The harsh reality of academic competition and the first major failure."
+    },
+    {
+      "title": "The Campus Romance",
+      "description": "A distraction from studies; meeting someone from a different background."
+    },
+    {
+      "title": "The Mid-Sem Crisis",
+      "description": "Burnout, parental pressure, and a friend's breakdown."
+    },
+    {
+      "title": "The Cultural Fest",
+      "description": "Organizing the college fest; learning practical management and politics."
+    },
+    {
+      "title": "The Rebellion",
+      "description": "Standing up to a tyrannical professor or the system."
+    },
+    {
+      "title": "The Internship Grind",
+      "description": "Summer placements and the harsh reality of corporate life."
+    },
+    {
+      "title": "The Breakup/Betrayal",
+      "description": "Friends turning into competitors; romantic fallout."
+    },
+    {
+      "title": "The Final Placements",
+      "description": "Day Zero tension; interviews and the obsession with packages."
+    },
+    {
+      "title": "The Convocation",
+      "description": "Graduation day; realizing that the journey was more important than the destination."
+    },
+    {
+      "title": "The Real World",
+      "description": "Epilogue: Five years later, who succeeded and who found happiness."
+    }
+  ]
+}

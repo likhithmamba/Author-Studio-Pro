@@ -1,0 +1,55 @@
+{
+  "id": "indian_historical",
+  "name": "Indian Historical Fiction",
+  "description": "Sweeping epics set during the Mughal era, British Raj, or ancient empires.",
+  "chapters": [
+    {
+      "title": "The Era's Dawn",
+      "description": "Establishing the historical setting, political climate, and the protagonist's place in it."
+    },
+    {
+      "title": "The Inciting Decree",
+      "description": "A historical event (a new tax, a war, an invasion) disrupts daily life."
+    },
+    {
+      "title": "The Royal Court",
+      "description": "Intrigue, spies, and danger within the halls of power."
+    },
+    {
+      "title": "The Forbidden Romance",
+      "description": "Love across societal, religious, or political boundaries."
+    },
+    {
+      "title": "The Gathering Storm",
+      "description": "Signs of impending rebellion or war; picking sides."
+    },
+    {
+      "title": "The Betrayal",
+      "description": "A trusted ally switches allegiance for power or survival."
+    },
+    {
+      "title": "The Uprising",
+      "description": "The outbreak of conflict; the protagonist takes a stand."
+    },
+    {
+      "title": "The Siege",
+      "description": "A prolonged period of suffering and testing of resolve."
+    },
+    {
+      "title": "The Desperate Mission",
+      "description": "A risky maneuver to turn the tide of history."
+    },
+    {
+      "title": "The Historic Clash",
+      "description": "The climactic battle or political showdown."
+    },
+    {
+      "title": "The Aftermath",
+      "description": "Surveying the cost of victory; the landscape has changed forever."
+    },
+    {
+      "title": "The Legacy",
+      "description": "How the protagonist's actions echo into the future."
+    }
+  ]
+}

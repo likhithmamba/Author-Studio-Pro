@@ -112,7 +112,7 @@ export default function Pricing() {
                 key: orderData.key_id,
                 amount: orderData.amount,
                 currency: orderData.currency,
-                name: 'Author Studio Pro',
+                name: 'Inkforge',
                 description: orderData.plan_label,
                 order_id: orderData.order_id,
                 handler: async (response) => {

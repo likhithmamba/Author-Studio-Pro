@@ -1,5 +1,5 @@
 """
-Author Studio Pro — Rate Limiter with optional Upstash Redis backend.
+Inkforge — Rate Limiter with optional Upstash Redis backend.
 FIX-3: Uses Upstash Redis if configured, falls back to in-memory.
 """
 import os

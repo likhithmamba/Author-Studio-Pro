@@ -13,7 +13,7 @@ const STATUS_COLORS = {
     'No Response': '#9ca3af',
 }
 
-const LS_KEY = 'asp_submissions'
+const LS_KEY = 'inkforge_submissions'
 
 function loadSubmissions() {
     try {

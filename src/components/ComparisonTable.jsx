@@ -5,7 +5,7 @@ import './ComparisonTable.css'
 
 const competitors = [
     {
-        name: 'Author Studio Pro',
+        name: 'Inkforge',
         highlight: true,
         features: {
             formatting: 'full',

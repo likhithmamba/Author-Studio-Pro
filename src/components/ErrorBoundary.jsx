@@ -13,7 +13,7 @@ export default class ErrorBoundary extends Component {
 
     handleRetry = () => {
         // Clear any stale auth token that may be causing the crash
-        try { localStorage.removeItem('asp_token') } catch {}
+        try { localStorage.removeItem('inkforge_token') } catch {}
         this.setState(s => ({ hasError: false, error: null, retryKey: s.retryKey + 1 }));
     };
 

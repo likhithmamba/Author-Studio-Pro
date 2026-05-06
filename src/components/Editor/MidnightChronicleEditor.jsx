@@ -20,6 +20,7 @@
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer } from "react";
 import { useStoryStore } from "../../store/storyStore";
+import { useTranslation } from 'react-i18next';
 import ThinkingPanel from '../ThinkingPanel/ThinkingPanel';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -180,7 +181,7 @@ const Ico = ({ n, s = 15, c = "currentColor" }) => (
 const BASE_URL = "/api"; // ← change in production
 
 const apiFetch = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("asp_token");
+  const token = localStorage.getItem("inkforge_token");
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     ...options,
@@ -192,8 +193,8 @@ const apiFetch = async (endpoint, options = {}) => {
 const syncAllPendingDrafts = async () => {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith("asp_draft_")) {
-      const sceneId = key.replace("asp_draft_", "");
+    if (key?.startsWith("inkforge_draft_")) {
+      const sceneId = key.replace("inkforge_draft_", "");
       const content = localStorage.getItem(key);
       try {
         await apiFetch(`/scenes/${sceneId}/content`, { method: "PUT", body: JSON.stringify({ content }) });
@@ -225,7 +226,7 @@ const useAutoSave = (sceneId, content) => {
         await apiFetch(`/scenes/${sceneId}/content`, { method: "PUT", body: JSON.stringify({ content }) });
         setLastSaved(new Date());
       } catch {
-        localStorage.setItem(`asp_draft_${sceneId}`, content);
+        localStorage.setItem(`inkforge_draft_${sceneId}`, content);
         setLastSaved(new Date());
       } finally { setSaving(false); }
     }, 2000);
@@ -236,7 +237,7 @@ const useAutoSave = (sceneId, content) => {
     clearTimeout(timer.current);
     setSaving(true);
     try { await apiFetch(`/scenes/${sceneId}/content`, { method: "PUT", body: JSON.stringify({ content }) }); setLastSaved(new Date()); }
-    catch { localStorage.setItem(`asp_draft_${sceneId}`, content); setLastSaved(new Date()); }
+    catch { localStorage.setItem(`inkforge_draft_${sceneId}`, content); setLastSaved(new Date()); }
     finally { setSaving(false); }
   }, [sceneId, content]);
 
@@ -410,7 +411,8 @@ const TitleBar = () => {
       {["#e05252","#e0b452","#52b452"].map((c, i) => <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: c, boxShadow: `0 0 6px ${c}66` }} />)}
     </div>
     <div style={{ width: 1, height: 16, background: T.border }} />
-    <span style={{ fontFamily: T.fontTitle, fontSize: 14, color: T.accent, fontStyle: "italic" }}>Author Studio Pro</span>
+    <img src="/logo.png" alt="Inkforge Logo" style={{ width: 16, height: 16, objectFit: "contain" }} />
+    <span style={{ fontFamily: T.fontTitle, fontSize: 14, color: T.accent, fontStyle: "italic" }}>Inkforge</span>
     <span style={{ fontFamily: T.fontUI, fontSize: 11, color: T.textDim }}>—</span>
     <span style={{ fontFamily: T.fontUI, fontSize: 11, color: T.textMuted }}>{projectTitle || 'Untitled Novel'}</span>
     <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -422,49 +424,74 @@ const TitleBar = () => {
 };
 
 const NAV = [
-  { id: "dashboard",  label: "Dashboard",    icon: "dash"   },
-  { id: "write",      label: "Write",         icon: "write"  },
-  { id: "corkboard",  label: "Corkboard",     icon: "board"  },
-  { id: "characters", label: "Characters",    icon: "person" },
-  { id: "world",      label: "Worldbuilding", icon: "globe"  },
-  { id: "timeline",   label: "Timeline",      icon: "clock"  },
-  { id: "research",   label: "Research",      icon: "folder" },
-  { id: "export",     label: "Export",        icon: "export" },
+  { id: "dashboard",  label: "dashboard",    icon: "dash"   },
+  { id: "write",      label: "write",         icon: "write"  },
+  { id: "corkboard",  label: "corkboard",     icon: "board"  },
+  { id: "characters", label: "characters",    icon: "person" },
+  { id: "world",      label: "worldbuilding", icon: "globe"  },
+  { id: "timeline",   label: "timeline",      icon: "clock"  },
+  { id: "research",   label: "research",      icon: "folder" },
+  { id: "export",     label: "export",        icon: "export" },
 ];
 
-const TopNav = ({ active, setActive }) => (
-  <div style={{ display: "flex", alignItems: "center", height: 40, padding: "0 16px", gap: 2, background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, overflowX: "auto" }}>
-    {NAV.map(({ id, label, icon }) => {
-      const on = active === id;
-      return (
-        <button key={id} onClick={() => setActive(id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", height: "100%", border: "none", cursor: "pointer", background: on ? T.accentSoft : "transparent", color: on ? T.accent : T.textMuted, fontSize: 11, fontFamily: T.fontUI, borderBottom: on ? `2px solid ${T.accent}` : "2px solid transparent", whiteSpace: "nowrap", flexShrink: 0 }}>
-          <Ico n={icon} s={13} c={on ? T.accent : T.textMuted} />{label}
-        </button>
-      );
-    })}
-    <div style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 20, border: `1px solid ${T.accent}44`, background: T.accentSoft, color: T.accent, fontSize: 11, fontFamily: T.fontUI }}>
-      🔥 14-day streak
-    </div>
-  </div>
-);
+const TopNav = ({ active, setActive }) => {
+  const { streak } = useStoryStore();
+  const { t, i18n } = useTranslation();
 
-const GlobalStatus = ({ view }) => (
-  <div style={{ display: "flex", alignItems: "center", padding: "3px 20px", gap: 18, background: T.bgDeep, borderTop: `1px solid ${T.border}`, fontSize: 9, color: T.textDim, fontFamily: T.fontMono, flexShrink: 0 }}>
-    <span style={{ color: T.green }}>● MIDNIGHT CHRONICLE</span>
-    <span>Author Studio Pro v3.0</span>
-    <span style={{ color: T.accent }}>{view.toUpperCase()}</span>
-    <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
-      <span>47,218 words</span><span>Session: 1h 34m</span>
-      <span style={{ color: T.accent }}>🔥 14-day streak</span><span>All changes saved</span>
+  const toggleLanguage = () => {
+    const nextLang = { en: 'hi', hi: 'kn', kn: 'en' }[i18n.language] || 'en';
+    i18n.changeLanguage(nextLang);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: 40, padding: "0 16px", gap: 2, background: T.panel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, overflowX: "auto" }}>
+      {NAV.map(({ id, label, icon }) => {
+        const on = active === id;
+        return (
+          <button key={id} onClick={() => setActive(id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", height: "100%", border: "none", cursor: "pointer", background: on ? T.accentSoft : "transparent", color: on ? T.accent : T.textMuted, fontSize: 11, fontFamily: T.fontUI, borderBottom: on ? `2px solid ${T.accent}` : "2px solid transparent", whiteSpace: "nowrap", flexShrink: 0 }}>
+            <Ico n={icon} s={13} c={on ? T.accent : T.textMuted} />{t(label)}
+          </button>
+        );
+      })}
+      
+      <button onClick={toggleLanguage} style={{ marginLeft: "auto", marginRight: 8, padding: "3px 8px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: T.rSm, color: T.textMuted, cursor: "pointer", fontSize: 10 }}>
+        {i18n.language.toUpperCase()}
+      </button>
+
+      {streak > 0 && (
+        <div style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 20, border: `1px solid ${T.accent}44`, background: T.accentSoft, color: T.accent, fontSize: 11, fontFamily: T.fontUI }}>
+          🔥 {streak}-day streak
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
+
+const GlobalStatus = ({ view }) => {
+  const { streak, chapters, sync } = useStoryStore();
+  const totalWords = Object.values(chapters || {}).reduce((s, c) => s + (c.wordCount || 0), 0);
+  const syncLabel = sync?.status === 'saving' ? 'Saving changes…' : sync?.status === 'error' ? 'Sync error' : 'All changes saved';
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", padding: "3px 20px", gap: 18, background: T.bgDeep, borderTop: `1px solid ${T.border}`, fontSize: 9, color: T.textDim, fontFamily: T.fontMono, flexShrink: 0 }}>
+      <span style={{ color: T.green }}>● MIDNIGHT CHRONICLE</span>
+      <span>Inkforge v3.0</span>
+      <span style={{ color: T.accent }}>{view.toUpperCase()}</span>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
+        <span>{totalWords.toLocaleString()} words</span>
+        {streak > 0 && <span style={{ color: T.accent }}>🔥 {streak}-day streak</span>}
+        <span>{syncLabel}</span>
+      </div>
+    </div>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // 7. DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const DashboardView = ({ setView }) => {
-  const { projectTitle, chapters, chapterOrder, characters, scenes, sceneOrder, timelineEvents, researchNotes, locations } = useStoryStore();
+  const { projectTitle, chapters, chapterOrder, characters, scenes, timelineEvents, locations } = useStoryStore();
+  const { t } = useTranslation();
   const totalWords = Object.values(chapters || {}).reduce((s, c) => s + (c.wordCount || 0), 0);
   const sceneCount = Object.keys(scenes || {}).length || chapterOrder.length;
   const charCount = Object.keys(characters || {}).length;
@@ -479,13 +506,13 @@ const DashboardView = ({ setView }) => {
       {/* Greeting */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
         <div>
-          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 27, color: T.text, fontWeight: 400, lineHeight: 1.2, marginBottom: 8 }}>{greeting}, Author.</h1>
+          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 27, color: T.text, fontWeight: 400, lineHeight: 1.2, marginBottom: 8 }}>{t('welcome') || `${greeting}, Author.`}</h1>
           <p style={{ fontFamily: T.fontBody, fontSize: 15, color: T.textMuted, lineHeight: 1.7, maxWidth: 500, margin: 0 }}>
             Working on <em style={{ color: T.accent }}>{projectTitle || 'Untitled Novel'}</em>. {totalWords.toLocaleString()} words written across {chapterOrder.length} chapter{chapterOrder.length !== 1 ? 's' : ''}.
           </p>
         </div>
         <button onClick={() => setView("write")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 22px", borderRadius: T.r, border: `1px solid ${T.accent}55`, background: `linear-gradient(135deg,${T.accentSoft},${T.accentGlow})`, color: T.accent, cursor: "pointer", fontFamily: T.fontUI, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
-          <Ico n="write" s={15} c={T.accent} /> Continue Writing
+          <Ico n="write" s={15} c={T.accent} /> {t('continue_writing')}
         </button>
       </div>
 
@@ -587,8 +614,16 @@ const DashboardView = ({ setView }) => {
 // 8. BINDER PANEL
 // ═══════════════════════════════════════════════════════════════════════
 const BinderPanel = ({ activeScene, onSelect }) => {
-  const { chapters, chapterOrder, scenes, addChapter, characters, locations, timelineEvents, researchNotes } = useStoryStore();
+  const { chapters, chapterOrder, scenes, addChapter, characters, locations, timelineEvents, researchNotes, applyTemplate } = useStoryStore();
   const [exp, setExp] = useState({});
+
+  const handleTemplateApply = (e) => {
+    if (!e.target.value) return;
+    if (confirm(`Apply template? This will add new chapters and scenes to your manuscript.`)) {
+      applyTemplate(e.target.value);
+    }
+    e.target.value = "";
+  };
 
   // Auto-expand the first chapter
   useEffect(() => {
@@ -648,6 +683,25 @@ const BinderPanel = ({ activeScene, onSelect }) => {
             <span style={{ fontSize: 9, color: T.textDim, fontFamily: T.fontUI }}>{sub}</span>
           </div>
         ))}
+
+        <div style={{ padding: "12px 12px 3px", fontSize: 8, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.14em", fontFamily: T.fontUI, marginTop: 4 }}>TEMPLATES</div>
+        <div style={{ padding: "0 12px" }}>
+          <select onChange={handleTemplateApply} style={{ width: "100%", ...selSt("100%"), height: 24, fontSize: 10, background: "transparent", borderColor: T.borderSoft }}>
+            <option value="">+ Apply Indian Genre Template</option>
+            <option value="mythological_retelling">Mythological Retelling</option>
+            <option value="masala_drama">Masala Drama</option>
+            <option value="iit_iim_coming_of_age">IIT/IIM Coming of Age</option>
+            <option value="desi_crime">Rural Noir / Desi Crime</option>
+            <option value="arranged_marriage">Arranged Marriage</option>
+            <option value="indian_historical">Indian Historical</option>
+            <option value="corporate_thriller">Corporate Thriller</option>
+            <option value="desi_fantasy">Desi Fantasy</option>
+            <option value="partition_literature">Partition Literature</option>
+            <option value="small_town_slice_of_life">Small Town Slice of Life</option>
+            <option value="political_thriller">Political Thriller</option>
+            <option value="bollywood_romance">Bollywood Romance</option>
+          </select>
+        </div>
       </div>
       <div style={{ padding: 12, borderTop: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>MANUSCRIPT</div>
@@ -1293,7 +1347,7 @@ const CorkboardView = () => {
           })}
           <div onClick={async () => {
             const pid = useStoryStore.getState().projectId;
-            const token = localStorage.getItem('asp_token');
+            const token = localStorage.getItem('inkforge_token');
             if (!pid || !selCh) return;
             try {
               const { createScene } = await import('../../api.js');
@@ -1587,7 +1641,9 @@ const ExportView = () => {
   const { exporting, doExport } = useExport();
   const formats = [
     { id: "manuscript", label: "Manuscript PDF",    desc: "Courier 12pt, double-spaced. For agent submissions.", icon: "📄", badge: "RECOMMENDED" },
-    { id: "epub",       label: "EPUB 3 eBook",      desc: "Self-publishing ready. Includes metadata, ToC.",       icon: "📱", badge: "" },
+    { id: "indian_publisher", label: "Indian Publisher (.docx)", desc: "A4, 12pt Times New Roman, 1.5-inch margins.", icon: "🇮🇳", badge: "NEW" },
+    { id: "pratilipi",  label: "Pratilipi (.txt)",  desc: "Plain text with chapter markers in Pratilipi-compatible format.", icon: "📱", badge: "NEW" },
+    { id: "epub",       label: "EPUB 3 eBook",      desc: "Self-publishing ready. Includes metadata, ToC.",       icon: "📚", badge: "" },
     { id: "docx",       label: "Word Document",     desc: "Editable .docx with tracked changes preserved.",       icon: "📝", badge: "" },
     { id: "fdx",        label: "Final Draft (.fdx)", desc: "For screenwriters adapting the novel.",                icon: "🎬", badge: "" },
     { id: "html",       label: "Clean HTML",        desc: "Semantic HTML5. For web serialization.",               icon: "🌐", badge: "" },
@@ -1690,6 +1746,10 @@ export default function MidnightChronicleEditor() {
     research:   <ResearchView />,
     export:     <ExportView />,
   };
+
+  useEffect(() => {
+    useStoryStore.getState().loadStreak();
+  }, []);
 
   return (
     <div className="midnight-chronicle-editor" style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>

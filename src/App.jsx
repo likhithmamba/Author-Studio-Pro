@@ -27,7 +27,7 @@ function App() {
 
     const [settings, setSettings] = useState(() => {
         try {
-            const saved = localStorage.getItem('asp_settings')
+            const saved = localStorage.getItem('inkforge_settings')
             const defaults = {
                 reducedMotion: false,
                 highContrast: false,
@@ -59,7 +59,7 @@ function App() {
 
     useEffect(() => {
         try {
-            localStorage.setItem('asp_settings', JSON.stringify(settings))
+            localStorage.setItem('inkforge_settings', JSON.stringify(settings))
         } catch { /* silently fail if storage is blocked */ }
     }, [settings])
 

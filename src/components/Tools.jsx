@@ -34,7 +34,7 @@ export default function Tools({ settings, allowedTabs, initialTab }) {
                     transition={{ duration: 0.7 }}
                 >
                     <span className="tools-eyebrow">Publishing Suite</span>
-                    <h2 className="tools-title">Author Studio Pro Tools</h2>
+                    <h2 className="tools-title">Inkforge Tools</h2>
                     <p className="tools-subtitle">
                         Upload your manuscript and process it right here.
                         Formatting and market data work without any API key.{' '}

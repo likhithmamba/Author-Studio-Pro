@@ -1,0 +1,55 @@
+{
+  "id": "desi_fantasy",
+  "name": "Desi Fantasy (Indic Lore)",
+  "description": "High fantasy drawing from Indian mythology, folklore, Yakshas, Asuras, and magic.",
+  "chapters": [
+    {
+      "title": "The Hidden World",
+      "description": "The protagonist discovers that the myths are real; the veil is lifted."
+    },
+    {
+      "title": "The Awakening",
+      "description": "Discovering latent magical abilities tied to a specific bloodline or karma."
+    },
+    {
+      "title": "The Gurukul",
+      "description": "A magical school or hidden enclave where they learn to control their power."
+    },
+    {
+      "title": "The Prophesied Threat",
+      "description": "An ancient evil (an Asura or dark sorcerer) is waking up."
+    },
+    {
+      "title": "The Quest for the Artifact",
+      "description": "Searching for a mythical weapon or text (e.g., the Brahmastra)."
+    },
+    {
+      "title": "The Forest of Illusions",
+      "description": "Navigating a magical, treacherous landscape (like the Dandakaranya)."
+    },
+    {
+      "title": "The Temptation",
+      "description": "The antagonist offers the protagonist exactly what they desire."
+    },
+    {
+      "title": "The Descent into Patala",
+      "description": "Journeying into the underworld or a dark realm to retrieve something lost."
+    },
+    {
+      "title": "The Ultimate Sacrifice",
+      "description": "Giving up a piece of their humanity or a loved one to gain power."
+    },
+    {
+      "title": "The War of the Worlds",
+      "description": "The magical conflict spills over into the mortal realm."
+    },
+    {
+      "title": "The Balance Restored",
+      "description": "Defeating the threat not by killing, but by restoring cosmic balance."
+    },
+    {
+      "title": "The New Guardian",
+      "description": "The protagonist accepts their eternal duty to watch the veil."
+    }
+  ]
+}

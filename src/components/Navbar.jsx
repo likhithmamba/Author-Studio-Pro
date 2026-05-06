@@ -53,9 +53,8 @@ export default function Navbar({ onSettingsClick }) {
             >
                 <div className="navbar-inner container">
                     <a href="#" className="nav-logo" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                        <span className="nav-logo-icon">✍️</span>
-                        <span className="nav-logo-text">Author Studio</span>
-                        <span className="nav-logo-badge">PRO</span>
+                        <img src="/logo.png" alt="" style={{ width: 22, height: 22, objectFit: "contain", marginRight: 8 }} />
+                        <span className="nav-logo-text">Inkforge</span>
                     </a>
 
                     <div className={`nav-links ${mobileOpen ? 'open' : ''}`}>

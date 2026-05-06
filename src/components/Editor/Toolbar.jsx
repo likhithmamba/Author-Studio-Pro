@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Premium Editor Toolbar v3
+ * Inkforge — Premium Editor Toolbar v3
  * Minimal, dark, manuscript-grade formatting controls.
  */
 

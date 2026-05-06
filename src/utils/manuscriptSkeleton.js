@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Manuscript Skeleton Builder.
+ * Inkforge — Manuscript Skeleton Builder.
  * Builds a compressed text representation under 3,500 words for AI query generation.
  */
 

@@ -1,6 +1,6 @@
 
 [1m==================================================
- Author Studio Pro ù Backend Health Check
+ Inkforge ù Backend Health Check
 ==================================================[0m
 
 [93m[1/5][0m Password hashing (bcrypt)...

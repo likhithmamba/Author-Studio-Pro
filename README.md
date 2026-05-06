@@ -1,10 +1,10 @@
-# Author Studio Pro: Technical Specification and Architectural Overview
+# Inkforge: Technical Specification and Architectural Overview
 
-Author Studio Pro is an advanced, high-fidelity writing suite and publication pipeline designed for the precision management of narrative assets. It provides an integrated environment where creative production is continuously monitored by a Story Strategy Optimization (SSO) engine, ensuring that manuscripts are both artistically consistent and commercially viable according to industry standards.
+Inkforge is an advanced, high-fidelity writing suite and publication pipeline designed for the precision management of narrative assets. It provides an integrated environment where creative production is continuously monitored by a Story Strategy Optimization (SSO) engine, ensuring that manuscripts are both artistically consistent and commercially viable according to industry standards.
 
 ## 1. Core Purpose and Philosophy
 
-The fundamental problem addressed by Author Studio Pro is the "Semantic Gap" in traditional word processors. Standard tools treat text as a flat sequence of characters. Author Studio Pro treats a manuscript as a complex relational database of interconnected nodes: Scenes, Chapters, Characters, Locations, Lore, Timeline Events, and Research Notes.
+The fundamental problem addressed by Inkforge is the "Semantic Gap" in traditional word processors. Standard tools treat text as a flat sequence of characters. Inkforge treats a manuscript as a complex relational database of interconnected nodes: Scenes, Chapters, Characters, Locations, Lore, Timeline Events, and Research Notes.
 
 By maintaining this structural integrity, the application enables:
 - **Real-time Structural Analysis**: The software understands where you are in the story arc.
@@ -126,6 +126,6 @@ sequenceDiagram
 
 ## 8. Conclusion
 
-Author Studio Pro represents a paradigm shift from simple "Writing Software" to a unified "Writing Intelligence Engine". By abandoning the flat-text model in favor of a relational story graph, and integrating a design-centric reactive frontend with a heavy-lifting Python formatting backend, it provides authors with an uncompromising, professional environment for modern, data-driven storytelling.
+Inkforge represents a paradigm shift from simple "Writing Software" to a unified "Writing Intelligence Engine". By abandoning the flat-text model in favor of a relational story graph, and integrating a design-centric reactive frontend with a heavy-lifting Python formatting backend, it provides authors with an uncompromising, professional environment for modern, data-driven storytelling.
 
-© 2026 Author Studio Pro. Technical Documentation v4.0.
+© 2026 Inkforge. Technical Documentation v4.0.

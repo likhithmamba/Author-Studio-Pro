@@ -35,7 +35,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
     const { isRehydrating, initializeProject } = useStoryStore()
 
     useEffect(() => {
-        if (user && !localStorage.getItem('asp_onboarded')) {
+        if (user && !localStorage.getItem('inkforge_onboarded')) {
             setShowOnboarding(true)
         }
     }, [user])
@@ -71,8 +71,8 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                             <span>Back to Home</span>
                         </Link>
                         <div className="workspace-brand">
-                            <span className="workspace-logo">✦</span>
-                            <span className="workspace-title">Author Studio Pro</span>
+                            <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                            <span className="workspace-title">Inkforge</span>
                         </div>
                         <div style={{ width: 36 }} />
                     </div>
@@ -86,7 +86,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                 >
                     <div className="auth-gate-card glass-card">
                         <HiOutlineLockClosed className="auth-gate-icon" />
-                        <h2>Sign in to access Author Studio Pro</h2>
+                        <h2>Sign in to access Inkforge</h2>
                         <p>Create a free account to start formatting your manuscripts, or upgrade for AI-powered analysis and query generation.</p>
 
                         <div className="auth-gate-tiers">
@@ -143,8 +143,8 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
                             <span>Back to Home</span>
                         </Link>
                         <div className="workspace-brand">
-                            <span className="workspace-logo">✦</span>
-                            <span className="workspace-title">Author Studio Pro</span>
+                            <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                            <span className="workspace-title">Inkforge</span>
                             {isSubscribed && (
                                 <span className="workspace-plan-badge">
                                     <HiOutlineCheckBadge /> {planLabel.charAt(0).toUpperCase() + planLabel.slice(1)}
@@ -238,7 +238,7 @@ export default function AppWorkspace({ settings, onSettingsClick, initialTab }) 
 
                 {/* Workspace footer */}
                 <footer className="workspace-footer">
-                    <p>© {new Date().getFullYear()} Author Studio Pro · Your manuscript never leaves your browser</p>
+                    <p>© {new Date().getFullYear()} Inkforge · Your manuscript never leaves your browser</p>
                 </footer>
             </div>
         </WritingSystemProvider>

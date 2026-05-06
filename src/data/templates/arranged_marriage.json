@@ -1,0 +1,55 @@
+{
+  "id": "arranged_marriage",
+  "name": "Arranged Marriage Romance",
+  "description": "Contemporary romance navigating the uniquely Indian arranged marriage market.",
+  "chapters": [
+    {
+      "title": "The Biodata",
+      "description": "The protagonist faces the pressure of matchmaking and absurd matrimonial profiles."
+    },
+    {
+      "title": "The Awkward First Meeting",
+      "description": "Meeting the prospective match over chai and samosas with families present."
+    },
+    {
+      "title": "The Reluctant Agreement",
+      "description": "Agreeing to the match due to family pressure or a surprising spark."
+    },
+    {
+      "title": "The Courtship Phase",
+      "description": "Chaperoned dates, endless WhatsApp chats, and finding common ground."
+    },
+    {
+      "title": "The Past Resurfaces",
+      "description": "An ex-lover returns, or a secret from the past is revealed."
+    },
+    {
+      "title": "The Pre-Wedding Jitters",
+      "description": "Sangeet and Mehendi chaos; the realization of what marriage actually means."
+    },
+    {
+      "title": "The Big Fat Indian Wedding",
+      "description": "The exhausting, colorful multi-day ceremony and a moment of connection."
+    },
+    {
+      "title": "The Honeymoon Phase",
+      "description": "Traveling together; physical intimacy and awkward adjustments."
+    },
+    {
+      "title": "The In-Law Dynamics",
+      "description": "Moving in together; navigating expectations of the extended family."
+    },
+    {
+      "title": "The First Real Fight",
+      "description": "A clash of values or modern vs. traditional expectations."
+    },
+    {
+      "title": "The Compromise",
+      "description": "Learning to communicate; choosing the partner over the family."
+    },
+    {
+      "title": "True Love Discovered",
+      "description": "Realizing that love grew after marriage; a solid, chosen partnership."
+    }
+  ]
+}

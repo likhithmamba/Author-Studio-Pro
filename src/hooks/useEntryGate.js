@@ -9,7 +9,7 @@ export function useEntryGate() {
   useEffect(() => {
     if (loading) return; // wait for auth context to load
     
-    const entered = localStorage.getItem('asp_entered_app') === 'true';
+    const entered = localStorage.getItem('inkforge_entered_app') === 'true';
     if (user || token || entered) {
       setShouldRedirect(true);
     } else {

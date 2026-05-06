@@ -73,7 +73,7 @@ export default function AuthModal({ onClose }) {
                     <h2>{mode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
                     <p>{mode === 'login'
                         ? 'Sign in to access your subscription and premium features.'
-                        : 'Join Author Studio Pro to unlock AI-powered writing tools.'
+                        : 'Join Inkforge to unlock AI-powered writing tools.'
                     }</p>
                 </div>
 

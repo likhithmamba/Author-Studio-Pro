@@ -7,12 +7,12 @@ export default function OnboardingOverlay({ onClose, onOpenSettings }) {
 
     const handleNext = () => setStep(s => Math.min(s + 1, 3));
     const handleSkip = () => {
-        localStorage.setItem('asp_onboarded', 'true');
+        localStorage.setItem('inkforge_onboarded', 'true');
         onClose();
     };
     
     const finish = () => {
-        localStorage.setItem('asp_onboarded', 'true');
+        localStorage.setItem('inkforge_onboarded', 'true');
         onClose();
     };
 
@@ -47,7 +47,7 @@ export default function OnboardingOverlay({ onClose, onOpenSettings }) {
                             </div>
                             <h2 style={{ margin: '0 0 12px 0', fontSize: '20px', color: '#e8e0d5' }}>Connect Your Engine</h2>
                             <p style={{ color: '#bbb', fontSize: '13px', lineHeight: 1.5 }}>
-                                Author Studio Pro uses your own AI models. You'll need to set your free OpenRouter API key to unlock structural analysis.
+                                Inkforge uses your own AI models. You'll need to set your free OpenRouter API key to unlock structural analysis.
                             </p>
                         </motion.div>
                     )}

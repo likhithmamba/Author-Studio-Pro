@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 
 ## What the app does
-Author Studio Pro is a high-fidelity narrative asset management suite and publishing pipeline. It goes beyond standard word processing by treating a manuscript as a complex relational database. It integrates an intelligent Story Strategy Optimization (SSO) engine with a distraction-free writing canvas, helping authors maintain structural integrity, consistency, and professional formatting.
+Inkforge is a high-fidelity narrative asset management suite and publishing pipeline. It goes beyond standard word processing by treating a manuscript as a complex relational database. It integrates an intelligent Story Strategy Optimization (SSO) engine with a distraction-free writing canvas, helping authors maintain structural integrity, consistency, and professional formatting.
 
 ## Key features
 - **Midnight Chronicle Editor**: A professional three-panel interface (Binder, Writing Canvas, Inspector) optimized for focused, distraction-free writing.

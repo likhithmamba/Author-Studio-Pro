@@ -1,0 +1,55 @@
+{
+  "id": "bollywood_romance",
+  "name": "Bollywood Romance",
+  "description": "Larger-than-life romance, exotic locales, and dramatic sacrifices.",
+  "chapters": [
+    {
+      "title": "The Meet Cute",
+      "description": "A spectacular, coincidental meeting in a picturesque location."
+    },
+    {
+      "title": "The Antagonism",
+      "description": "Initial friction; they hate each other (but the chemistry is obvious)."
+    },
+    {
+      "title": "The Journey Together",
+      "description": "A road trip or forced proximity that forces them to rely on each other."
+    },
+    {
+      "title": "The Realization (The Song Sequence)",
+      "description": "One (or both) realizes they are in love, usually during a festival or rain."
+    },
+    {
+      "title": "The Obstacle",
+      "description": "Class difference, a strict father, or a pre-arranged engagement."
+    },
+    {
+      "title": "The Grand Declaration",
+      "description": "Confessing love against all odds."
+    },
+    {
+      "title": "The Heartbreak",
+      "description": "A misunderstanding or forced sacrifice drives them apart."
+    },
+    {
+      "title": "The Painful Separation",
+      "description": "Longing from afar; moving on but unable to forget."
+    },
+    {
+      "title": "The Truth Revealed",
+      "description": "Discovering why the separation really happened."
+    },
+    {
+      "title": "The Climax at the Airport/Wedding",
+      "description": "A desperate race against time to stop a wedding or a flight."
+    },
+    {
+      "title": "The Parent's Blessing",
+      "description": "Winning over the strict patriarch through a grand gesture."
+    },
+    {
+      "title": "The happily Ever After",
+      "description": "A joyous celebration, dancing into the sunset."
+    }
+  ]
+}

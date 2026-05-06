@@ -1,5 +1,5 @@
 SENIOR ENGINEERING REVIEW  ·  ARCHITECTURE AUDIT
-Author Studio Pro
+Inkforge
 What's Built. What's Missing. What to Build Next.
 CODEBASE
 React + FastAPI
@@ -682,7 +682,7 @@ If Extended timed out and fell back to Depth: show "Extended timed out — Depth
 No onboarding enforcement exists. New users land with no guidance.
 A minimal 3-step onboarding overlay must be shown on first project creation to orient users to the SSO model, signal engine, and AI modes.
 3-Step Overlay
-Step 1 — Set API Key: "Author Studio Pro uses your own AI model. Set your key to unlock analysis." → links to Settings
+Step 1 — Set API Key: "Inkforge uses your own AI model. Set your key to unlock analysis." → links to Settings
 Step 2 — Understand Modes: brief visual comparison of Normal / Depth / Extended with a "Start with Normal" recommendation
 Step 3 — First Analysis: "Add a chapter, then click Analyse in the sidebar to surface structural signals." → CTA opens AnalystTab
 Skip option always visible — do not force completion
@@ -1008,7 +1008,7 @@ ALL analysis must be based ONLY on SSO snapshot.
  
 Violation of this rule breaks the system.
 27 — Additional Features & Systems (Spec Gaps)
-The following systems are absent from both the current codebase and the original spec. Each represents a critical gap between Author Studio Pro and a production-ready novel intelligence platform. Build order is indicated per section.
+The following systems are absent from both the current codebase and the original spec. Each represents a critical gap between Inkforge and a production-ready novel intelligence platform. Build order is indicated per section.
 ★
 10 Missing Systems Identified
 Export, versioning, global search, world building, analytics, templates, import, beta readers, query letter assistant, and research panel — none are specified or implemented. These are not optional: they are the table stakes of any writing platform.
@@ -1159,7 +1159,7 @@ INTENT LAYER INTEGRATION: pass activeTemplate to intentLayer.js.
 27.7 — Import Pipeline  [NEW — P2]
 ✗
 Status: Not Specified. Not Implemented.
-Writers have existing manuscripts in Scrivener, Word, or plain text. Without import, Author Studio Pro cannot acquire existing projects. This is an acquisition-blocking gap.
+Writers have existing manuscripts in Scrivener, Word, or plain text. Without import, Inkforge cannot acquire existing projects. This is an acquisition-blocking gap.
 Import Sources
 Word / .docx — import chapters as paragraph-delimited sections. Detect heading styles as chapter breaks.
 Plain text (.txt) — split on '# Chapter N' or '=== Chapter ===' conventions.

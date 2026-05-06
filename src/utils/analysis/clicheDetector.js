@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Fiction Cliché Detector.
+ * Inkforge — Fiction Cliché Detector.
  * 100+ common fiction clichés with frequency counting.
  */
 

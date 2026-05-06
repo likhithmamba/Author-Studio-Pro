@@ -1,0 +1,55 @@
+{
+  "id": "small_town_slice_of_life",
+  "name": "Small Town Slice of Life",
+  "description": "Warm, character-driven stories set in Tier-2/Tier-3 Indian cities with quirky locals.",
+  "chapters": [
+    {
+      "title": "The Local Adda",
+      "description": "Establishing the town's rhythm, the local tea stall, and the cast of characters."
+    },
+    {
+      "title": "The Return",
+      "description": "The protagonist returns from the big city, feeling like a failure."
+    },
+    {
+      "title": "The Meddling Neighbors",
+      "description": "Everyone knows everything; dealing with intense lack of privacy."
+    },
+    {
+      "title": "The Local Rivalry",
+      "description": "A petty, long-standing feud between two families or shops."
+    },
+    {
+      "title": "The Festival",
+      "description": "The entire town comes together; a moment of community bonding."
+    },
+    {
+      "title": "The Big City Threat",
+      "description": "A corporation or a new development threatens the town's way of life."
+    },
+    {
+      "title": "The Unlikely Romance",
+      "description": "A slow-burn romance with a childhood friend or local."
+    },
+    {
+      "title": "The Rebellion",
+      "description": "The protagonist takes a stand against the town's conservative views."
+    },
+    {
+      "title": "The Crisis",
+      "description": "A natural disaster or a major personal loss unites the town."
+    },
+    {
+      "title": "The Resolution",
+      "description": "The protagonist finds a way to save the town's spirit or their own family."
+    },
+    {
+      "title": "The Realization",
+      "description": "Realizing that this small town is exactly where they belong."
+    },
+    {
+      "title": "Life Goes On",
+      "description": "The town returns to its rhythm, slightly changed, but enduring."
+    }
+  ]
+}

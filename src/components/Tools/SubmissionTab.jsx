@@ -22,7 +22,7 @@ const KANBAN_COLUMNS = [
     { id: 'Closed', title: 'CLOSED / OFFER', statuses: ['Rejected', 'Offer', 'Withdrawn', 'No Response'] }
 ]
 
-const LS_KEY = 'asp_submissions'
+const LS_KEY = 'inkforge_submissions'
 
 function processDuplicates(subs) {
     // ⚡ Bolt: Optimize submission duplicate detection

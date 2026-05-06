@@ -19,7 +19,7 @@ const faqs = [
     },
     {
         q: 'What file formats are supported?',
-        a: 'Currently, Author Studio Pro works with .docx (Microsoft Word) files. This is the standard manuscript submission format used by virtually all literary agents and publishers worldwide. Support for .odt and plain text is on the roadmap.',
+        a: 'Currently, Inkforge works with .docx (Microsoft Word) files. This is the standard manuscript submission format used by virtually all literary agents and publishers worldwide. Support for .odt and plain text is on the roadmap.',
     },
     {
         q: 'Does the formatter change my original file?',
@@ -35,7 +35,7 @@ const faqs = [
     },
     {
         q: 'Is there a word limit?',
-        a: 'No. Author Studio Pro has been tested with manuscripts up to 200,000 words. The parser processes any length — the AI pattern learning uses only ~80 paragraphs regardless of manuscript size, keeping API costs fixed.',
+        a: 'No. Inkforge has been tested with manuscripts up to 200,000 words. The parser processes any length — the AI pattern learning uses only ~80 paragraphs regardless of manuscript size, keeping API costs fixed.',
     },
 ]
 

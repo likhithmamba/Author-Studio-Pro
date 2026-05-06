@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Chapter Hook Analyzer.
+ * Inkforge — Chapter Hook Analyzer.
  * Classifies chapter endings and calculates hook strength.
  */
 

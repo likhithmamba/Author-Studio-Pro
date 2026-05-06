@@ -50,7 +50,7 @@ export default function QuickCapture({ open, onClose }) {
         // In full app, we would use a Router hook or Zustand store
         let projectId = null;
         try {
-            const raw = localStorage.getItem('asp_editor_project');
+            const raw = localStorage.getItem('inkforge_editor_project');
             if (raw) projectId = JSON.parse(raw).id;
         } catch {}
 

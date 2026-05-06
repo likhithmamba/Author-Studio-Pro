@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from database import get_supabase
 from routers.auth_routes import get_current_user
@@ -693,3 +693,37 @@ async def update_session(request: Request, body: SessionDelta):
     except Exception as e:
         logger.warning(f"update_session failed: {e}")
         return {"status": "offline", "error": str(e)[:200]}
+
+@router.get("/api/sessions/streak", tags=["Editor"])
+async def get_streak(request: Request):
+    uid = get_user_id(request)
+    sb = get_supabase()
+    if not sb: return {"streak": 0}
+    
+    try:
+        res = sb.table("writing_sessions").select("session_date, words_added").eq("user_id", uid).order("session_date", desc=True).execute()
+        if not res.data:
+            return {"streak": 0}
+            
+        sessions = sorted(res.data, key=lambda x: x["session_date"], reverse=True)
+        streak = 0
+        today = datetime.utcnow().date()
+        
+        current_date = today
+        for s in sessions:
+            s_date = datetime.strptime(s["session_date"], "%Y-%m-%d").date()
+            if s_date == current_date:
+                if s["words_added"] > 0:
+                    streak += 1
+                current_date = current_date - timedelta(days=1)
+            elif s_date == current_date - timedelta(days=1) and streak == 0:
+                if s["words_added"] > 0:
+                    streak += 1
+                current_date = s_date - timedelta(days=1)
+            else:
+                break
+                
+        return {"streak": streak}
+    except Exception as e:
+        logger.warning(f"get_streak failed: {e}")
+        return {"streak": 0}

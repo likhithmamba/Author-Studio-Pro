@@ -1,0 +1,55 @@
+{
+  "id": "masala_drama",
+  "name": "Masala Drama (Commercial)",
+  "description": "High-emotion, multi-generational family saga with intense drama, romance, and conflict.",
+  "chapters": [
+    {
+      "title": "The Grand Function",
+      "description": "Start with a massive wedding or festival, introducing the sprawling family."
+    },
+    {
+      "title": "The Hidden Secret",
+      "description": "Reveal a scandalous family secret that threatens their reputation (Izzat)."
+    },
+    {
+      "title": "The Rebellious Heart",
+      "description": "The protagonist falls for someone inappropriate or chooses an unconventional path."
+    },
+    {
+      "title": "The Patriarch's Decree",
+      "description": "The head of the family lays down a harsh rule or ultimatum."
+    },
+    {
+      "title": "The Melodramatic Confrontation",
+      "description": "A high-stakes emotional argument, preferably in front of relatives."
+    },
+    {
+      "title": "The Tragic Misunderstanding",
+      "description": "A plot twist that separates the protagonist from their allies/lover."
+    },
+    {
+      "title": "The Sacrificial Lamb",
+      "description": "Someone makes a huge sacrifice for the sake of the family's honor."
+    },
+    {
+      "title": "The Return of the Prodigal",
+      "description": "An exiled character returns, bringing new information or wealth."
+    },
+    {
+      "title": "The Ultimate Betrayal",
+      "description": "The true villain within the family is exposed."
+    },
+    {
+      "title": "The Climax at the Mandap",
+      "description": "Everything comes to a head at another major family gathering."
+    },
+    {
+      "title": "The Tearful Reunion",
+      "description": "Forgiveness is sought and granted; families reunite."
+    },
+    {
+      "title": "The Happy Ending",
+      "description": "A new generation begins; tradition and modernity find a balance."
+    }
+  ]
+}

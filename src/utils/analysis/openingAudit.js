@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Opening Page Audit.
+ * Inkforge — Opening Page Audit.
  * 7-condition audit of the first 1,000 words. Catches agent red flags.
  */
 

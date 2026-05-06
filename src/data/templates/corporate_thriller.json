@@ -1,0 +1,55 @@
+{
+  "id": "corporate_thriller",
+  "name": "Corporate Thriller (India Inc.)",
+  "description": "Fast-paced thriller set in the boardrooms and tech parks of modern India.",
+  "chapters": [
+    {
+      "title": "The Unicorn Dream",
+      "description": "A booming startup, massive valuations, and toxic work culture."
+    },
+    {
+      "title": "The Audit",
+      "description": "A discrepancy is found; the protagonist stumbles upon a massive fraud."
+    },
+    {
+      "title": "The Warning",
+      "description": "Subtle threats to back off; discovering how deep the rot goes."
+    },
+    {
+      "title": "The Whistleblower",
+      "description": "Reaching out to the media or authorities, but finding them compromised."
+    },
+    {
+      "title": "The Setup",
+      "description": "The protagonist is framed for the very fraud they uncovered."
+    },
+    {
+      "title": "The Firing",
+      "description": "Stripped of power, reputation destroyed, abandoned by colleagues."
+    },
+    {
+      "title": "The Underground Alliance",
+      "description": "Teaming up with a hacker or a disgraced former executive."
+    },
+    {
+      "title": "Following the Money",
+      "description": "Tracing shell companies, hawala networks, and political links."
+    },
+    {
+      "title": "The Data Heist",
+      "description": "Infiltrating the company's servers to get the golden evidence."
+    },
+    {
+      "title": "The Board Meeting Climax",
+      "description": "Confronting the CEO in front of investors with undeniable proof."
+    },
+    {
+      "title": "The Fallout",
+      "description": "The company crashes, arrests are made, but the money is gone."
+    },
+    {
+      "title": "The Next Venture",
+      "description": "The protagonist starts over, older and much wiser."
+    }
+  ]
+}

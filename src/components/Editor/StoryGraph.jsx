@@ -102,6 +102,19 @@ function StoryNode({ data }) {
          </div>
       )}
 
+      {/* Signal Badges */}
+      {data.signals && data.signals.length > 0 && !isEditing && (
+          <div style={{
+              position: 'absolute', top: -10, right: -10,
+              background: data.signals.some(s => s.severity === 'critical' || s.severity === 'high') ? '#D4614A' : '#C9915A',
+              color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '10px',
+              border: '2px solid #000', fontWeight: 'bold', zIndex: 11,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)', cursor: 'help'
+          }} title={`${data.signals.length} Structural Issue(s) detected`}>
+              ⚠️ {data.signals.length}
+          </div>
+      )}
+
       {/* Edit Popover */}
       {isEditing && (
           <div style={{
@@ -163,6 +176,10 @@ export default function StoryGraph() {
           type: n.type || n.node_type || 'event',
           confidence_score: n.confidence_score !== undefined ? n.confidence_score : 0.72,
           id: n.id,
+          signals: useStoryStore.getState().analysis?.result?.allSignals?.filter(s => 
+              (s.characters || []).includes(n.id) || 
+              (s.region?.chapterIds || []).includes(n.id)
+          ) || [],
           onConfirm: (id, updates = {}) => upsertNode({...n, ...updates, confidence_score: 1.0}),
           onFix: (id) => upsertNode({...n, confidence_score: 0.95}) 
       },

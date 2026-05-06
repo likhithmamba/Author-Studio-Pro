@@ -1,0 +1,55 @@
+{
+  "id": "desi_crime",
+  "name": "Rural Noir / Desi Crime",
+  "description": "Gritty, grounded crime thrillers set in the hinterlands (UP/Bihar/Heartland) or dark underbelly of cities.",
+  "chapters": [
+    {
+      "title": "The Body in the Fields",
+      "description": "Discovery of a crime that the local police want to quickly sweep under the rug."
+    },
+    {
+      "title": "The Reluctant Cop",
+      "description": "Introduction of a flawed, cynical investigator who has compromised before."
+    },
+    {
+      "title": "The Local Bahubali",
+      "description": "Encounter with the local politician/don who controls the region."
+    },
+    {
+      "title": "The Caste Angle",
+      "description": "Uncovering how local social hierarchies are blocking the investigation."
+    },
+    {
+      "title": "The Honest Journalist",
+      "description": "Meeting an ally who knows too much and is in danger."
+    },
+    {
+      "title": "The Cover-Up",
+      "description": "Evidence is destroyed; witnesses are intimidated or killed."
+    },
+    {
+      "title": "The Suspension",
+      "description": "The investigator pushes too hard and is officially removed from the case."
+    },
+    {
+      "title": "Going Rogue",
+      "description": "Investigating off the books, utilizing underworld contacts."
+    },
+    {
+      "title": "The Violent Retaliation",
+      "description": "The investigator's family or close ally is targeted."
+    },
+    {
+      "title": "The Bloody Climax",
+      "description": "A raw, unglamorous shootout or confrontation in an isolated location."
+    },
+    {
+      "title": "The Hollow Victory",
+      "description": "The immediate villains are dead, but the system remains unchanged."
+    },
+    {
+      "title": "The Transfer Order",
+      "description": "The investigator is transferred to a punishment posting; life goes on."
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Novel Editor (Tiptap-based)
+ * Inkforge — Novel Editor (Tiptap-based)
  * Distraction-free chapter editor with word count, focus mode, AI assists.
  */
 

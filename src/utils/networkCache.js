@@ -1,5 +1,5 @@
 /**
- * Author Studio Pro — Stale-while-revalidate network cache using IndexedDB.
+ * Inkforge — Stale-while-revalidate network cache using IndexedDB.
  * Caches fetch results to survive backend cold-starts (Render free tier: 10-30s).
  */
 
