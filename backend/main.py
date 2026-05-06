@@ -439,17 +439,9 @@ async def validate_ai_key(request: Request, body: ValidateKeyRequest):
         raise HTTPException(400, f"Unsupported provider: {body.provider}")
 
 
-# ─── Final Startup ──────────────────────────────────────────
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global error handler caught: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An internal server error occurred.", "error": str(exc)},
-    )
 
 
-if __name__ == "__main__":
+if __name__if __name__ == "__main__":
     import uvicorn
     import os
     
