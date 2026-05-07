@@ -52,6 +52,8 @@ export default function ThinkingPanel({
             }}>
                 <button
                     onClick={() => onToggleOpen(true)}
+                    aria-label="Open Thinking Panel"
+                    title="Open Thinking Panel"
                     style={{
                         position: 'absolute',
                         left: '-24px',
@@ -102,6 +104,8 @@ export default function ThinkingPanel({
         }}>
             <button
                 onClick={() => onToggleOpen(false)}
+                aria-label="Close Thinking Panel"
+                title="Close Thinking Panel"
                 style={{
                     position: 'absolute',
                     left: 0,
@@ -132,10 +136,12 @@ export default function ThinkingPanel({
                 background: '#111',
                 borderBottom: '1px solid #2a2a2a',
                 flexShrink: 0
-            }}>
+            }} role="tablist">
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
+                        role="tab"
+                        aria-selected={activeTab === tab.id}
                         onClick={() => handleTabClick(tab.id)}
                         title={tab.label}
                         style={{
