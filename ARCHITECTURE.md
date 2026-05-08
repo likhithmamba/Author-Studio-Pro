@@ -1,5 +1,111 @@
 # ARCHITECTURE.md
 
+## Detailed System Simulation & Data Lifecycle
+
+
+![alt text][def]
+
+
+
+```mermaid
+graph TD
+    subgraph "AUTHOR UI: Midnight Chronicle Editor"
+        UI[Editor Interface] -->|Keydown/Click| EV[Event Listener]
+        EV -->|Text Change| TT[TipTap Editor Instance]
+        EV -->|Toggle| TLT[Transliteration Mode]
+        EV -->|Open| CMD[Command Palette]
+        
+        subgraph "TipTap & Editor Logic"
+            TT -->|compositionstart| IME[IME Session Handler]
+            IME -->|Block| ASM[Autosave Manager]
+            TT -->|Paragraph Blur| SCK[Spellcheck Queue]
+            TRLT -->|Render Squiggles| TT
+            TL_OUT -->|Insert Text| TT
+        end
+    end
+
+    subgraph "FRONTEND STATE: Zustand SSOT"
+        ZS(StoryStore) -->|Update| ISP[Inspector Panel]
+        ZS -->|Hierarchy| BND[Binder Panel]
+        
+        subgraph "Sync & Session Analytics"
+            ASM -->|Interval Trigger| ZS
+            ZS -->|Diff| PND[pendingChanges]
+            PND -->|Debounce| SYNC{Sync Trigger}
+            SYNC -->|Batch JSON| BAPI[Batch API Service]
+            ASM -->|Session End| ANL[V10: Indic Analytics]
+        end
+
+        subgraph "SSO Orchestration"
+            ISP -->|Analyze Trigger| SNAP[api/sso/snapshot]
+            ZS -->|Gather Bible/Context| SNAP
+            SNAP -->|SSO Object| JSR[ai_routes]
+        end
+    end
+
+    subgraph "PAYMENTS & AUTH"
+        RZP[Razorpay UI] -->|Payment Success| WH[Webhook Listener]
+        WH -->|Update Tier| PRF[(Profiles Table)]
+        PRF -->|Session Token| JWT[JWT Token]
+        JWT -->|Bearer Auth| JSR
+        PRF -->|Tier Check| PRM
+    end
+
+    subgraph "BACKEND: FastAPI Vernacular Pipeline"
+        BAPI -->|POST /api/editor/data| RTR[editor_routes / editor_tools]
+        
+        subgraph "Text Services & Return Paths"
+            RTR -->|V1| CNT[indic_counter.py]
+            CNT -->|Word Count| ZS
+            RTR -->|V5| NRM[unicode_normaliser.py]
+            RTR -->|V8| PNC[indic_punctuation.py]
+            SCHK -->|Corrected Words| TL_OUT[Transliteration Hub]
+            TRLT -->|Indic Output| TL_OUT
+        end
+        
+        subgraph "Tool Endpoints"
+            SCK -->|V3| SCHK[POST /spellcheck]
+            TLT -->|V2| TRLT[POST /transliterate]
+        end
+    end
+
+    subgraph "INTELLIGENCE: SSO Engine"
+        JSR -->|V6| TKN[indic_token_estimator.py]
+        JSR -->|A6 Check| PRM{require_premium_tier}
+        
+        subgraph "Premium Execution"
+            PRM -->|Authorized| SEG[Signal Engine]
+            SEG -->|V12| GRD[script_continuity.py]
+            SEG -->|V7| ENT[entity_resolver.py]
+            GRD & ENT -->|Context Injection| OPR[OpenRouter API]
+            OPR -->|Log Usage| LOG[(ai_call_logs)]
+            OPR -->|Response| SYN[Signal Synthesizer]
+        end
+        
+        SYN -->|Insights JSON| ZS
+    end
+
+    subgraph "PUBLISHING: NovelFormatter"
+        EXP[Export Trigger] -->|V4| FMT[format_routes]
+        FMT -->|Template Mapping| NFE[NovelFormatter Engine]
+        NFE -->|Noto Font Logic| FNT[Font Embedding]
+        FNT -->|Binary Stream| USER_DOC[.docx File Download]
+    end
+
+    subgraph "PERSISTENCE"
+        RTR -->|NFC Data| DB_UPSERT[Supabase Upsert]
+        DB_UPSERT -->|Relational Write| PG[(PostgreSQL)]
+        ANL -->|V10 Updates| STR[(writing_sessions)]
+    end
+
+    style PRM fill:#f96,stroke:#333,stroke-width:2px
+    style SNAP fill:#f9f,stroke:#333,stroke-width:2px
+    style SYNC fill:#f96,stroke:#333,stroke-width:2px
+    style ZS fill:#dfd,stroke:#333,stroke-width:2px
+```
+
+---
+
 ## What the app does
 Inkforge is a high-fidelity narrative asset management suite and publishing pipeline. It goes beyond standard word processing by treating a manuscript as a complex relational database. It integrates an intelligent Story Strategy Optimization (SSO) engine with a distraction-free writing canvas, helping authors maintain structural integrity, consistency, and professional formatting.
 
@@ -57,3 +163,6 @@ Inkforge is a high-fidelity narrative asset management suite and publishing pipe
 - **AI Inspector Efficacy**: Are the Prose Analysis and Developmental Editor signals genuinely useful during active drafting, or do they distract from the creative flow?
 - **Worldbuilding Abstraction**: Does utilizing the `locations` table to store Lore, Artifacts, and Glossary entries scale well long-term, or should we invest in explicit schema migrations for these specific entities?
 - **Component Modularization**: Recommendations on cleanly splitting `MidnightChronicleEditor.jsx` into smaller, highly cohesive files without breaking the tightly coupled Zustand hooks.
+
+
+[def]: image.png
