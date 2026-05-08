@@ -54,6 +54,22 @@ def get_current_user(request: Request) -> dict:
     return user
 
 
+def require_premium_tier(request: Request) -> dict:
+    """Enforce Razorpay Tier Access for premium endpoints."""
+    user = get_current_user(request)
+    is_mock = os.getenv("DEVELOPER_MOCK_AUTH", "false").lower() == "true"
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    
+    if is_mock and env != "production" and user["id"] == "00000000-0000-0000-0000-000000000000":
+        return user
+
+    sub = get_active_subscription(user["id"])
+    if not sub or sub["status"] != "active":
+        raise HTTPException(403, "Premium subscription required for this feature")
+        
+    return user
+
+
 @router.post("/api/auth/register", tags=["Auth"])
 @limiter.limit("5/minute")
 async def register(request: Request, body: RegisterRequest):

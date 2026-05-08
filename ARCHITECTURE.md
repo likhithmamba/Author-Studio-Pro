@@ -3,13 +3,41 @@
 ## What the app does
 Inkforge is a high-fidelity narrative asset management suite and publishing pipeline. It goes beyond standard word processing by treating a manuscript as a complex relational database. It integrates an intelligent Story Strategy Optimization (SSO) engine with a distraction-free writing canvas, helping authors maintain structural integrity, consistency, and professional formatting.
 
-## Key features
-- **Midnight Chronicle Editor**: A professional three-panel interface (Binder, Writing Canvas, Inspector) optimized for focused, distraction-free writing.
-- **Relational Story Graph**: Chapters, Scenes, Characters, Locations, Lore, and Timeline Events are deeply linked, managed locally via Zustand, and synced to PostgreSQL.
-- **Real-Time SSO Intelligence**: AI-assisted developmental editing, prose analysis, and pacing critiques available directly alongside the text.
-- **Debounced Batch Synchronization**: Robust background state syncing (`StoreSyncManager`) that bulk-upserts data to the Supabase backend efficiently without freezing the UI.
-- **Dynamic Worldbuilding**: "Glossary", "Lore", and "Artifacts" are elegantly mapped onto the unified `locations` backend table using an internal `type` index, avoiding database schema bloat.
-- **Client-Side Export Compilation**: Direct transformation of local state into fully compliant, industry-standard `.docx` formats via the Python-based `NovelFormatter` engine.
+## Feature List (Comprehensive)
+
+### Core Editing & Manuscript Management
+- **Midnight Chronicle Editor**: A distraction-free, professional three-panel workspace optimized for long-form narrative production.
+- **Hierarchical Binder**: Drag-and-drop navigation for Chapters and Scenes with real-time status indicators (Draft, First Pass, Final).
+- **Distraction-Free Canvas**: Minimalist writing surface with debounced autosave and native IME composition handling for Indic scripts.
+- **Relational Story Bible**: Dedicated trackers for **Characters**, **Locations**, **Timeline Events**, and **Research Notes**, all linked to specific scenes.
+- **Relational Lore & Artifacts**: Deep-worldbuilding support via the unified `locations` architecture.
+
+### Intelligence & SSO Engine
+- **Prose Analyst**: Real-time analysis of readability, pacing, sentence variety, and passive voice.
+- **AI Developmental Editor**: Structural critique and plot consistency checks using project-wide metadata context.
+- **Signal Intelligence Pipeline**: Multi-stage AI processing that synthesizes manuscript data into actionable editorial "signals."
+- **Inline AI Assist**: Context-aware brainstorming and text expansion available directly within the writing canvas.
+- **Script Continuity Guard**: (New) AI-locking mechanism that prevents the SSO engine from drifting to English when analyzing Indic-primary projects.
+
+### Vernacular & India-Market Features (Track A)
+- **Indian Genre Template Library**: 12 specialized templates for mythological retelling, masalas, corporate thrillers, etc.
+- **Pratilipi-Compatible Export**: Specialized plain-text formatter for leading Indian publishing platforms.
+- **Indic Word Counter**: Unicode-aware counter providing per-script breakdowns (Hindi, Kannada, Tamil, Telugu, Latin).
+- **Live Transliteration**: Integrated Roman-to-Indic (IAST/HK) transliteration service for seamless typing.
+- **Indic Spellcheck**: Backend-powered Hunspell dictionary integration for Hindi and Kannada prose.
+- **Noto Font Embedding**: Automated embedding of Indic glyphs in `.docx` exports to prevent "tofu" boxes.
+
+### Monetization & Security
+- **Razorpay Tier Gating**: (New) Robust middleware enforcing active premium subscriptions for advanced AI and analysis features.
+- **Pro-Tier AI Limits**: Tier-aware token budget enforcement using an Indic-calibrated token estimator.
+- **JWT Authentication**: Secure user sessions with Supabase-backed authentication.
+- **Environment Isolation**: Conditional mock-auth bypass for rapid local development.
+
+### Infrastructure & Operations
+- **StoreSyncManager**: High-frequency debounced batch synchronization daemon for zero-latency data persistence.
+- **NovelFormatter Engine**: High-fidelity Python-based `.docx` rendering engine.
+- **Writing Goals & Streaks**: Persistent session tracking with timezone-aware streak indicators and daily word goals.
+- **Multilingual UI (i18n)**: Full platform localization in English, Hindi, and Kannada.
 
 ## Tech stack
 - **Frontend**: React 18, Vite, Zustand (SSOT State Management).

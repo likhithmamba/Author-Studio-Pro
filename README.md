@@ -55,22 +55,47 @@ To maintain cost-efficiency and performance, the engine employs a "Metadata-Firs
 
 ---
 
-## 4. The Formatting, Export, and Distribution Pipeline
+## 4. The Vernacular-First Infrastructure (v2.0)
+
+Inkforge is optimized for the Indian writing market, providing native support for Indic scripts that exceeds standard word processors.
+
+### 4.1 Unicode-Aware Processing
+- **Indic Word Counter**: Accurate word counting for Devanagari, Kannada, Tamil, and Telugu, providing script-specific breakdowns for Hinglish manuscripts.
+- **Unicode Normalisation**: Backend-enforced NFC normalisation ensures search reliability across different operating systems.
+- **Script Continuity Guard**: Prevents AI drift, ensuring that SSO editorial suggestions remain in the project's primary Indic language.
+
+### 4.2 Professional Indic Typography
+- **Noto Font Embedding**: Automated embedding of Noto Sans Indic fonts in `.docx` exports, eliminating the "tofu" (box) rendering problem in Microsoft Word.
+- **IME Session Coordination**: Backend-aware composition handling ensures that fast Devanagari typing via IMEs is synced correctly without character duplication.
+
+---
+
+## 5. Monetization & Security: Razorpay Integration
+
+The platform implements a tiered access model to manage high-compute AI operations.
+
+- **Tier-Gating Middleware**: Critical AI and analysis endpoints are secured via the `require_premium_tier` dependency, validating active Razorpay subscriptions.
+- **Indic Token Estimator**: A calibrated estimation engine that correctly budgets the higher token costs of Indic scripts against user tier limits.
+- **Production Environment Hardening**: Real-time subscription verification with conditional mock-auth for local development cycles.
+
+---
+
+## 6. The Formatting, Export, and Distribution Pipeline
 
 The formatter is a specialized rendering engine that transforms raw manuscript data into production-ready `.docx` files, fully integrated into the frontend client.
 
-### 4.1 Client-Side Compilation Engine
+### 6.1 Client-Side Compilation Engine
 - The `useExport` hook inside `MidnightChronicleEditor.jsx` acts as a localized compilation engine. It parses the active `chapterOrder`, retrieves the content of chapters or assembles the chapter dynamically from its nested scenes (automatically injecting standard `***` scene breaks).
 - It generates a unified `FormatTextRequest` JSON payload directly from the local Zustand store state, eliminating the need for redundant backend queries.
 
-### 4.2 Template Transformation via `NovelFormatter`
+### 6.2 Template Transformation via `NovelFormatter`
 - **Normalization**: Raw text is stripped of ad-hoc formatting and normalized into a clean internal representation on the backend.
-- **Style Mapping**: Logical nodes are mapped to predefined template specs (e.g., US Standard Manuscript Format, UK Standard).
+- **Style Mapping**: Logical nodes are mapped to predefined template specs (e.g., US Standard Manuscript Format, UK Standard, and Pratilipi Plaintext).
 - **Blob Delivery**: The backend returns the raw `.docx` as a binary Blob stream. The frontend API (`fetchBlob`) captures this stream, creates a secure temporary local Object URL, and programmatically triggers a direct browser download.
 
 ---
 
-## 5. Technical Data Flow
+## 7. Technical Data Flow
 
 ```mermaid
 sequenceDiagram
@@ -96,7 +121,7 @@ sequenceDiagram
 
 ---
 
-## 6. Performance Characteristics and Limitations
+## 8. Performance Characteristics and Limitations
 
 - **Latency**: Local Zustand state updates are instantaneous (sub-1ms). Backend debounced sync requests resolve in ~100-300ms depending on payload size.
 - **Blob Streaming Memory Restrictions**: The backend compiles `.docx` files in memory and streams them directly. While optimized for novels up to 200,000 words, extreme datasets may require pagination.
@@ -105,7 +130,7 @@ sequenceDiagram
 
 ---
 
-## 7. Deployment and Development Configuration
+## 9. Deployment and Development Configuration
 
 ### Prerequisites
 - **Python 3.10+** (Backend API & Intelligence)
@@ -118,14 +143,15 @@ sequenceDiagram
 3.  **Database Migration**: 
     - Execute `supabase_production_setup.sql` in your Supabase SQL Editor to initialize all tables (`projects`, `chapters`, `scenes`, `characters`, `locations`, `timeline_events`, `research_notes`).
     - Execute `backend/seed_demo.sql` to populate the default development account.
+    - Execute `supabase/migrations/013_indic_analytics.sql` for vernacular metrics support.
 4.  **Service Startup**:
     - Backend: Execute `start-backend.bat` (runs `uvicorn main:app --reload`).
     - Frontend: Execute `start-frontend.bat` (runs `npm run dev`).
 
 ---
 
-## 8. Conclusion
+## 10. Conclusion
 
 Inkforge represents a paradigm shift from simple "Writing Software" to a unified "Writing Intelligence Engine". By abandoning the flat-text model in favor of a relational story graph, and integrating a design-centric reactive frontend with a heavy-lifting Python formatting backend, it provides authors with an uncompromising, professional environment for modern, data-driven storytelling.
 
-© 2026 Inkforge. Technical Documentation v4.0.
+© 2026 Inkforge. Technical Documentation v5.5.

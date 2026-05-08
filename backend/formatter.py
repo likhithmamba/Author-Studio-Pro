@@ -1,0 +1,552 @@
+"""
+formatter.py
+============
+Builds a perfectly formatted manuscript .docx from the parsed paragraph list.
+Applies every rule in the selected NovelTemplate with zero ambiguity.
+
+Design principles
+-----------------
+1. Creates a BRAND NEW document — never modifies the original.
+2. Applies typographic rules that mirror professional publishing:
+   - First paragraph after a chapter heading has NO first-line indent.
+   - All subsequent body paragraphs use the template indent.
+   - Scene breaks are centred and spaced symmetrically.
+   - Page numbers are real field codes, not static text.
+3. The title page is auto-generated and follows submission standards.
+4. Every setting comes from the template — nothing is hardcoded here.
+"""
+
+import re
+from copy import deepcopy
+from typing import List, Optional, Tuple
+
+from docx import Document
+from docx.shared import Pt, Inches, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from services.text_analysis.indic_counter import detect_token_script
+
+from templates import NovelTemplate
+from parser import ParsedParagraph, PARA_BODY, PARA_CHAPTER, PARA_SCENE_BREAK, PARA_EMPTY, PARA_FRONT_MATTER
+
+
+# ── Page size constants ───────────────────────────────────────────────────────
+_LETTER_W = Inches(8.5)
+_LETTER_H = Inches(11.0)
+_A4_W     = Cm(21.0)
+_A4_H     = Cm(29.7)
+
+
+class NovelFormatter:
+    """
+    Takes a list of ParsedParagraph objects and a NovelTemplate,
+    and produces a formatted .docx file.
+
+    Usage:
+        formatter = NovelFormatter(template, author="Jane Smith", title="The Lost Hours")
+        output_path, warnings = formatter.build(parsed_paragraphs, "output.docx")
+    """
+
+    def __init__(
+        self,
+        template:    NovelTemplate,
+        author:      str,
+        title:       str,
+        word_count:  Optional[int] = None,
+        learned_scene_break: Optional[str] = None,
+        first_para_markers: Optional[List[str]] = None,
+        chapter_epigraph_markers: Optional[List[str]] = None,
+    ):
+        self.template   = template
+        self.author     = author.strip()
+        self.title      = title.strip()
+        self.word_count = word_count
+        self.learned_scene_break = learned_scene_break
+        self.first_para_markers = first_para_markers or []
+        self.chapter_epigraph_markers = chapter_epigraph_markers or []
+        self._ai_fixes: List[str] = []
+
+    # ── Public Entry Point ────────────────────────────────────────────────────
+
+    def build(
+        self,
+        paragraphs:  List[ParsedParagraph],
+        output_path: str,
+    ) -> Tuple[str, List[str], List[str]]:
+        """
+        Builds and saves the formatted document.
+        Returns (output_path, list_of_warnings, ai_fixes).
+        """
+        warnings: List[str] = []
+        t = self.template
+
+        doc = Document()
+        self._configure_page(doc)
+        self._set_default_style(doc)
+
+        if t.include_running_header:
+            self._add_running_header(doc)
+
+        self._add_title_page(doc)
+        self._add_body(doc, paragraphs, warnings)
+
+        doc.save(output_path)
+        return output_path, warnings, self._ai_fixes
+
+    # ── Page Configuration ────────────────────────────────────────────────────
+
+    def _configure_page(self, doc: Document):
+        t = self.template
+        for section in doc.sections:
+            if t.page_size == "a4":
+                section.page_width  = _A4_W
+                section.page_height = _A4_H
+            else:
+                section.page_width  = _LETTER_W
+                section.page_height = _LETTER_H
+
+            section.top_margin    = Inches(t.margin_top_in)
+            section.bottom_margin = Inches(t.margin_bottom_in)
+            section.left_margin   = Inches(t.margin_left_in)
+            section.right_margin  = Inches(t.margin_right_in)
+
+    # ── Default Document Style ────────────────────────────────────────────────
+
+    def _set_default_style(self, doc: Document):
+        """
+        Applies font, size, and spacing to the Normal style so that every
+        paragraph inherits these settings unless explicitly overridden.
+        """
+        t = self.template
+        normal = doc.styles["Normal"]
+
+        normal.font.name = t.font_name
+        normal.font.size = Pt(t.font_size_pt)
+
+        pf = normal.paragraph_format
+        pf.space_before = Pt(t.space_before_para_pt)
+        pf.space_after  = Pt(t.space_after_para_pt)
+        self._set_line_spacing(pf, t.line_spacing)
+
+    def _set_line_spacing(self, pf, spacing: str):
+        if spacing == "double":
+            pf.line_spacing_rule = WD_LINE_SPACING.DOUBLE
+        elif spacing == "one_half":
+            pf.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+        else:
+            pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+    # ── Running Header ────────────────────────────────────────────────────────
+
+    def _add_running_header(self, doc: Document):
+        """
+        Adds a running header to the default section.
+        - First page header is suppressed (title page has no header).
+        - Header contains author name, short title, and an auto page-number field.
+        """
+        t = self.template
+        section = doc.sections[0]
+        section.different_first_page_header_footer = True
+
+        # Clear any content Word auto-creates
+        header = section.header
+        header.is_linked_to_previous = False
+        for p in header.paragraphs:
+            p._p.getparent().remove(p._p)
+
+        para = header.add_paragraph()
+        para.alignment = (
+            WD_ALIGN_PARAGRAPH.RIGHT if t.header_align_right else WD_ALIGN_PARAGRAPH.LEFT
+        )
+        para.paragraph_format.space_before = Pt(0)
+        para.paragraph_format.space_after  = Pt(0)
+        para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+        header_size = Pt(max(t.font_size_pt - 2, 9))
+
+        # Resolve {author} and {title} tokens; {page} becomes a field code
+        fmt = t.header_format
+        parts = re.split(r"(\{page\})", fmt, flags=re.IGNORECASE)
+        for part in parts:
+            if part.lower() == "{page}":
+                self._insert_page_number_field(para, t.font_name, header_size)
+            else:
+                text = (
+                    part
+                    .replace("{author}", self.author)
+                    .replace("{title}",  self._short_title())
+                )
+                if text:
+                    run = para.add_run(text)
+                    run.font.name = t.font_name
+                    run.font.size = header_size
+
+    def _short_title(self, max_len: int = 28) -> str:
+        t = self.title.upper()
+        return t[:max_len] + "\u2026" if len(t) > max_len else t
+
+    def _insert_page_number_field(self, para, font_name: str, font_size: Pt):
+        """Inserts a real { PAGE } field code — renders as live page number in Word."""
+        run = para.add_run()
+        run.font.name = font_name
+        run.font.size = font_size
+
+        fld_begin    = OxmlElement("w:fldChar"); fld_begin.set(qn("w:fldCharType"),    "begin")
+        instr        = OxmlElement("w:instrText"); instr.set(qn("xml:space"), "preserve"); instr.text = " PAGE "
+        fld_separate = OxmlElement("w:fldChar"); fld_separate.set(qn("w:fldCharType"), "separate")
+        fld_end      = OxmlElement("w:fldChar"); fld_end.set(qn("w:fldCharType"),      "end")
+
+        r = run._r
+        r.append(fld_begin)
+        r.append(instr)
+        r.append(fld_separate)
+        r.append(fld_end)
+
+    # ── Title Page ────────────────────────────────────────────────────────────
+
+    def _add_title_page(self, doc: Document):
+        """
+        Generates a properly formatted submission title page.
+        Layout follows Association of Authors' Representatives guidelines:
+          - Top-left:    Author name and contact details
+          - Top-right:   Word count (approximate)
+          - Mid-page:    Title (centred, uppercase)
+          - Below title: Byline and genre
+        """
+        t = self.template
+
+        def _p(text="", align=WD_ALIGN_PARAGRAPH.LEFT, bold=False, size_delta=0):
+            p = doc.add_paragraph()
+            p.alignment = align
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after  = Pt(0)
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            if text:
+                run = p.add_run(text)
+                run.font.name = t.font_name
+                run.font.size = Pt(t.font_size_pt + size_delta)
+                run.bold = bold
+            return p
+
+        # Contact block (top-left)
+        _p(self.author)
+        _p("your.email@example.com")
+        _p("Your Address, City, Country")
+        _p("Your Phone Number")
+        _p()
+
+        # Word count (top-right)
+        wc = f"Approx. {self.word_count:,} words" if self.word_count else "Word Count: [add here]"
+        _p(wc, align=WD_ALIGN_PARAGRAPH.RIGHT)
+
+        # Blank lines → push title to one-third down the page
+        for _ in range(10):
+            _p()
+
+        # Title
+        _p(self.title.upper(), align=WD_ALIGN_PARAGRAPH.CENTER, bold=True, size_delta=2)
+        _p()
+        _p(f"by {self.author}", align=WD_ALIGN_PARAGRAPH.CENTER)
+        _p()
+        _p("A Novel", align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # Mandatory page break
+        doc.add_page_break()
+
+    # ── Body Content ──────────────────────────────────────────────────────────
+
+    def _add_body(
+        self,
+        doc:        Document,
+        paragraphs: List[ParsedParagraph],
+        warnings:   List[str],
+    ):
+        """
+        Iterates over classified paragraphs and adds each to the document
+        using the correct formatting rules.
+        """
+        prev_type     = PARA_EMPTY
+        chapter_count = 0
+        is_first_body_after_chapter = False
+
+        for item in paragraphs:
+            ptype = item.ptype
+            text  = item.cleaned.strip()
+
+            if ptype == PARA_EMPTY:
+                continue  # Whitespace management is handled by template spacing rules
+
+            if ptype == PARA_FRONT_MATTER:
+                continue  # Re-created on the title page
+
+            elif ptype == PARA_CHAPTER:
+                is_first_chapter = (chapter_count == 0)
+                self._add_chapter_heading(doc, text, is_first_chapter)
+                chapter_count += 1
+                is_first_body_after_chapter = True
+
+            elif ptype == PARA_SCENE_BREAK:
+                self._add_scene_break(doc)
+                is_first_body_after_chapter = False  # Scene break resets the opener rule
+
+            else:  # PARA_BODY
+                if not text:
+                    continue
+                opener = is_first_body_after_chapter
+                
+                # Check epigraphs
+                is_epigraph = False
+                for ep in self.chapter_epigraph_markers:
+                    if re.search(ep, text, re.IGNORECASE):
+                        is_epigraph = True
+                        break
+                        
+                if is_epigraph:
+                    if "Formatted chapter epigraph" not in self._ai_fixes:
+                        self._ai_fixes.append("Formatted chapter epigraph")
+                    self._add_epigraph(doc, text)
+                    continue
+
+                for fp in self.first_para_markers:
+                    if re.search(fp, text, re.IGNORECASE):
+                        opener = True
+                        if "Detected prose-aware first-paragraph dropcaps/no-indent" not in self._ai_fixes:
+                            self._ai_fixes.append("Detected prose-aware first-paragraph dropcaps/no-indent")
+                        break
+
+                self._add_body_paragraph(doc, text, is_chapter_opener=opener)
+                is_first_body_after_chapter = False
+
+            prev_type = ptype
+
+        if chapter_count == 0:
+            warnings.append(
+                "No chapter headings were detected. The full text was formatted as body copy. "
+                "If your document has chapters, ensure headings follow a recognisable pattern "
+                "such as 'Chapter 1' or 'Chapter One' on their own line."
+            )
+
+    # ── Chapter Heading ───────────────────────────────────────────────────────
+
+    def _add_chapter_heading(self, doc: Document, text: str, is_first: bool):
+        t = self.template
+
+        # All chapters except the first get a page break before them
+        if not is_first:
+            doc.add_page_break()
+
+        # Push heading down if template calls for it
+        if t.chapter_start_position == "third_down":
+            for _ in range(t.chapter_blank_lines_above):
+                blank = doc.add_paragraph()
+                blank.paragraph_format.space_before = Pt(0)
+                blank.paragraph_format.space_after  = Pt(0)
+                blank.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+        # Heading paragraph
+        p = doc.add_paragraph()
+        p.alignment = (
+            WD_ALIGN_PARAGRAPH.CENTER if t.chapter_centered else WD_ALIGN_PARAGRAPH.LEFT
+        )
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after  = Pt(t.chapter_font_size_pt)
+        p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+        display = text.upper() if t.chapter_all_caps else text
+        font_name = t.chapter_font_name or t.font_name
+
+        for script, segment in self._split_by_script(display):
+            run = p.add_run(segment)
+            self._apply_indic_font(run, script)
+            run.font.size   = Pt(t.chapter_font_size_pt if script == 'latin' else t.chapter_font_size_pt + 1)
+            run.bold        = t.chapter_bold
+            run.italic      = t.chapter_italic
+
+    # ── Scene Break ───────────────────────────────────────────────────────────
+
+    def _add_scene_break(self, doc: Document):
+        t = self.template
+        gap = Pt(t.font_size_pt * 1.5)
+
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = gap
+        p.paragraph_format.space_after  = gap
+        p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p.paragraph_format.first_line_indent = Inches(0)
+
+        run_text = t.scene_break_text
+        if self.learned_scene_break:
+            run_text = self.learned_scene_break
+            if t.scene_break_text != run_text and "Preserved author's scene break pattern" not in self._ai_fixes:
+                self._ai_fixes.append(f"Preserved author's scene break pattern '{run_text}'")
+
+        run = p.add_run(run_text)
+        run.font.name = t.font_name
+        run.font.size = Pt(t.font_size_pt)
+
+    # --- Indic Font Logic (V4) ---
+    
+    INDIC_FONTS = {
+        'devanagari': 'Noto Sans Devanagari',
+        'kannada':    'Noto Sans Kannada',
+        'tamil':      'Noto Sans Tamil',
+        'telugu':     'Noto Sans Telugu',
+        'latin':      'Times New Roman',
+    }
+
+    def _apply_indic_font(self, run, script: str):
+        """Set the correct Indic font on a python-docx Run object."""
+        font_name = self.INDIC_FONTS.get(script, self.template.font_name)
+        run.font.name = font_name
+        # Set cs (complex script) font — critical for Indic rendering in Word
+        rPr = run._r.get_or_add_rPr()
+        rFonts = OxmlElement('w:rFonts')
+        rFonts.set(qn('w:cs'), font_name)    # complex script font
+        rFonts.set(qn('w:ascii'), font_name) # ASCII fallback
+        rPr.append(rFonts)
+
+    def _split_by_script(self, text: str) -> List[Tuple[str, str]]:
+        """Split text into (script, segment) tuples at script boundaries."""
+        segments = []
+        current_script = None
+        current_chunk = []
+        for char in text:
+            if char.isspace():
+                current_chunk.append(char)
+                continue
+            char_script = detect_token_script(char)
+            if char_script != current_script:
+                if current_chunk:
+                    segments.append((current_script or 'latin', ''.join(current_chunk)))
+                current_script = char_script
+                current_chunk = [char]
+            else:
+                current_chunk.append(char)
+        if current_chunk:
+            segments.append((current_script or 'latin', ''.join(current_chunk)))
+        return segments
+
+    # ── Body Paragraph ────────────────────────────────────────────────────────
+
+    def _add_body_paragraph(self, doc: Document, text: str, is_chapter_opener: bool):
+        """
+        Standard body paragraph with per-segment Indic font assignment.
+        """
+        t = self.template
+        p = doc.add_paragraph()
+
+        p.alignment = (
+            WD_ALIGN_PARAGRAPH.JUSTIFY if t.body_justified
+            else WD_ALIGN_PARAGRAPH.LEFT
+        )
+        p.paragraph_format.space_before = Pt(t.space_before_para_pt)
+        p.paragraph_format.space_after  = Pt(t.space_after_para_pt)
+        self._set_line_spacing(p.paragraph_format, t.line_spacing)
+
+        if is_chapter_opener:
+            p.paragraph_format.first_line_indent = Inches(0)
+        else:
+            p.paragraph_format.first_line_indent = Inches(t.first_line_indent_in)
+
+        for script, segment in self._split_by_script(text):
+            run = p.add_run(segment)
+            self._apply_indic_font(run, script)
+            if script != 'latin':
+                run.font.size = Pt(t.font_size_pt + 1) # Compensate for Noto size difference
+            else:
+                run.font.size = Pt(t.font_size_pt)
+
+
+# ── Utility ───────────────────────────────────────────────────────────────────
+
+def count_words_in_docx(path: str) -> int:
+    """Returns the total word count of a .docx file."""
+    doc   = Document(path)
+    total = sum(len(p.text.split()) for p in doc.paragraphs)
+    # Also count words inside tables
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    total += len(para.text.split())
+    return total
+
+
+def extract_raw_paragraphs(path: str) -> List[str]:
+    """
+    Reads every paragraph from a .docx file and returns raw text strings.
+    Handles merged runs and table-embedded text.
+    """
+    doc = Document(path)
+    paragraphs = []
+
+    for para in doc.paragraphs:
+        # Join all runs — avoids split-word artefacts from mixed formatting
+        text = "".join(run.text for run in para.runs) or para.text
+        paragraphs.append(text)
+
+    # Some authors inadvertently use tables as layout tools
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    if para.text.strip():
+                        paragraphs.append(para.text)
+
+    return paragraphs
+
+class PratilipiFormatter:
+    """
+    Builds a plain text manuscript formatted for Pratilipi submission.
+    Adds ##CHAPTER_START## and similar markers.
+    """
+    def __init__(self, author: str, title: str, word_count: int = 0):
+        self.author = author.strip()
+        self.title = title.strip()
+        self.word_count = word_count
+        self._ai_fixes = []
+
+    def build(self, paragraphs: List[ParsedParagraph], output_path: str) -> Tuple[str, List[str], List[str]]:
+        warnings = []
+        lines = []
+        lines.append(f"TITLE: {self.title}")
+        lines.append(f"AUTHOR: {self.author}")
+        if self.word_count:
+            lines.append(f"WORD COUNT: {self.word_count}")
+        lines.append("")
+        lines.append("=" * 40)
+        lines.append("")
+        
+        chapter_count = 0
+        for item in paragraphs:
+            ptype = item.ptype
+            text = item.cleaned.strip()
+            
+            if ptype == PARA_EMPTY or ptype == PARA_FRONT_MATTER:
+                continue
+                
+            if ptype == PARA_CHAPTER:
+                lines.append("")
+                lines.append("##CHAPTER_START##")
+                lines.append(text)
+                lines.append("")
+                chapter_count += 1
+            elif ptype == PARA_SCENE_BREAK:
+                lines.append("")
+                lines.append("***")
+                lines.append("")
+            elif ptype == PARA_BODY:
+                if text:
+                    lines.append(text)
+                    lines.append("")
+        
+        if chapter_count == 0:
+            warnings.append("No chapter headings detected. Outputting as continuous text.")
+            
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+            
+        return output_path, warnings, self._ai_fixes
+

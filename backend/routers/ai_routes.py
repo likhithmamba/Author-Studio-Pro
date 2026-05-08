@@ -15,6 +15,7 @@ from rate_limiter import limiter
 from api_utils import (
     require_api_key, san, rm, _mods, _parse_upload
 )
+from routers.auth_routes import require_premium_tier
 
 logger = logging.getLogger("ai_routes")
 router = APIRouter()
@@ -52,7 +53,7 @@ async def analyse_manuscript(
     use_ai:   str = Form(default="false"),     # "true"/"false" strings from FormData
     api_key:  str = Form(default=""),          # OpenRouter key
     ai_model: str = Form(default="mistralai/mistral-7b-instruct:free"),
-    _auth=Depends(require_api_key),
+    _user: dict = Depends(require_premium_tier),
 ):
     """
     Structural analysis (readability, style, pacing) + optional AI editorial
@@ -269,7 +270,7 @@ async def query_ai(
     bg: BackgroundTasks,
     file: UploadFile = File(...),
     data: str = Form(...),
-    _auth=Depends(require_api_key),
+    _user: dict = Depends(require_premium_tier),
 ):
     """
     AI reads the actual manuscript and writes the query letter + synopsis.
@@ -401,7 +402,7 @@ class QueryTextRequest(BaseModel):
 
 @router.post("/api/query/ai-text", tags=["Query"])
 @limiter.limit("5/minute")
-async def query_ai_text(request: Request, body: QueryTextRequest, _auth=Depends(require_api_key)):
+async def query_ai_text(request: Request, body: QueryTextRequest, _user: dict = Depends(require_premium_tier)):
     """
     AI query generation directly from text state (used by Strategist Tab / Editor).
     """
@@ -512,7 +513,7 @@ class AnalyseTextRequest(BaseModel):
 
 @router.post("/api/analyse-text", tags=["Analyse"])
 @limiter.limit("5/minute")
-async def analyse_text(request: Request, body: AnalyseTextRequest):
+async def analyse_text(request: Request, body: AnalyseTextRequest, _user: dict = Depends(require_premium_tier)):
     """
     Analyse pre-extracted text from the browser.
     The .docx binary stays in the browser — only text comes here.
@@ -655,7 +656,7 @@ class SignalAnalysisRequest(BaseModel):
 
 @router.post("/api/ai/analyze-signals", tags=["AI"])
 @limiter.limit("10/minute")
-async def analyze_signals(request: Request, body: SignalAnalysisRequest):
+async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: dict = Depends(require_premium_tier)):
     if not body.api_key:
         raise HTTPException(400, "API key required")
         
@@ -689,6 +690,17 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest):
     sys_prompt = sys_prompt.replace("{{character_evolution_json}}", json.dumps(body.character_states))
     sys_prompt = sys_prompt.replace("{{conflict_evolution_json}}", json.dumps(body.conflict_states))
 
+    # V12 — Script Continuity Guard
+    try:
+        from prompts.script_continuity import build_continuity_guard
+        # Assume primary language from track or default to hi
+        lang_code = body.track if body.track in ['hi', 'kn', 'ta', 'te'] else 'hi'
+        guard = build_continuity_guard(lang_code)
+        if guard:
+            sys_prompt = guard + "\n" + sys_prompt
+    except Exception as e:
+        logger.warning(f"Failed to inject Script Continuity Guard: {e}")
+
     # Inject Indian Fiction Intelligence if track is specified
     if body.track:
         try:
@@ -717,6 +729,24 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest):
             "response_format": {"type": "json_object"}
         }
         
+        # V6 — Indic Token Estimator
+        try:
+            from services.text_analysis.indic_token_estimator import estimate_tokens
+            estimated = estimate_tokens(sys_prompt)
+            TOKEN_CAPS = {'normal': 5000, 'depth': 8000, 'extended': 12000}
+            cap = TOKEN_CAPS.get(mode, 5000)
+            if estimated > cap:
+                raise HTTPException(status_code=422, detail={
+                    'type': 'token_limit_exceeded',
+                    'estimated_tokens': estimated,
+                    'cap': cap,
+                    'detail': f'{mode.upper()} mode cap: {cap}. Estimated: {estimated}.'
+                })
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Token estimation failed: {e}")
+
         timeout = 60
         if mode == "extended":
             timeout = 120

@@ -6,10 +6,12 @@ import hashlib
 from datetime import datetime, timedelta
 
 from database import get_supabase
-from routers.auth_routes import get_current_user
+from routers.auth_routes import get_current_user, require_premium_tier
 
 logger = logging.getLogger("editor_routes")
 router = APIRouter()
+
+from services.text_analysis.indic_counter import count_indic_words
 
 def get_user_id(request: Request) -> str:
     user = get_current_user(request)
@@ -315,7 +317,7 @@ class ProseAnalysisRequest(BaseModel):
     project_id: Optional[str] = None
 
 @router.post("/api/analysis/prose", tags=["Editor"])
-async def analyse_prose(request: Request, body: ProseAnalysisRequest):
+async def analyse_prose(request: Request, body: ProseAnalysisRequest, _user: dict = Depends(require_premium_tier)):
     """Quick prose analysis for the editor inspector panel."""
     text = body.text.strip()
     if len(text) < 50:
@@ -412,7 +414,7 @@ class AIAssistRequest(BaseModel):
     project_id: Optional[str] = None
 
 @router.post("/api/ai/assist", tags=["Editor"])
-async def ai_assist(request: Request, body: AIAssistRequest):
+async def ai_assist(request: Request, body: AIAssistRequest, _user: dict = Depends(require_premium_tier)):
     """AI editorial assistance for the editor. Returns structured feedback."""
     # For now, return intelligent placeholder feedback based on text analysis
     text = body.text.strip()
@@ -666,6 +668,7 @@ async def delete_research_note(request: Request, id: str):
 class SessionDelta(BaseModel):
     project_id: str
     words_added: int
+    content: Optional[str] = None
 
 @router.post("/api/sessions", tags=["Editor"])
 async def update_session(request: Request, body: SessionDelta):
@@ -678,17 +681,47 @@ async def update_session(request: Request, body: SessionDelta):
         today = datetime.utcnow().strftime("%Y-%m-%d")
         
         existing = sb.table("writing_sessions").select("*").eq("project_id", body.project_id).eq("user_id", uid).eq("session_date", today).execute()
+        
+        counts = count_indic_words(body.content) if body.content else None
+        
+        update_data = {"words_added": body.words_added}
+        if counts:
+            update_data.update({
+                "words_devanagari": counts.get('devanagari', 0),
+                "words_kannada": counts.get('kannada', 0),
+                "words_tamil": counts.get('tamil', 0),
+                "words_telugu": counts.get('telugu', 0),
+                "words_latin": counts.get('latin', 0),
+                "is_hinglish": counts.get('is_hinglish', False)
+            })
+
         if existing.data:
             curr = existing.data[0]["words_added"]
-            res = sb.table("writing_sessions").update({"words_added": curr + body.words_added}).eq("id", existing.data[0]["id"]).execute()
+            # Accumulate word counts if existing
+            if counts:
+                for k in ['words_devanagari', 'words_kannada', 'words_tamil', 'words_telugu', 'words_latin']:
+                    update_data[k] = existing.data[0].get(k, 0) + counts.get(k.replace('words_', ''), 0)
+            
+            update_data["words_added"] = curr + body.words_added
+            res = sb.table("writing_sessions").update(update_data).eq("id", existing.data[0]["id"]).execute()
             return res.data[0] if res.data else {"status": "updated"}
         else:
-            res = sb.table("writing_sessions").insert({
+            insert_data = {
                 "project_id": body.project_id,
                 "user_id": uid,
                 "session_date": today,
                 "words_added": body.words_added
-            }).execute()
+            }
+            if counts:
+                insert_data.update({
+                    "words_devanagari": counts.get('devanagari', 0),
+                    "words_kannada": counts.get('kannada', 0),
+                    "words_tamil": counts.get('tamil', 0),
+                    "words_telugu": counts.get('telugu', 0),
+                    "words_latin": counts.get('latin', 0),
+                    "is_hinglish": counts.get('is_hinglish', False)
+                })
+            res = sb.table("writing_sessions").insert(insert_data).execute()
             return res.data[0] if res.data else {"status": "created"}
     except Exception as e:
         logger.warning(f"update_session failed: {e}")

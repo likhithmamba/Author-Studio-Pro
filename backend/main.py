@@ -99,7 +99,9 @@ from routers.sso_routes import router as sso_router
 app.include_router(sso_router)
 
 from routers.editor_routes import router as editor_router
+from routers.editor_tools import router as editor_tools_router
 app.include_router(editor_router)
+app.include_router(editor_tools_router)
 
 
 
