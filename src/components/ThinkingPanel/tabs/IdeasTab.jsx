@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import IdeaCard from './IdeaCard';
 import { HiOutlinePlus, HiOutlineMagnifyingGlassMinus, HiOutlineMagnifyingGlassPlus, HiOutlineArrowsPointingOut } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -43,6 +43,16 @@ export default function IdeasTab({ projectId }) {
     const [contextMenu, setContextMenu] = useState(null); // { type, x, y, cardId, canvasX, canvasY }
     
     const canvasRef = useRef(null);
+
+    // Pre-calculate O(1) lookup map for connections rendering
+    // Replaces O(N*M) nested loop find() inside SVG render
+    const cardsById = useMemo(() => {
+        const map = {};
+        for (let i = 0; i < cards.length; i++) {
+            if (!map[cards[i].id]) map[cards[i].id] = cards[i];
+        }
+        return map;
+    }, [cards]);
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
     // Handle Wheel Zoom
@@ -235,8 +245,8 @@ export default function IdeasTab({ projectId }) {
                             </marker>
                         </defs>
                         {connections.map(c => {
-                            const source = cards.find(card => card.id === c.from);
-                            const target = cards.find(card => card.id === c.to);
+                            const source = cardsById[c.from];
+                            const target = cardsById[c.to];
                             if (!source || !target) return null;
                             const sx = source.x + 110;
                             const sy = source.y + 60;
@@ -252,7 +262,7 @@ export default function IdeasTab({ projectId }) {
                             );
                         })}
                         {connectingMode && connectingMode.targetPos && (() => {
-                            const source = cards.find(card => card.id === connectingMode.sourceId);
+                            const source = cardsById[connectingMode.sourceId];
                             if (!source) return null;
                             return (
                                 <line 
