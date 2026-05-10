@@ -661,6 +661,9 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
         raise HTTPException(400, "API key required")
         
     mode = body.mode.lower()
+    if mode not in ["normal", "depth", "extended"]:
+        mode = "normal"
+
     prompt_file = f"prompt_templates/{mode}.txt"
     if not os.path.exists(prompt_file):
         prompt_file = "prompt_templates/normal.txt"
