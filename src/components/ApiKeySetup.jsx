@@ -57,7 +57,7 @@ export default function ApiKeySetup({ onKeysaved, initialMessage }) {
                             value={key}
                             onChange={(e) => setKey(e.target.value)}
                         />
-                        <button type="button" className="toggle-btn" onClick={() => setShowKey(!showKey)}>
+                        <button type="button" className="toggle-btn" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "Hide API key" : "Show API key"}>
                             {showKey ? <FiEyeOff /> : <FiEye />}
                         </button>
                     </div>
