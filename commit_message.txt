@@ -1,0 +1,7 @@
+💡 What: Added `useMemo` to pre-compute an O(1) hash map of scenes by `chapter_id` in `MidnightChronicleEditor.jsx`, replacing the O(N*M) nested `.filter()` iteration inside the `chapterOrder.map()` function.
+
+🎯 Why: The nested `.filter()` lookup created an O(N*M) time complexity bottleneck (where N is chapters and M is total scenes) that ran on every render. As a user's story scaled up to dozens of chapters and hundreds of scenes, this would cause significant main thread blocking, resulting in drag-and-drop jank, input latency, and sluggish navigation. The hash map reduces this to O(N + M).
+
+📊 Impact: Reduces chapter mapping overhead from O(N*M) to O(N+M) time complexity. Eliminates redundant filtering loops and ensures `mappedChapters` is only re-calculated when actual dependencies (`chapterOrder`, `chapters`, `scenes`) change, preventing re-renders from unrelated state changes.
+
+🔬 Measurement: Profile the frontend with React Developer Tools during intensive state changes (like typing in the active editor). The "mappedChapters" derivation time should drop from milliseconds to microsecond levels for large manuscripts.

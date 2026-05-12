@@ -18,7 +18,7 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer } from "react";
+import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer, useMemo } from "react";
 import { useStoryStore } from "../../store/storyStore";
 import { useTranslation } from 'react-i18next';
 import ThinkingPanel from '../ThinkingPanel/ThinkingPanel';
@@ -632,17 +632,27 @@ const BinderPanel = ({ activeScene, onSelect }) => {
     }
   }, [chapterOrder]);
 
-  const mappedChapters = chapterOrder.map(cid => {
-    const ch = chapters[cid];
-    const chScenes = Object.values(scenes).filter(s => s.chapter_id === cid).sort((a,b) => a.position - b.position);
-    return {
-      id: cid,
-      label: ch.title || ch.label,
-      status: ch.status || "active",
-      words: ch.wordCount || 0,
-      scenes: chScenes
-    };
-  });
+  const mappedChapters = useMemo(() => {
+    // ⚡ Bolt: Optimize chapter mapping
+    // Group scenes by chapter_id in O(N) time instead of O(N*M) with filter inside map
+    const scenesByChapter = {};
+    Object.values(scenes).forEach(s => {
+      if (!scenesByChapter[s.chapter_id]) scenesByChapter[s.chapter_id] = [];
+      scenesByChapter[s.chapter_id].push(s);
+    });
+
+    return chapterOrder.map(cid => {
+      const ch = chapters[cid];
+      const chScenes = (scenesByChapter[cid] || []).sort((a, b) => a.position - b.position);
+      return {
+        id: cid,
+        label: ch.title || ch.label,
+        status: ch.status || "active",
+        words: ch.wordCount || 0,
+        scenes: chScenes
+      };
+    });
+  }, [chapterOrder, chapters, scenes]);
 
   const handleAddChapter = () => {
     const num = chapterOrder.length + 1;
