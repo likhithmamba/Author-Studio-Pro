@@ -68,10 +68,10 @@ export default function GraveyardTab({ projectId }) {
                                     Deleted {new Date(item.deleted_at).toLocaleDateString()}
                                 </span>
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button onClick={() => restoreItem(item.id)} style={{ background: 'none', border: 'none', color: '#c9915a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                    <button onClick={() => restoreItem(item.id)} aria-label={`Restore ${title}`} style={{ background: 'none', border: 'none', color: '#c9915a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
                                         <HiOutlineArrowUturnLeft /> Restore
                                     </button>
-                                    <button onClick={() => deletePermanently(item.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                    <button onClick={() => deletePermanently(item.id)} aria-label={`Delete ${title} permanently`} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
                                         <HiOutlineTrash />
                                     </button>
                                 </div>

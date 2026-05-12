@@ -52,6 +52,7 @@ export default function ThinkingPanel({
             }}>
                 <button
                     onClick={() => onToggleOpen(true)}
+                    aria-label="Expand panel"
                     style={{
                         position: 'absolute',
                         left: '-24px',
@@ -102,6 +103,7 @@ export default function ThinkingPanel({
         }}>
             <button
                 onClick={() => onToggleOpen(false)}
+                aria-label="Collapse panel"
                 style={{
                     position: 'absolute',
                     left: 0,
@@ -138,6 +140,7 @@ export default function ThinkingPanel({
                         key={tab.id}
                         onClick={() => handleTabClick(tab.id)}
                         title={tab.label}
+                        aria-label={tab.label}
                         style={{
                             flex: 1,
                             background: 'transparent',
