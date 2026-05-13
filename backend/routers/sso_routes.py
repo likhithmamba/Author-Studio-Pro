@@ -137,3 +137,25 @@ async def delete_progression_marker(request: Request, id: str):
     except Exception as e:
         logger.warning(f"delete_progression_marker failed: {e}")
         return {"status": "error"}
+
+class SSOSnapshotPayload(BaseModel):
+    project_id: str
+    snapshot_data: Dict[str, Any]
+
+@router.post("/api/sso/snapshot", tags=["SSO"])
+async def save_sso_snapshot(request: Request, body: SSOSnapshotPayload):
+    uid = get_user_id(request)
+    try:
+        sb = get_supabase()
+        if not sb: return {"status": "offline"}
+        
+        data = {
+            "project_id": body.project_id,
+            "user_id": uid,
+            "snapshot_data": body.snapshot_data
+        }
+        res = sb.table("sso_snapshots").insert(data).execute()
+        return res.data[0] if res.data else {"status": "error"}
+    except Exception as e:
+        logger.warning(f"save_sso_snapshot failed: {e}")
+        return {"status": "error"}

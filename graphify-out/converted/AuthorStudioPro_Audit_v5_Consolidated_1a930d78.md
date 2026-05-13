@@ -1,0 +1,905 @@
+<!-- converted from AuthorStudioPro_Audit_v5_Consolidated.docx -->
+
+
+AUTHOR STUDIO PRO
+Technical Audit & Integration Report
+v5.0 — Consolidated Cross-Analysis — April 2026
+
+
+CONSOLIDATED SEVERITY OVERVIEW
+
+Sources: Original Audit (v4.0) + Codex Gap Analysis + Studio Reality Check — All findings merged
+
+# 0. Executive Summary
+
+Three independent analyses (v4.0 audit, Codex gap review, and Studio tool reality check) converge on the same critical finding: Author Studio Pro has solid endpoint and hook foundations, but the data pipeline between UI state and the database is structurally broken for half the Studio tools. The app compiles and runs, but Characters, Worldbuilding, Timeline, and Research create frontend objects whose field names do not match the database schema — meaning every sync call either silently drops data or overwrites with defaults.
+
+The core architecture problem is a missing enforcement layer: there is no canonical mapper between UI model and DB model for most entities. This, combined with raw object upserts, no transaction boundaries, a runtime export bug, a hardcoded subscription bypass, and a placeholder AI assist endpoint, means the app cannot be considered production-safe in its current state.
+
+
+# 1. Architecture & Integration Map
+
+The following maps reflect actual wiring state, not intended state. Every row is derived from code inspection, not documentation.
+
+## 1.1 Full Stack Layer Map
+
+## 1.2 Integration Connection Map
+Legend: WIRED = frontend calls exist and connect to working backend. PARTIAL = one side exists. BROKEN = call exists but fails at runtime. NONE = UI exists, no backend call.
+
+
+# 2. Studio Tools — Full Reality Check (All 8)
+
+This section reflects the combined findings of the code audit and the Codex studio tool analysis. Each tool is evaluated on: backend wiring, schema alignment, and UX completeness.
+
+Tool 1 of 8 — Dashboard
+
+Fix: Add useEffect that calls initializeProject() if chapterOrder.length === 0 and projectId exists. Show skeleton loader while isRehydrating is true. Replace hardcoded bar chart data with real chapter word counts.
+
+Tool 2 of 8 — Write
+
+Write has the best backend foundation but 4 broken sub-features. The chapter content persistence issue (BUG-06) causes silent data loss.
+
+Tool 3 of 8 — Corkboard
+
+Corkboard is the most incomplete tool. Add Scene is completely fake. A user can never create a scene from this view.
+
+Tool 4 of 8 — Characters
+
+This is the most critical schema mismatch. Fields created in the UI (arc_pct, color, bio, age) have no database columns. Every reload loses most character data.
+
+Tool 5 of 8 — Worldbuilding
+
+Same class of problem as Characters. Two separate naming conventions (desc vs description, tag vs tags) guarantee data is dropped on every save.
+
+Tool 6 of 8 — Timeline
+
+Timeline has a NOT NULL violation risk. The backend will reject or silently fail inserts where 'title' is null because the frontend sends 'label' instead.
+
+Tool 7 of 8 — Research
+
+Research notes are effectively non-persistent. The content field (the actual note text) is sent under 'body' which the DB ignores.
+
+Tool 8 of 8 — Export
+
+Export is a 1-line fix on the API side (export the fetchBlob function) plus replacing the dynamic import with a direct formatText() call. The backend works; only the frontend wiring is broken.
+
+# 3. The Missing Data Pipeline (Root Cause)
+
+The underlying root cause of all schema mismatches in Section 2 is the absence of a canonical data mapping layer. Currently, the flow is:
+
+UI State Object  →  (no transformation)  →  storyStore.upsert*()  →  StoreSyncManager  →  /api/editor/data  →  raw DB upsert
+The required flow is:
+
+UI State Object  →  editorMappers.js  →  Typed DB DTO  →  /api/editor/data  →  Backend Validator  →  DB upsert (in transaction)
+
+## 3.1 Required: editorMappers.js (New File)
+Every studio entity needs a canonical mapping function that converts the UI model to the exact DB schema. This file does not exist yet.
+
+
+## 3.2 Required: Backend Validator Layer
+The backend must never trust the frontend shape. A sanitizer must whitelist keys and enforce required fields before any DB write.
+
+
+## 3.3 Required: Transaction-Safe Batch Sync
+Current sync path has no transaction boundary. If characters upsert succeeds but timeline upsert fails, the DB is left in a partially written state with no rollback. Fix: wrap all entity upserts in a single async transaction.
+Without transaction boundaries: character update succeeds, location update fails due to schema mismatch, timeline never written → inconsistent state with no error surface to user.
+
+## 3.4 Required: Meta JSONB Column (Schema Stability)
+UI-native display fields (color, arc_pct, arc, type, region) should NOT be dropped — they serve valid UI purposes. The correct solution is a meta JSONB column on each entity table that stores these without polluting the core schema.
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE locations  ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE timeline_events ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE research_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+The mapper then routes UI-only fields into meta: { color, arc, arc_pct } → meta JSON, while core fields go to named columns.
+
+# 4. AI System — Current State & Production Design
+
+## 4.1 Current AI State (Broken)
+
+## 4.2 Required AI Production Architecture
+The following design eliminates token waste, prevents cost spikes, and makes AI assist actually functional.
+
+Layer 1: Request Hashing & Cache Check
+# Every AI call is hashed before touching the LLM
+hash_key = sha256(project_id + mode + model + signal_snapshot + chapter_id + updated_at_window)
+
+# Check L1 in-memory LRU first (hot requests, short TTL)
+# Then check L2 DB cache (ai_analysis_cache table)
+# Only call LLM if both miss
+
+Layer 2: Token Budget by Mode
+
+Layer 3: Cache Invalidation Rules
+- Hash changes when: content length changes by >50 chars OR scene updated_at changes
+- Hash stable for: minor formatting changes, whitespace, UI state changes
+- Cache TTL: 24 hours for analysis; 48 hours for market data; 5 minutes for real-time suggest
+- On cache hit: return cached result immediately; log cache_hit metric
+
+Layer 4: Rate Limiting
+# Per-user rate limit (in-memory, no Redis needed at MVP)
+MAX_AI_CALLS_PER_MINUTE = 6
+MIN_INTERVAL_BETWEEN_CALLS = 2 seconds
+
+# Backpressure: if queue depth > 3, downgrade mode from Depth to Normal
+# If rate limit hit: return 429 with retry-after header; show toast in UI
+
+## 4.3 Required: ai_analysis_cache Table
+CREATE TABLE ai_analysis_cache (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cache_key   TEXT NOT NULL UNIQUE,
+  project_id  UUID REFERENCES projects(id) ON DELETE CASCADE,
+  mode        TEXT NOT NULL,
+  result      JSONB NOT NULL,
+  token_cost  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  expires_at  TIMESTAMPTZ DEFAULT now() + INTERVAL '24 hours'
+);
+CREATE INDEX idx_cache_key ON ai_analysis_cache(cache_key);
+CREATE INDEX idx_cache_expires ON ai_analysis_cache(expires_at);
+Add a nightly cron: DELETE FROM ai_analysis_cache WHERE expires_at < now(); — prevents unbounded growth without requiring manual purge.
+
+# 5. Complete Bug Registry
+
+## 5.1 Critical — Application-Breaking
+
+## 5.2 High — Data Loss & Functional Failures
+
+## 5.3 Medium — Logic & UX Failures
+
+# 6. Database Schema — Gaps & Fixes
+
+## 6.1 Missing Migrations (Blocking)
+These two migrations must be created and run BEFORE all other migrations. They are the foundation tables. The fact that seed_demo.sql references them suggests they were intended but never written.
+
+## 6.2 RLS Policy Conflicts
+
+## 6.3 Canonical Schema Additions Required
+These additions are required for correct data persistence and AI caching. Run as one migration block:
+
+# 7. Security Issues
+
+
+# 8. Surgical Fix Prompts — Copy-Paste Ready
+
+Each prompt below is self-contained and targets one specific failure. Run them in the order shown. Each prompt references the bug IDs from Section 5.
+
+## PROMPT 1 — Create the Data Mapper Layer (BUG-07)
+Target: Create new file src/store/editorMappers.js
+Create a new file at src/store/editorMappers.js with these 4 pure functions.
+This is the ONLY place where UI model objects are converted to DB schema objects.
+
+export function toDbCharacter(c, projectId) {
+  return {
+    id: c.id,
+    project_id: projectId,
+    name: c.name || "Unnamed Character",
+    role: c.role || null,
+    description: c.bio || c.description || null,
+    traits: Array.isArray(c.traits) ? c.traits : [],
+    goals: c.goals || null,
+    meta: {
+      color: c.color || null,
+      arc: c.arc || null,
+      arc_pct: c.arc_pct ?? 0,
+      age: c.age || null,
+    },
+  };
+}
+
+export function toDbLocation(l, projectId) {
+  return {
+    id: l.id,
+    project_id: projectId,
+    name: l.name || "Unnamed Location",
+    description: l.desc || l.description || null,
+    history: l.history || null,
+    tags: Array.isArray(l.tags) ? l.tags : [l.tag].filter(Boolean),
+    meta: {
+      type: l.type || null,
+      region: l.region || null,
+      color: l.color || null,
+    },
+  };
+}
+
+export function toDbTimelineEvent(e, projectId) {
+  return {
+    id: e.id,
+    project_id: projectId,
+    title: e.title || e.label || "Untitled Event",
+    description: e.description || e.desc || null,
+    event_date: e.event_date || e.year || null,
+    sort_order: Number.isFinite(e.sort_order) ? e.sort_order : 0,
+    meta: {},
+  };
+}
+
+export function toDbResearchNote(n, projectId) {
+  return {
+    id: n.id,
+    project_id: projectId,
+    title: n.title || "Untitled Note",
+    content: n.content || n.body || "",
+    url: n.url || null,
+    tags: Array.isArray(n.tags) ? n.tags : [n.tag].filter(Boolean),
+    meta: { color: n.color || null },
+  };
+}
+
+Then in StoreSyncManager.jsx (or wherever syncGraph builds the payload),
+import all 4 functions and use them:
+
+import { toDbCharacter, toDbLocation, toDbTimelineEvent, toDbResearchNote }
+  from '../store/editorMappers';
+
+// In the sync payload builder:
+characters: Object.values(state.characters || {}).map(c => toDbCharacter(c, pid)),
+locations:  Object.values(state.locations  || {}).map(l => toDbLocation(l, pid)),
+timeline_events: Object.values(state.timeline || {}).map(e => toDbTimelineEvent(e, pid)),
+research_notes:  Object.values(state.research || {}).map(n => toDbResearchNote(n, pid)),
+
+NEVER pass raw state.characters or state.locations to any API call again.
+## PROMPT 2 — Add Backend Sanitizer + Transaction Safety (BUG-07)
+Target: backend/routers/editor_routes.py — POST /api/editor/data/{project_id}
+In editor_routes.py, the batch sync endpoint upserts raw objects.
+Add a sanitizer and wrap all upserts in a database transaction.
+
+# Add this helper at top of editor_routes.py:
+def sanitize_character(c):
+    return {
+        "id": c.get("id"),
+        "project_id": c.get("project_id"),
+        "name": c.get("name") or "Unnamed Character",
+        "role": c.get("role"),
+        "description": c.get("description"),
+        "traits": c.get("traits") or [],
+        "goals": c.get("goals"),
+        "meta": c.get("meta") or {},
+    }
+
+def sanitize_location(l):
+    return {
+        "id": l.get("id"),
+        "project_id": l.get("project_id"),
+        "name": l.get("name") or "Unnamed Location",
+        "description": l.get("description"),
+        "history": l.get("history"),
+        "tags": l.get("tags") or [],
+        "meta": l.get("meta") or {},
+    }
+
+def sanitize_timeline_event(e):
+    return {
+        "id": e.get("id"),
+        "project_id": e.get("project_id"),
+        "title": e.get("title") or "Untitled Event",
+        "description": e.get("description"),
+        "event_date": e.get("event_date"),
+        "sort_order": int(e.get("sort_order") or 0),
+        "meta": e.get("meta") or {},
+    }
+
+def sanitize_research_note(n):
+    return {
+        "id": n.get("id"),
+        "project_id": n.get("project_id"),
+        "title": n.get("title") or "Untitled Note",
+        "content": n.get("content") or "",
+        "url": n.get("url"),
+        "tags": n.get("tags") or [],
+        "meta": n.get("meta") or {},
+    }
+
+# In the route handler, wrap upserts in transaction:
+@router.post("/editor/data/{project_id}")
+async def sync_editor_data(project_id: str, payload: dict, user=Depends(get_current_user)):
+    async with db.transaction():
+        chars = [sanitize_character(c) for c in payload.get("characters", [])]
+        locs  = [sanitize_location(l)  for l in payload.get("locations", [])]
+        evts  = [sanitize_timeline_event(e) for e in payload.get("timeline_events", [])]
+        notes = [sanitize_research_note(n)  for n in payload.get("research_notes", [])]
+        
+        if chars: await db.upsert("characters", chars, conflict_columns=["id"])
+        if locs:  await db.upsert("locations",  locs,  conflict_columns=["id"])
+        if evts:  await db.upsert("timeline_events", evts, conflict_columns=["id"])
+        if notes: await db.upsert("research_notes",  notes, conflict_columns=["id"])
+    
+    return {"status": "ok", "synced": {
+        "characters": len(chars), "locations": len(locs),
+        "timeline_events": len(evts), "research_notes": len(notes)
+    }}
+## PROMPT 3 — Fix Export Pipeline (BUG-03)
+Target: src/api.js + MidnightChronicleEditor.jsx (ExportView + useExport)
+Two changes needed:
+
+STEP 1 — In src/api.js, make sure formatText is properly exported and returns blob:
+
+export async function formatText(payload) {
+  const res = await apiFetch('/format-text', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const blob = await res.blob();
+  const filename = res.headers.get('Content-Disposition')
+    ?.match(/filename="?([^"]+)"?/)?.[1] || 'manuscript.docx';
+  return { blob, filename };
+}
+
+STEP 2 — In MidnightChronicleEditor.jsx, replace the useExport hook entirely:
+
+function useExport() {
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function doExport(projectId, format, options) {
+    setExporting(true);
+    setError(null);
+    try {
+      const state = useStoryStore.getState();
+      const chapters = state.chapterOrder.map(cid => ({
+        title: state.chapters[cid]?.title || 'Chapter',
+        paragraphs: [(state.chapters[cid]?.content || '').replace(/<[^>]*>/g, '')]
+      }));
+      const { blob, filename } = await formatText({
+        author: state.author || 'Author Name',
+        title: state.projectTitle || 'Untitled Novel',
+        templateKey: format === 'docx' ? 'us_standard' : format,
+        overrides: options || {},
+        chapters,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }
+  return { doExport, exporting, error };
+}
+
+In ExportView, show error state:
+const { doExport, exporting, error } = useExport();
+// In button: disabled={exporting} onClick={() => doExport(projectId, selectedFormat, options)}
+// Below button: {error && <div style={{color:'#E05252'}}>{error}</div>}
+## PROMPT 4 — Fix Auth Subscription Bypass (BUG-04, SEC-01)
+Target: src/contexts/AuthContext.jsx
+Remove the hardcoded isSubscribed: true and subscription fallback.
+
+FIND and REMOVE these lines (around L89-91):
+  subscription: subscription || { status: 'active', plan: 'Pro (Unlocked)' },
+  isSubscribed: true,
+
+REPLACE WITH:
+  subscription: subscription,
+  isSubscribed: subscription?.status === 'active',
+
+For the dev/demo bypass (keep DEVELOPER_MOCK_AUTH working), add:
+  const isDemoMode = user?.email === 'demo@example.com' || import.meta.env.VITE_DEMO_MODE === 'true';
+  isSubscribed: isDemoMode ? true : (subscription?.status === 'active'),
+
+The existing refreshSubscription() already fetches correctly from /api/auth/me.
+Stop overriding its result. No other changes needed in this file.
+
+Then in AppWorkspace.jsx, find where PAID_TABS is assigned:
+  const allowedTabs = PAID_TABS  // Local trial override unlocks all tabs
+Replace with:
+  const allowedTabs = isSubscribed ? PAID_TABS : FREE_TABS
+## PROMPT 5 — Fix StoreSyncManager Loop + Dirty Tracking (BUG-05, BUG-15)
+Target: src/store/storyStore.js + src/components/StoreSyncManager.jsx
+STEP 1 — In storyStore.js, add isSyncing flag and markSynced action to sync state:
+
+sync: {
+  status: 'idle',
+  lastSaved: null,
+  pendingChanges: 0,
+  isSyncing: false,       // ADD THIS
+  dirtyEntities: new Set(), // ADD THIS for entity-level tracking
+}
+
+Add actions:
+  startSync: () => set(s => ({ sync: { ...s.sync, isSyncing: true } })),
+  markSynced: () => set(s => ({ sync: { ...s.sync, isSyncing: false,
+    pendingChanges: 0, dirtyEntities: new Set(), lastSaved: Date.now() } })),
+
+In each upsert action (upsertCharacter, upsertScene etc.), add the entity type to dirtyEntities:
+  upsertCharacter: (char) => set(s => ({
+    characters: { ...s.characters, [char.id]: char },
+    sync: { ...s.sync, pendingChanges: s.sync.pendingChanges + 1,
+      dirtyEntities: new Set([...s.sync.dirtyEntities, 'characters']) }
+  })),
+
+STEP 2 — In StoreSyncManager.jsx, add the guard:
+  const isSyncing = useStoryStore(s => s.sync.isSyncing);
+  const { startSync, markSynced } = useStoryStore();
+
+  // In useEffect:
+  if (!projectId || !token || pendingChanges === 0 || isSyncing) return;
+
+  // Before API call: startSync()
+  // In finally block: markSynced()
+
+STEP 3 — Use dirtyEntities to skip unchanged entities:
+  const dirty = useStoryStore.getState().sync.dirtyEntities;
+  // Only include entities in payload if they're in the dirty set:
+  const payload = {
+    characters: dirty.has('characters') ? mappedCharacters : undefined,
+    locations:  dirty.has('locations')  ? mappedLocations  : undefined,
+    // etc.
+  };
+## PROMPT 6 — Fix Chapter Content Persistence (BUG-06, BUG-11)
+Target: MidnightChronicleEditor.jsx — WritingCanvas + storyStore.js
+Chapter content currently saves to manuscripts table only.
+Backend source of truth is the scenes table. They diverge.
+
+FIX: Map each chapter to a canonical 'main scene' for persistence.
+
+STEP 1 — In storyStore.js, add chapterSceneMap: {} to state.
+This maps chapterId -> sceneId for the chapter's main content scene.
+
+STEP 2 — In initializeProject(), after loading scenes:
+  For each chapter, check if any scene has chapter_id === chapter.id AND title === '__main__'
+  If not, create one via POST /api/scenes:
+    const res = await api.post('/scenes', {
+      project_id: projectId,
+      chapter_id: chapterId,
+      title: '__main__',
+      content: existingChapterContent || '',
+    });
+  Store result: chapterSceneMap[chapterId] = res.id
+
+STEP 3 — In WritingCanvas, resolve the correct sceneId:
+  const chapterSceneId = useStoryStore(s => s.chapterSceneMap[activeChapterId]);
+  const saveTargetId = activeScene || chapterSceneId;
+  // Now pass saveTargetId to useAutoSave:
+  const { saving } = useAutoSave(saveTargetId, content);
+
+STEP 4 — Remove chapter content from syncManuscript.
+  Manuscripts table should only store: chapterOrder, chapter titles, metadata.
+  NOT chapter content (that now lives in the __main__ scene).
+## PROMPT 7 — Implement Real AI Assist Endpoint (BUG-01, BUG-02)
+Target: backend/routers/ai_routes.py — /api/ai/assist + /api/analysis/prose
+Replace placeholder responses with real LLM calls with caching.
+
+STEP 1 — Add request hashing:
+import hashlib, json
+def make_cache_key(data: dict) -> str:
+    raw = json.dumps(data, sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+STEP 2 — Add cache check before LLM call:
+async def get_cached(key: str, db):
+    row = await db.fetch_one(
+        "SELECT result FROM ai_analysis_cache WHERE cache_key=$1 AND expires_at > now()", key)
+    return row["result"] if row else None
+
+async def set_cached(key: str, result: dict, project_id: str, mode: str, token_cost: int, db):
+    await db.execute(
+        "INSERT INTO ai_analysis_cache (cache_key, project_id, mode, result, token_cost)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT (cache_key) DO NOTHING",
+        key, project_id, mode, json.dumps(result), token_cost)
+
+STEP 3 — Replace /api/ai/assist with real LLM call:
+TOKEN_BUDGETS = {"normal": 800, "depth": 2000, "quick": 400}
+
+@router.post("/ai/assist")
+async def ai_assist(req: AIAssistRequest, user=Depends(get_current_user)):
+    cache_key = make_cache_key({"project": req.project_id, "mode": req.mode,
+                                "content_hash": hashlib.sha256(req.content[:2000].encode()).hexdigest()})
+    cached = await get_cached(cache_key, db)
+    if cached: return {"feedback": cached, "cached": True}
+
+    max_tokens = TOKEN_BUDGETS.get(req.mode, 800)
+    prompt = build_assist_prompt(req.content, req.mode)  # template per mode
+    
+    response = await openrouter_client.chat([{"role":"user","content":prompt}],
+        model="anthropic/claude-3-haiku", max_tokens=max_tokens)
+    
+    result = parse_feedback_json(response)  # parse to feedback[] schema
+    await set_cached(cache_key, result, req.project_id, req.mode, response.usage.total_tokens, db)
+    return {"feedback": result, "cached": False}
+
+STEP 4 — In MidnightChronicleEditor.jsx InspectorPanel:
+Add useEffect to trigger analyze() and getAssist() when tab changes:
+  useEffect(() => {
+    if (tab === 'analysis' && content && !analysis) analyze(content);
+  }, [tab, content]);
+  useEffect(() => {
+    if (tab === 'ai' && content && feedback.length === 0) getAssist('critique', content);
+  }, [tab, content]);
+## PROMPT 8 — Fix QuickCapture + Corkboard (BUG-12, Corkboard Add Scene)
+Target: QuickCapture.jsx + MCEditor CorkboardView
+QUICKCAPTURE FIX (BUG-12):
+Replace the broken localStorage read in handleSave():
+
+// REMOVE:
+const raw = localStorage.getItem('asp_editor_project');
+if (raw) projectId = JSON.parse(raw).id;
+
+// REPLACE WITH:
+import { useStoryStore } from '../../store/storyStore';
+const projectId = useStoryStore(state => state.projectId);
+
+Also replace all alert() calls with proper UI state:
+const [saveState, setSaveState] = useState('idle'); // idle | saving | success | error
+
+In handleSave:
+  setSaveState('saving');
+  try {
+    await saveCapture({ ...capture, project_id: projectId });
+    setSaveState('success');
+    setTimeout(() => { setSaveState('idle'); onClose(); }, 1500);
+  } catch {
+    setSaveState('error');
+  }
+
+Show in JSX:
+  {saveState === 'success' && <div style={{color:'#4CAF82'}}>Saved!</div>}
+  {saveState === 'error'   && <div style={{color:'#E05252'}}>Save failed. Try again.</div>}
+
+CORKBOARD ADD SCENE FIX:
+In CorkboardView, find the Add Scene card/button (currently visual-only) and add:
+
+function handleAddScene() {
+  const { upsertScene, projectId } = useStoryStore.getState();
+  const newScene = {
+    id: crypto.randomUUID(),
+    chapter_id: selectedChapterId,
+    project_id: projectId,
+    title: 'New Scene',
+    content: '',
+    synopsis: '',
+    status: 'draft',
+    position: Date.now(),
+    word_count: 0,
+  };
+  upsertScene(newScene);
+  // Optionally auto-select the new scene:
+  // setActiveScene(newScene.id);
+}
+
+Attach to the Add Scene card onClick: onClick={handleAddScene}
+## PROMPT 9 — Fix Hardcoded Project IDs (BUG-08)
+Target: MidnightChronicleEditor.jsx, ThinkingPanel, all hooks using hardcoded ID
+Search for ALL occurrences of '00000000-0000-0000-0000-000000000001' in the codebase:
+  grep -rn '00000000-0000-0000-0000-000000000001' src/ backend/
+
+For each occurrence, replace with the real project ID from the store.
+
+PATTERN FOR HOOKS (useWritingSession etc.):
+// BEFORE:
+const session = useWritingSession('00000000-0000-0000-0000-000000000001');
+// AFTER:
+const projectId = useStoryStore(s => s.projectId);
+const session = useWritingSession(projectId);
+
+PATTERN FOR COMPONENT PROPS (ThinkingPanel):
+// BEFORE:
+<ThinkingPanel projectId="00000000-0000-0000-0000-000000000001" ... />
+// AFTER:
+const projectId = useStoryStore(s => s.projectId);
+<ThinkingPanel projectId={projectId} ... />
+
+GUARD PATTERN (add to hooks that receive projectId):
+if (!projectId) {
+  console.warn('[useWritingSession] No projectId available; skipping API call');
+  return { record: () => {}, sessions: [] };
+}
+
+Also check backend routes for any hardcoded project IDs:
+  grep -rn '00000000' backend/
+Replace with the project_id from the authenticated request/path parameter.
+## PROMPT 10 — Add Missing Database Migrations (All Required Tables)
+Target: supabase/migrations/ — Run these in order
+Create these 3 migration files. Run them BEFORE all other migrations.
+
+FILE: supabase/migrations/000_create_projects.sql
+CREATE TABLE IF NOT EXISTS projects (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL DEFAULT 'Untitled Novel',
+  genre      TEXT,
+  synopsis   TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY projects_owner ON projects FOR ALL USING (user_id = auth.uid());
+CREATE INDEX idx_projects_user ON projects(user_id);
+
+FILE: supabase/migrations/000_create_chapters.sql
+CREATE TABLE IF NOT EXISTS chapters (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id),
+  title      TEXT NOT NULL DEFAULT 'Chapter 1',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE chapters ENABLE ROW LEVEL SECURITY;
+CREATE POLICY chapters_owner ON chapters FOR ALL USING (user_id = auth.uid());
+CREATE INDEX idx_chapters_project ON chapters(project_id);
+
+FILE: supabase/migrations/add_meta_columns_and_cache.sql
+ALTER TABLE characters     ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE locations      ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE timeline_events ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+ALTER TABLE research_notes  ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+
+CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cache_key  TEXT NOT NULL UNIQUE,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  mode       TEXT NOT NULL,
+  result     JSONB NOT NULL,
+  token_cost INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ DEFAULT now() + INTERVAL '24 hours'
+);
+CREATE INDEX idx_ai_cache_key     ON ai_analysis_cache(cache_key);
+CREATE INDEX idx_ai_cache_expires ON ai_analysis_cache(expires_at);
+
+-- Fix progression_markers type mismatch:
+ALTER TABLE progression_markers ALTER COLUMN chapter_id TYPE UUID USING chapter_id::UUID;
+
+-- Remove duplicate RLS conflict:
+DROP POLICY IF EXISTS "Service role full access on users" ON users;
+
+-- Remove dead table overhead:
+DROP TABLE IF EXISTS scenes_analysis_cache CASCADE;
+
+
+# 9. Implementation Roadmap
+
+Run fixes in this sequence. P0 must complete before P1 is started. Each phase has a verification gate before proceeding.
+
+## 9.1 P0 — Correctness (Must Ship First)
+
+## 9.2 P1 — Data Integrity & Core Feature Completion
+
+## 9.3 P2 — Quality & Hardening
+
+## 9.4 P3 — Architecture & Maintainability
+
+
+
+## 9.5 Zero-Error Release Gate
+A release is green ONLY when ALL of the following pass:
+
+- Characters: Create with bio + color + arc_pct → reload → all fields present
+- Locations: Create with type + region → reload → all fields present
+- Timeline: Create with label → reload → appears as title; sort order preserved
+- Research: Create with body text → reload → content present
+- Export: Click Export DOCX → file downloads with correct chapter content
+- AI Assist: Open Inspector AI tab → feedback loads; same request returns cached result on second open
+- Auth: Register free account → cannot access paid tabs; upgrade → access restored
+- Corkboard: Click Add Scene → scene appears; reload → scene still there
+- QuickCapture: Save note → check DB → project_id is set to current project
+- Kill network mid-session → offline draft survives; reconnect → syncs without data loss
+- Burst typing 60 seconds → check StoreSyncManager logs → max 1 sync per 3 second debounce window
+- Same AI prompt twice → second call returns cached result; zero LLM API calls on repeat
+
+
+
+Author Studio Pro — v5.0 Consolidated Audit Report — April 2026 — Confidential
+| Domain | Status | # Issues | Top Risk |
+| --- | --- | --- | --- |
+| Data Pipeline | BROKEN | 8 | Raw objects bypass mapper; partial DB writes possible |
+| Studio (8 Tools) | PARTIAL | 24 | Characters/World/Timeline/Research schema-mismatched |
+| Export System | BROKEN | 3 | fetchBlob not exported; silent failure on every click |
+| AI / Token System | MOCK | 6 | No cache, no rate limit, placeholder endpoint returns rules |
+| Auth / Paywall | BROKEN | 2 | isSubscribed hardcoded true; revenue system non-functional |
+| Database Schema | MISSING | 5 | projects + chapters tables missing; RLS policy conflicts |
+| Security | HIGH | 6 | API open without key; paywall bypassed; JWT secret fallback |
+| Component Architecture | CRITICAL | 4 | 1400+ line monolith; dual editor state; stale closures |
+| Category | Finding |
+| --- | --- |
+| What works | Write core (autosave, Tiptap), Scene CRUD endpoints, ThinkingPanel Ideas/Threads, Story Graph, Format/Analyse/Query tools, Payment (Razorpay), Supabase auth flow |
+| What compiles but is broken | Characters/World/Timeline/Research sync (schema mismatch), Export (fetchBlob not exported), InspectorPanel AI tab (never calls API), Subscription paywall (hardcoded true), WritingSession (hardcoded project ID) |
+| What is pure UI scaffolding | Dashboard stats load (no fetch on mount), Corkboard Add Scene (visual only), Global Search (mock array), QuickCapture project attribution (wrong localStorage key), Strategist manuscript upload (.txt rejected by .docx endpoint) |
+| What is missing entirely | AI assist real endpoint, projects + chapters migrations, cache layer, rate limiting, transaction-safe batch sync, data mapper enforcement |
+| Layer | Technology | Status | Critical Gap |
+| --- | --- | --- | --- |
+| Frontend | React 18 + Vite + Zustand | PARTIAL | Dual editor state (MCEditor vs EditorLayout) with no shared context; stale closure bugs in 1400-line monolith |
+| State Store | Zustand (storyStore.js) | PARTIAL | pendingChanges increments on every keystroke; StoreSyncManager fires full sync each time; no dirty-tracking per entity |
+| API Client | src/api.js | BROKEN | fetchBlob is private (not exported); formatText exported but not used by ExportView |
+| Backend | FastAPI (Python) | MOSTLY FULL | Endpoints exist for all features; raw upserts accept any shape without field-level validation; hardcoded project ID in sessions route |
+| Database | Supabase (PostgreSQL) | PARTIAL | projects + chapters tables missing from migrations; RLS policy conflict between 001_initial and production setup; scenes_analysis_cache dead table adds overhead |
+| Auth | Supabase JWT + AuthContext | BROKEN | isSubscribed: true hardcoded in AuthContext; demo user check bypasses real subscription state |
+| AI | OpenRouter via editorAI.js | MOCK | /api/ai/assist returns placeholder rule-based feedback; no caching, no rate limit, no retry |
+| Storage | Supabase + localStorage | PARTIAL | localStorage key asp_editor_project never set; device fingerprint key may be lost on clear |
+| UI Component | Store Action | API Endpoint | DB Table | Status |
+| --- | --- | --- | --- | --- |
+| NovelEditor (EditorLayout) | updateSceneContent | PUT /api/scenes/:id/content | scenes.content | FULL |
+| MCEditor WritingCanvas | updateChapterContent | syncManuscript -> /api/editor/data | manuscripts (JSON) | PARTIAL — DIVERGES FROM SCENES |
+| InspectorPanel Analysis tab | analyze() | POST /api/analysis/prose | N/A (in-memory) | BROKEN — NEVER CALLED |
+| InspectorPanel AI tab | getAssist() | POST /api/ai/assist | N/A | MOCK — PLACEHOLDER RESPONSE |
+| InspectorPanel Versions | loadVersions() | GET /api/scenes/:id/versions | scene_versions | PARTIAL — RESTORE() DISCARDS CONTENT |
+| ExportView doExport() | N/A | POST /api/format-text | N/A | BROKEN — FETCHBLOB NOT EXPORTED |
+| CharactersView upsertCharacter | upsertCharacter | PUT via syncGraph /api/editor/data | characters | MISMATCH — FIELD NAMES DON'T ALIGN TO DB |
+| WorldView upsertLocation | upsertLocation | PUT via syncGraph /api/editor/data | locations | MISMATCH — TYPE/REGION/COLOR NOT IN SCHEMA |
+| TimelineView upsertTimelineEvent | upsertTimelineEvent | PUT via syncGraph /api/editor/data | timeline_events | MISMATCH — YEAR/LABEL NOT IN SCHEMA |
+| ResearchView upsertResearchNote | upsertResearchNote | PUT via syncGraph /api/editor/data | research_notes | MISMATCH — BODY/TAG NOT IN SCHEMA |
+| CorkboardView Add Scene | N/A | N/A | N/A | NONE — VISUAL BUTTON ONLY |
+| DashboardView stats | reads Zustand | N/A | N/A | NONE — NO FETCH ON MOUNT |
+| QuickCapture save | saveCapture | POST /api/thinking/captures | quick_captures | BROKEN — PROJECTID ALWAYS NULL |
+| StrategistTab generate | generateQueryAI | POST /api/query/ai | N/A | BROKEN — .TXT FILE REJECTED BY .DOCX ENDPOINT |
+| WritingSession record | recordWords | POST /api/sessions | writing_sessions | BROKEN — HARDCODED PROJECT ID |
+| GlobalSearch results | N/A | N/A | N/A | NONE — STATIC MOCK ARRAY |
+| StoreSyncManager loop guard | setSyncStatus | N/A | N/A | BROKEN — INFINITE LOOP POSSIBLE |
+| AuthContext subscription | refreshSubscription | GET /api/auth/me | subscriptions | BROKEN — RESULT OVERRIDDEN TO ALWAYS TRUE |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Backend calls on mount | None — reads from Zustand store only | UI ONLY |
+| Data quality | Depends entirely on prior sync paths having populated the store | PARTIAL |
+| Stats accuracy | Chapter word count bar chart uses hardcoded array [2148,3421,...] not real chapter data | BROKEN |
+| Cold start behavior | If user navigates directly to /app, store may be empty; all stats show zero | BROKEN |
+| Continue Writing button | No disabled state while data is loading; may open empty editor | PARTIAL |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Core autosave | useAutoSave calls PUT /api/scenes/:id/content after 1500ms debounce | FULL |
+| Scene CRUD | Create, update, delete all wired to real backend endpoints | FULL |
+| Version history | GET /api/scenes/:id/versions loads correctly | PARTIAL |
+| Version restore | restore() receives content from API but does NOT update the editor or Zustand store | BROKEN |
+| Chapter-level save | useAutoSave(scene ? activeScene : null) skips when no scene active; chapter content lost | BROKEN |
+| Hardcoded project ID | useWritingSession('00000000-...0001') — sessions attributed to wrong project | BROKEN |
+| InspectorPanel analysis | analyze() never called; tab shows null access crash | BROKEN |
+| InspectorPanel AI | getAssist() never triggered; AI tab shows empty state forever | MOCK |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Scene card display | Reads scenes from Zustand store; shows existing data if store is populated | PARTIAL |
+| Add Scene button | Visual button only — no handler, no createScene() call, no API call | UI ONLY |
+| Drag to reorder | Updates sceneOrder array in store but StoreSyncManager sends full graph; not scene-specific | PARTIAL |
+| Stale scene list | New scenes added via Binder during session don't appear until refresh | BROKEN |
+| Backend fetch on view open | Never fetches scenes on CorkboardView mount; depends on prior initializeProject | UI ONLY |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Frontend model fields | id, name, role, bio, traits, goals, age, color, arc, arc_pct | UI ONLY |
+| DB schema fields | id, project_id, name, role, description, traits[], goals | MISMATCH |
+| Unmapped fields | bio (not description), age (no column), color (no column), arc (no column), arc_pct (no column) | BROKEN |
+| Sync path | upsertCharacter updates store -> StoreSyncManager batch sync -> /api/editor/data PUT | PARTIAL |
+| Backend handling | editor_routes.py upserts raw character objects; Postgres ignores unknown keys silently or errors | BROKEN |
+| Fetch on mount | No fetch when CharactersView opens; store may be stale | UI ONLY |
+| Persistence test | Create character, reload page -> only name/role/description persist; bio/age/color/arc lost | BROKEN |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Frontend model fields | id, name, type, region, tag, color, desc | UI ONLY |
+| DB schema fields | id, project_id, name, description, history, tags[] | MISMATCH |
+| Unmapped fields | type (no column), region (no column), color (no column), desc (not description) | BROKEN |
+| tags vs tag | Frontend sends tag (singular string); DB expects tags (array) | BROKEN |
+| Sync path | upsertLocation -> StoreSyncManager -> /api/editor/data batch | PARTIAL |
+| Reload test | type/region/color lost; desc may not persist if backend receives unknown key | BROKEN |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Frontend model fields | id, year, label, desc | UI ONLY |
+| DB schema fields | id, project_id, title (required), description, event_date, sort_order | MISMATCH |
+| Required field missing | DB has title NOT NULL; frontend sends label; upsert will fail with NOT NULL violation | BROKEN |
+| event_date type | Frontend sends year (integer/string); DB expects DATE/TIMESTAMPTZ | BROKEN |
+| sort_order | Not present in frontend object; always defaults to 0; events lose order | BROKEN |
+| Sync path | upsertTimelineEvent -> StoreSyncManager -> batch sync | PARTIAL |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Frontend model fields | id, title, body, tag, color | UI ONLY |
+| DB schema fields | id, project_id, title, content, url, tags[] | MISMATCH |
+| Unmapped fields | body (not content), tag (not tags[]), color (no column) | BROKEN |
+| Sync behavior | upsertResearchNote -> StoreSyncManager -> batch; content key missing from payload | BROKEN |
+| Reload test | body text lost (sent as 'body' not 'content'); tag value lost; color lost | BROKEN |
+| Check | Finding | Status |
+| --- | --- | --- |
+| Export UI | Format selector, scope toggles, option checkboxes all render correctly | UI ONLY |
+| Options serialization | Format/scope/options selections are NOT serialized into the API payload | BROKEN |
+| fetchBlob import | useExport dynamically imports fetchBlob from '../../api' — function is private (not exported) | BROKEN |
+| Failure mode | doExport() returns undefined; no error is shown to user; button appears to work | BROKEN |
+| Alternative endpoint | POST /api/format-text exists and works correctly in FormatTab — same endpoint not used by ExportView | BROKEN |
+| DOCX generation | NovelFormatter backend generates DOCX correctly when called — the pipeline exists, just not wired | PARTIAL |
+| Entity | UI Fields Sent | DB Fields Expected | Mapping Required |
+| --- | --- | --- | --- |
+| Character | name, role, bio, traits, goals, age, color, arc, arc_pct | name, role, description, traits[], goals | bio → description; drop age/color/arc/arc_pct OR move to meta JSONB |
+| Location | name, type, region, tag, color, desc | name, description, history, tags[] | desc → description; tag → [tag]; drop type/region/color OR move to meta JSONB |
+| Timeline Event | year, label, desc | title, description, event_date, sort_order | label → title; desc → description; year → event_date; add sort_order |
+| Research Note | title, body, tag, color | title, content, url, tags[] | body → content; tag → [tag]; drop color OR move to meta JSONB; add url |
+| Entity | Required Fields | Fields to Drop | Backend Action on Missing Required |
+| --- | --- | --- | --- |
+| Character | name | age, color, arc, arc_pct (or move to meta) | Default name to 'Unnamed Character' |
+| Location | name | type, region, color (or move to meta) | Default name to 'Unnamed Location' |
+| Timeline Event | title | (none — all mapped) | Default title to 'Untitled Event'; default sort_order to 0 |
+| Research Note | title, content | color (or move to meta) | Default title to 'Untitled Note'; default content to '' |
+| AI Feature | Endpoint | Status | Issue |
+| --- | --- | --- | --- |
+| Prose analysis | POST /api/analysis/prose | MOCK | Returns rule-based heuristics; never calls LLM; no model call |
+| AI assist (Inspector) | POST /api/ai/assist | MOCK | Returns static JSON structure; same placeholder regardless of input |
+| Signal analysis | POST /api/ai/analyze-signals | PARTIAL | Endpoint exists; AnalystTab never calls it; runs local engine only |
+| Query AI | POST /api/query/ai | FULL | Real LLM call via OpenRouter; works correctly |
+| Format analysis | POST /api/analyse-text | FULL | Real endpoint; browser-side cliche/hook/opening audit supplemented |
+| Strategist AI | POST /api/query/ai | BROKEN | Called with .txt file; endpoint rejects non-.docx; always HTTP 400 |
+| AI cache | N/A | MISSING | No cache table; no hash-keyed dedup; same prompt calls LLM every time |
+| Rate limiting | N/A | MISSING | No per-user throttle; cost spikes possible on rapid AI tab interactions |
+| Mode | Max Tokens | Passes | Max Insights | Trigger Condition |
+| --- | --- | --- | --- | --- |
+| Normal (default) | 800 | 1 | 3 | User opens Inspector or Analysis tab |
+| Depth | 2000 | Up to 3 (early stop if confidence met) | 8 | User explicitly requests depth OR severe unresolved signals detected |
+| Quick | 400 | 1 | 1 | Autosuggest, inline hints, real-time feedback |
+| ID | File | Bug Description | Severity |
+| --- | --- | --- | --- |
+| BUG-01 | MidnightChronicleEditor.jsx | InspectorPanel 'analysis' tab accesses analysis.grade, analysis.summary etc. where analysis is null. useAnalysis initializes to null, analyze() is never called from any component. Causes TypeError crash when tab selected. | CRITICAL |
+| BUG-02 | MidnightChronicleEditor.jsx | InspectorPanel 'ai' tab: getAssist() is never triggered. feedback array starts empty and never populates. The AI tab shows empty state forever with no loading indicator and no error. | CRITICAL |
+| BUG-03 | MidnightChronicleEditor.jsx (ExportView) | doExport() dynamically imports fetchBlob from '../../api' but fetchBlob is a private function not exported. Import resolves to undefined. Every export click silently fails — no file downloaded, no error shown. | CRITICAL |
+| BUG-04 | AuthContext.jsx | subscription: subscription || { status: 'active', plan: 'Pro' } and isSubscribed: true are hardcoded. Every registered user bypasses the paywall. Payment verification has zero effect in UI. | CRITICAL |
+| BUG-05 | StoreSyncManager.jsx | setSyncStatus resets pendingChanges to 0; any state mutation during sync re-increments it; the useEffect dependency fires again. Can cause infinite sync loop on slow connections. Full graph sent on every cycle. | CRITICAL |
+| BUG-06 | MidnightChronicleEditor.jsx (useAutoSave) | useAutoSave(scene ? activeScene : null) — when no scene is selected (chapter-based editing), sceneId is null. The PUT /api/scenes/null/content call is skipped silently. All chapter-level prose content is lost on refresh. | CRITICAL |
+| BUG-07 | All Studio entity views | Characters, Locations, Timeline Events, Research Notes create UI objects with field names that do not match DB schema (bio vs description, label vs title, desc vs description, tag vs tags). Every sync drops or silently discards data fields. | CRITICAL |
+| BUG-08 | AuthContext.jsx + all Studio hooks | Hardcoded project ID '00000000-0000-0000-0000-000000000001' appears in useWritingSession, ThinkingPanel props, and seed data. Multi-project data writes to the demo project. Sessions and captures attributed to wrong project. | CRITICAL |
+| ID | File | Bug Description | Severity |
+| --- | --- | --- | --- |
+| BUG-09 | storyStore.js initializeProject() | On backend timeout, falls back to empty state and seeds a default chapter. This OVERWRITES previously saved chapter data. Data wipe triggered by any network hiccup at startup. | HIGH |
+| BUG-10 | MCEditor BinderPanel | addChapter() creates local chapter but never calls POST /api/editor/data to persist. Chapters added from the Binder are permanently lost on next reload. | HIGH |
+| BUG-11 | WritingCanvas handleContentChange | updateChapterContent saves to manuscripts table (JSON blob). Backend source of truth for scenes is the scenes table. Two tables diverge and conflict — data depends on which was last written. | HIGH |
+| BUG-12 | QuickCapture.jsx | projectId reads from localStorage key 'asp_editor_project' which is never set anywhere. projectId is always null. All captures are project-less orphans; cannot be filtered or queried per project. | HIGH |
+| BUG-13 | InspectorPanel (versions tab) | restore(versionId) receives content from API but returns without updating the editor textarea or Zustand store. Version restore has zero visible effect. User thinks restore worked; it did not. | HIGH |
+| BUG-14 | StrategistTab.jsx handleGenerate() | Creates file as new File([text], 'manuscript.txt', {type: 'text/plain'}). Backend validate_upload() checks filename.endswith('.docx'). Always throws HTTP 400. Strategist AI never works. | HIGH |
+| ID | File | Bug Description | Severity |
+| --- | --- | --- | --- |
+| BUG-15 | StoreSyncManager.jsx | syncGraph() and syncManuscript() fire if pendingChanges > 0 with no entity-level dirty tracking. Every sync sends full nodes, edges, AND full chapter content regardless of what changed. O(N) cost per keystroke. | MEDIUM |
+| BUG-16 | MCEditor WritingCanvas | MCEditor textarea does not sync state with Tiptap-based NovelEditor in EditorLayout. Two parallel editors; changes in one do not appear in the other. If user switches views, last-write wins. | MEDIUM |
+| BUG-17 | AnalystTab.jsx | POST /api/ai/analyze-signals endpoint exists and accepts signals payload. AnalystTab calls runSignalEngine() locally and never hits the endpoint. 'Extended' mode in settings does nothing. | MEDIUM |
+| BUG-18 | DashboardView | Dashboard reads stats from Zustand but initializeProject() only runs on login. Direct navigation to /app shows all-zero stats. No refetch triggered by DashboardView on mount. | MEDIUM |
+| BUG-19 | backend/main.py | global_exception_handler registered twice (~line 95 and ~line 310). Second registration silently overwrites first with different response schema (adds 'error' field). Inconsistent error format in production. | MEDIUM |
+| BUG-20 | keyStorage.js | AES-256 key derived from userAgent + localStorage salt. If localStorage cleared (incognito, user clears data, device change), fingerprint changes and encrypted API key is permanently unrecoverable. | MEDIUM |
+| BUG-21 | CorkboardView | Scene cards read from Object.values(scenes).filter(s => s.chapter_id === selCh). Scenes added during session via Binder don't appear until refresh (store not re-fetched after addChapter). | MEDIUM |
+| BUG-22 | supabase/migrations (005_sso_extension.sql) | progression_markers.chapter_id declared as TEXT not UUID. All other chapter references use UUID FK. FK constraint cannot be created; referential integrity not enforced on progression markers. | MEDIUM |
+| Table | Referenced In | Status | Why Blocking |
+| --- | --- | --- | --- |
+| projects | seed_demo.sql, storyStore, editor_routes FK, all thinking_routes FK | MISSING | All other tables use project_id FK; without this table, FK constraints fail on dependent migrations |
+| chapters | seed_demo.sql, scenes.chapter_id FK, characters/locations FKs | MISSING | scenes.chapter_id references chapters(id); missing table means existing scene migrations may fail or have broken FKs |
+| Issue | Files Involved | Impact | Fix |
+| --- | --- | --- | --- |
+| Service role full access conflicts with deny policy | 001_initial.sql vs supabase_production_setup.sql | PostgreSQL evaluates RLS permissively (OR); deny policy has zero effect when permissive policy exists | Remove 'Service role full access on users' policy from 001_initial.sql; service role bypasses RLS by default |
+| scenes_analysis_cache table active with no application code | 20240420_004_create_scenes_analysis_cache.sql | Invalidation trigger fires on every scene update adding unnecessary write overhead; table never read | Drop table and trigger, or keep but ensure application uses it (see BUG-23) |
+| progression_markers.chapter_id is TEXT not UUID | 005_sso_extension.sql | FK constraint cannot be enforced; chapters can be deleted leaving orphaned markers | ALTER TABLE progression_markers ALTER COLUMN chapter_id TYPE UUID USING chapter_id::UUID; add FK constraint |
+| Migration | SQL Summary | Priority |
+| --- | --- | --- |
+| 000_create_projects.sql | CREATE TABLE projects (id UUID PK, user_id UUID FK, title TEXT, created_at, updated_at); RLS: user_id = auth.uid() | P0 — BLOCKING |
+| 000_create_chapters.sql | CREATE TABLE chapters (id UUID PK, project_id UUID FK, user_id UUID FK, title TEXT, sort_order INT); RLS: user_id = auth.uid() | P0 — BLOCKING |
+| add_meta_jsonb_columns.sql | ALTER TABLE characters/locations/timeline_events/research_notes ADD COLUMN meta JSONB DEFAULT '{}' | P0 — ENABLES MAPPER TO PRESERVE UI FIELDS |
+| add_ai_analysis_cache.sql | CREATE TABLE ai_analysis_cache (id UUID, cache_key TEXT UNIQUE, project_id UUID FK, mode TEXT, result JSONB, token_cost INT, expires_at TIMESTAMPTZ) | P1 — TOKEN OPTIMIZATION |
+| fix_progression_markers_type.sql | ALTER TABLE progression_markers ALTER COLUMN chapter_id TYPE UUID USING chapter_id::UUID | P1 — SCHEMA INTEGRITY |
+| ID | File | Issue | Risk |
+| --- | --- | --- | --- |
+| SEC-01 | AuthContext.jsx | isSubscribed: true hardcoded. Every registered user bypasses paywall. Payment integration exists but has zero effect on access control. | CRITICAL |
+| SEC-02 | api_utils.py require_api_key | API_KEY env var is optional. When not set (default dev/demo state), ALL endpoints are publicly accessible with no authentication. Demo deployment is completely open. | HIGH |
+| SEC-03 | backend/auth.py | JWT_SECRET falls back to secrets.token_urlsafe(32) when not set. If ENVIRONMENT is not 'production', fallback used silently. Tokens become invalid on every restart. No warning logged. | HIGH |
+| SEC-04 | keyStorage.js | AES-256 encryption key derived from userAgent + localStorage salt. Key change means encrypted API key is permanently locked. No recovery path for user. | MEDIUM |
+| SEC-05 | index.html (CSP) | connect-src allows https://*.supabase.co wildcard. An attacker controlling any Supabase subdomain could receive exfiltrated data. Should be pinned to specific project URL. | MEDIUM |
+| SEC-06 | editorAI.js | OpenRouter API key sent directly from browser in fetch() headers. Visible in DevTools Network tab. BYOK design intentional but key is exposed client-side. | LOW |
+| Priority | Prompt | Fix | Effort | Verifies |
+| --- | --- | --- | --- | --- |
+| P0 | Prompt 10 | Run missing migrations (projects, chapters, meta columns, cache table) | 30 min | No FK errors on migration run; seed_demo.sql executes clean |
+| P0 | Prompt 1 | Create editorMappers.js; wire into StoreSyncManager payload builder | 45 min | Create character with bio+color, reload — all fields persist |
+| P0 | Prompt 2 | Add backend sanitizer + transaction-safe upserts | 45 min | Sync error on one entity doesn't corrupt others; partial write impossible |
+| P0 | Prompt 3 | Fix export: export fetchBlob / replace with formatText in ExportView | 20 min | Click Export → .docx downloads; no console errors |
+| P0 | Prompt 4 | Remove isSubscribed: true hardcode in AuthContext | 15 min | Free user cannot access paid tabs; Pro user can |
+| P0 | Prompt 9 | Remove all hardcoded project IDs from hooks and components | 30 min | Switch between projects → sessions/captures attributed correctly |
+| Priority | Prompt | Fix | Effort | Verifies |
+| --- | --- | --- | --- | --- |
+| P1 | Prompt 5 | Fix StoreSyncManager loop + add dirty entity tracking | 45 min | Rapid typing doesn't trigger >1 sync per debounce window; no infinite loop |
+| P1 | Prompt 6 | Fix chapter content persistence via canonical main scene | 2 hrs | Edit chapter prose, reload → content still there |
+| P1 | Prompt 7 | Implement real AI assist with cache + token budget | 2 hrs | Inspector AI tab returns real feedback; same request hits cache on retry |
+| P1 | Prompt 8 | Fix QuickCapture projectId + implement Corkboard Add Scene | 30 min | Add scene from Corkboard → scene persists; captures linked to project |
+| Priority | Item | Fix | Effort |
+| --- | --- | --- | --- |
+| P2 | Version restore | InspectorPanel restore() must update editor textarea and Zustand store after API call | 45 min |
+| P2 | Dashboard data load | Add useEffect to fetch project data if store is empty on Dashboard mount | 30 min |
+| P2 | Strap Strategist upload | Use formatText() to create a .docx blob before calling generateQueryAI | 30 min |
+| P2 | Rate limiting on AI routes | Add per-user 6 calls/minute limit in ai_routes.py with 429 response | 30 min |
+| P2 | SEC-02 API key required | Set API_KEY required in all non-dev environments; add startup warning if missing | 20 min |
+| P2 | SEC-03 JWT secret warning | Log critical warning if JWT_SECRET not set in production environment | 10 min |
+| Priority | Item | Fix | Effort |
+| --- | --- | --- | --- |
+| P3 | Split MCEditor monolith | Extract 8 views + 4 hooks into separate files; reduce root file to ~150 lines | 4 hrs |
+| P3 | Unify editor state | Resolve dual editor state between MCEditor WritingCanvas and EditorLayout Tiptap | 3 hrs |
+| P3 | Global search backend | Replace mock array with aggregate endpoint over scenes/ideas/threads/research | 2 hrs |
+| P3 | SWR cache for meta endpoints | Add stale-while-revalidate for characters, locations, market data endpoints | 2 hrs |
+| P3 | Token observability | Add per-endpoint token usage metrics, cache hit rate logging, p95 latency tracking | 2 hrs |

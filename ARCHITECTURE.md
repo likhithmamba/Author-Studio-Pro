@@ -21,6 +21,7 @@ graph TD
             TT -->|Paragraph Blur| SCK[Spellcheck Queue]
             TRLT -->|Render Squiggles| TT
             TL_OUT -->|Insert Text| TT
+            SCHK_RES[Spellcheck Results] -->|Render Squiggles| TT
         end
     end
 
@@ -33,11 +34,11 @@ graph TD
             ZS -->|Diff| PND[pendingChanges]
             PND -->|Debounce| SYNC{Sync Trigger}
             SYNC -->|Batch JSON| BAPI[Batch API Service]
-            ASM -->|Session End| ANL[V10: Indic Analytics]
+            ASM -->|Timed Interval / Session End| ANL[V10: Indic Analytics]
         end
 
         subgraph "SSO Orchestration"
-            ISP -->|Analyze Trigger| SNAP[api/sso/snapshot]
+            ISP -->|Analyze Trigger| SNAP[POST /api/sso/snapshot]
             ZS -->|Gather Bible/Context| SNAP
             SNAP -->|SSO Object| JSR[ai_routes]
         end
@@ -48,6 +49,7 @@ graph TD
         WH -->|Update Tier| PRF[(Profiles Table)]
         PRF -->|Session Token| JWT[JWT Token]
         JWT -->|Bearer Auth| JSR
+        JWT -->|Bearer Auth| RTR
         PRF -->|Tier Check| PRM
     end
 
@@ -59,7 +61,7 @@ graph TD
             CNT -->|Word Count| ZS
             RTR -->|V5| NRM[unicode_normaliser.py]
             RTR -->|V8| PNC[indic_punctuation.py]
-            SCHK -->|Corrected Words| TL_OUT[Transliteration Hub]
+            SCHK -->|Corrected Words| SCHK_RES
             TRLT -->|Indic Output| TL_OUT
         end
         
@@ -78,7 +80,6 @@ graph TD
             SEG -->|V12| GRD[script_continuity.py]
             SEG -->|V7| ENT[entity_resolver.py]
             GRD & ENT -->|Context Injection| OPR[OpenRouter API]
-            OPR -->|Log Usage| LOG[(ai_call_logs)]
             OPR -->|Response| SYN[Signal Synthesizer]
         end
         
@@ -96,6 +97,8 @@ graph TD
         RTR -->|NFC Data| DB_UPSERT[Supabase Upsert]
         DB_UPSERT -->|Relational Write| PG[(PostgreSQL)]
         ANL -->|V10 Updates| STR[(writing_sessions)]
+        SNAP -->|Save Context| SNAP_DB[(sso_snapshots)]
+        OPR -->|Log Usage| LOG_DB[(ai_call_logs)]
     end
 
     style PRM fill:#f96,stroke:#333,stroke-width:2px

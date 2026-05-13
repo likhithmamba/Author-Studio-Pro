@@ -646,6 +646,7 @@ async def analyse_text(request: Request, body: AnalyseTextRequest, _user: dict =
 class SignalAnalysisRequest(BaseModel):
     mode: str = "normal"
     track: str = None
+    project_id: str = ""
     signals: list
     current_phase: str = "setup"
     progression: dict = None
@@ -757,6 +758,31 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
         j = r.json()
         content = j['choices'][0]['message']['content']
         
+        # Log to ai_call_logs
+        try:
+            sb = get_supabase()
+            if sb:
+                usage = j.get("usage", {})
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                total_tokens = usage.get("total_tokens", 0)
+                # OpenRouter sometimes returns total_cost
+                cost = usage.get("total_cost", 0)
+                
+                sb.table("ai_call_logs").insert({
+                    "user_id": _user.get("id"),
+                    "project_id": body.project_id if body.project_id else None,
+                    "endpoint": "analyze-signals",
+                    "model_used": body.ai_model,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                    "cost_estimate_usd": cost,
+                    "status": "success"
+                }).execute()
+        except Exception as log_e:
+            logger.warning(f"Failed to write ai_call_logs: {log_e}")
+
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:

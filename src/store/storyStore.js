@@ -62,6 +62,24 @@ export const useStoryStore = create(
       healthScore: null,
     },
 
+    // ─── Narrative Intelligence State (deterministic engines) ─────────
+    narrativeIntel: {
+      status: 'idle',          // 'idle' | 'running' | 'complete' | 'error'
+      lastRun: null,
+      versionHash: null,       // Cache key — skip re-analysis if unchanged
+      fromCache: false,
+      fingerprint: null,       // Engine 01: 5-axis stylometric profile
+      tension: null,           // Engine 02: Narrative tension waveform
+      voiceDivergence: null,   // Engine 03: Character voice similarity
+      gunTracker: null,        // Engine 04: Chekhov's Gun tracking
+      entropy: null,           // Engine 05: Scene entropy map
+      iceberg: null,           // Engine 07: Show-vs-tell ratio
+      temporal: null,          // Engine 08: Timeline coherence
+      coldOpen: null,          // Engine 09: Opening chapter readiness
+      errors: {},
+      completedEngines: [],
+    },
+
     // ─── Writing Goals ────────────────────────────────────────────────
     streak: 0,
 
@@ -94,6 +112,164 @@ export const useStoryStore = create(
         set(s => ({ analysis: { ...s.analysis, status: 'error' } }))
       }
     },
+
+    // ─── Narrative Intelligence Actions ────────────────────────────────
+    // Extracts full text from chapters and sends to backend engines
+
+    _extractManuscriptText: () => {
+      const state = get()
+      const parts = []
+      for (const chId of state.chapterOrder) {
+        const ch = state.chapters[chId]
+        if (!ch) continue
+        parts.push(`Chapter: ${ch.title || 'Untitled'}`)
+        // Get content from the scene if available, otherwise from the chapter
+        const sceneId = state.chapterSceneMap?.[chId]
+        const scene = sceneId ? state.scenes[sceneId] : null
+        const content = scene?.content || ch.content || ''
+        if (content.trim()) parts.push(content)
+      }
+      return parts.join('\n\n')
+    },
+
+    runNarrativeQuick: async () => {
+      const state = get()
+      if (!state.projectId || state.chapterOrder.length === 0) return
+      if (state.narrativeIntel.status === 'running') return
+
+      set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'running' } }))
+
+      try {
+        const { narrativeQuick } = await import('../api.js')
+        const token = localStorage.getItem('inkforge_token')
+        const rawText = get()._extractManuscriptText()
+        if (!rawText || rawText.length < 100) {
+          set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'idle' } }))
+          return
+        }
+
+        const result = await narrativeQuick({
+          rawText,
+          manuscriptId: state.projectId,
+          genre: 'default',
+        }, token)
+
+        // Skip update if hash unchanged (server returned cache)
+        set(s => ({
+          narrativeIntel: {
+            ...s.narrativeIntel,
+            status: 'complete',
+            lastRun: new Date().toISOString(),
+            versionHash: result.version_hash,
+            fromCache: result._from_cache || false,
+            fingerprint: result.fingerprint,
+            tension: result.tension,
+            errors: result.errors || {},
+            completedEngines: result._completed_engines || [],
+          }
+        }))
+      } catch (err) {
+        console.error('Narrative quick analysis error:', err)
+        set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'error' } }))
+      }
+    },
+
+    runNarrativeFull: async () => {
+      const state = get()
+      if (!state.projectId || state.chapterOrder.length === 0) return
+      if (state.narrativeIntel.status === 'running') return
+
+      set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'running' } }))
+
+      try {
+        const { narrativeFull } = await import('../api.js')
+        const token = localStorage.getItem('inkforge_token')
+        const rawText = get()._extractManuscriptText()
+        if (!rawText || rawText.length < 100) {
+          set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'idle' } }))
+          return
+        }
+
+        // Build chapter title map
+        const chapterTitles = {}
+        state.chapterOrder.forEach((chId, idx) => {
+          const ch = state.chapters[chId]
+          if (ch) chapterTitles[idx] = ch.title || null
+        })
+
+        const result = await narrativeFull({
+          rawText,
+          manuscriptId: state.projectId,
+          genre: 'default',
+          chapterTitles,
+        }, token)
+
+        set(s => ({
+          narrativeIntel: {
+            status: 'complete',
+            lastRun: new Date().toISOString(),
+            versionHash: result.version_hash,
+            fromCache: result._from_cache || false,
+            fingerprint: result.fingerprint,
+            tension: result.tension,
+            voiceDivergence: result.voice_divergence,
+            gunTracker: result.gun_tracker,
+            entropy: result.entropy,
+            iceberg: result.iceberg,
+            temporal: result.temporal,
+            coldOpen: result.cold_open,
+            errors: result.errors || {},
+            completedEngines: result._completed_engines || [],
+          }
+        }))
+      } catch (err) {
+        console.error('Narrative full analysis error:', err)
+        set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'error' } }))
+      }
+    },
+
+    runNarrativeSubmission: async () => {
+      const state = get()
+      if (!state.projectId || state.chapterOrder.length === 0) return
+      if (state.narrativeIntel.status === 'running') return
+
+      set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'running' } }))
+
+      try {
+        const { narrativeSubmission } = await import('../api.js')
+        const token = localStorage.getItem('inkforge_token')
+        const rawText = get()._extractManuscriptText()
+        if (!rawText || rawText.length < 100) {
+          set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'idle' } }))
+          return
+        }
+
+        const result = await narrativeSubmission({
+          rawText,
+          manuscriptId: state.projectId,
+          genre: 'default',
+        }, token)
+
+        set(s => ({
+          narrativeIntel: {
+            ...s.narrativeIntel,
+            status: 'complete',
+            lastRun: new Date().toISOString(),
+            versionHash: result.version_hash,
+            fromCache: result._from_cache || false,
+            gunTracker: result.gun_tracker,
+            temporal: result.temporal,
+            coldOpen: result.cold_open,
+            errors: result.errors || {},
+            completedEngines: result._completed_engines || [],
+          }
+        }))
+      } catch (err) {
+        console.error('Narrative submission analysis error:', err)
+        set(s => ({ narrativeIntel: { ...s.narrativeIntel, status: 'error' } }))
+      }
+    },
+
 
     loadChapters: (chapters) => {
       const byId = {}

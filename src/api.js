@@ -562,4 +562,46 @@ export async function deleteProgressionMarkerAPI(id, token) {
     return fetchJSON(`/sso/progression-markers/${id}`, { method: 'DELETE', headers: _authHeaders(token) })
 }
 
+// ─── Narrative Intelligence API ───────────────────────────────────────────
+// Zero-token deterministic engines — no AI keys needed
 
+export async function narrativeQuick({ rawText, manuscriptId, genre }, token) {
+    return fetchJSON('/narrative/quick', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({
+            raw_text: rawText,
+            manuscript_id: manuscriptId,
+            genre: genre || 'default',
+        }),
+    })
+}
+
+export async function narrativeFull({ rawText, manuscriptId, genre, chapterTitles }, token) {
+    return fetchJSON('/narrative/full', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({
+            raw_text: rawText,
+            manuscript_id: manuscriptId,
+            genre: genre || 'default',
+            chapter_titles: chapterTitles || null,
+        }),
+    })
+}
+
+export async function narrativeSubmission({ rawText, manuscriptId, genre }, token) {
+    return fetchJSON('/narrative/submission', {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({
+            raw_text: rawText,
+            manuscript_id: manuscriptId,
+            genre: genre || 'default',
+        }),
+    })
+}
+
+export async function narrativeStatus() {
+    return fetchJSON('/narrative/status')
+}

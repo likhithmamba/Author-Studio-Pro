@@ -255,11 +255,11 @@ const useWritingSession = (projectId) => {
     return () => clearInterval(t);
   }, []);
 
-  const recordWords = useCallback(async (count) => {
+  const recordWords = useCallback(async (count, content) => {
     const delta = Math.max(0, count - prevWords.current);
     if (delta > 0) {
       prevWords.current = count;
-      try { await apiFetch("/sessions", { method: "POST", body: JSON.stringify({ project_id: projectId, words_added: delta }) }); } catch {}
+      try { await apiFetch("/sessions", { method: "POST", body: JSON.stringify({ project_id: projectId, words_added: delta, content }) }); } catch {}
     }
   }, [projectId]);
 
@@ -779,8 +779,17 @@ const WritingCanvas = ({ activeScene }) => {
   const saveTargetId = activeScene || activeChapterId;
   const projectId = useStoryStore(s => s.projectId) || "local_draft";
   const { saving }      = useAutoSave(saveTargetId, content);
-  const { sessionTime } = useWritingSession(projectId);
+  const { sessionTime, recordWords } = useWritingSession(projectId);
   const { words, chars, paras } = useWordCount(content);
+
+  // Debounced session tracking
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      recordWords(words, content);
+    }, 5000); // Wait 5s of no typing before sending session update
+    return () => clearTimeout(timer);
+  }, [words, content, recordWords]);
+  
   const findState       = useFind(content, setContent);
 
   const FONTS = ["Crimson Text","Palatino","Georgia","EB Garamond","Libre Baskerville","Merriweather","Lora","Courier Prime","Times New Roman"];
@@ -1188,6 +1197,93 @@ const InspectorPanel = ({ activeScene }) => {
                 </div>
               </div>
             ))}
+            <Divider />
+            <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>NARRATIVE INTELLIGENCE</div>
+            
+            {/* Engine Status / Run Button */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ fontSize: 10, color: narrativeIntel.status === 'running' ? T.amber : T.textMuted, fontFamily: T.fontUI }}>
+                {narrativeIntel.status === 'running' ? "● Analysing..." : narrativeIntel.lastRun ? `Last run: ${new Date(narrativeIntel.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Not yet analysed"}
+              </div>
+              <button 
+                onClick={() => useStoryStore.getState().runNarrativeFull()} 
+                disabled={narrativeIntel.status === 'running'}
+                style={{ ...btnSt(18), border: "none", color: T.accent }}
+                title="Run Deep Analysis"
+              >
+                <Ico n="lightning" s={12} c={T.accent} />
+              </button>
+            </div>
+
+            {/* STYLE FINGERPRINT (Engine 01) */}
+            {narrativeIntel.fingerprint && (
+              <div style={{ background: T.surface, borderRadius: T.rSm, padding: 10, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: 9, color: T.accent, fontFamily: T.fontUI, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>STYLE FINGERPRINT</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 12px" }}>
+                  {Object.entries(narrativeIntel.fingerprint.baseline_axes || {}).map(([key, val]) => (
+                    <div key={key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: T.textMuted, fontFamily: T.fontUI }}>
+                        <span>{key.replace(/_/g, ' ').toUpperCase()}</span>
+                        <span>{(val * 100).toFixed(0)}%</span>
+                      </div>
+                      <div style={{ height: 3, background: T.border, borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ width: `${val * 100}%`, height: "100%", background: T.accent }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TENSION WAVEFORM (Engine 02) */}
+            {narrativeIntel.tension && narrativeIntel.tension.windows && (
+              <div style={{ background: T.surface, borderRadius: T.rSm, padding: 10, border: `1px solid ${T.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontSize: 9, color: T.amber, fontFamily: T.fontUI, fontWeight: 700, letterSpacing: "0.05em" }}>NARRATIVE TENSION</div>
+                  {narrativeIntel.tension.climax_detected && <Badge label="CLIMAX DETECTED" color={T.red} />}
+                </div>
+                <div style={{ height: 40, width: "100%", display: "flex", alignItems: "flex-end", gap: 2 }}>
+                  {narrativeIntel.tension.windows.map((w, i) => (
+                    <div 
+                      key={i} 
+                      title={`Tension: ${w.tension.toFixed(2)}`}
+                      style={{ 
+                        flex: 1, 
+                        height: `${Math.max(w.tension * 100, 10)}%`, 
+                        background: w.tension > 0.7 ? T.red : w.tension > 0.4 ? T.amber : T.blue,
+                        borderRadius: "1px 1px 0 0",
+                        opacity: 0.8
+                      }} 
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ICEBERG RATIO (Engine 07) */}
+            {narrativeIntel.iceberg && (
+              <div style={{ background: T.surface, borderRadius: T.rSm, padding: 10, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: 9, color: T.blue, fontFamily: T.fontUI, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>ICEBERG RATIO (SHOW vs TELL)</div>
+                <div style={{ height: 8, width: "100%", background: T.blue, borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                  <div style={{ width: `${narrativeIntel.iceberg.manuscript_ratio * 100}%`, height: "100%", background: T.green }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 8, fontFamily: T.fontUI }}>
+                  <span style={{ color: T.green }}>SHOW {(narrativeIntel.iceberg.manuscript_ratio * 100).toFixed(0)}%</span>
+                  <span style={{ color: T.blue }}>TELL {((1 - narrativeIntel.iceberg.manuscript_ratio) * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+
+            <Divider />
+            <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: T.fontUI }}>HIGHLIGHT KEY</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {[["Action", T.red], ["Dialogue", T.green], ["Description", T.blue]].map(([l, c]) => (
+                <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
+                  <span style={{ fontSize: 10, color: T.textMuted, fontFamily: T.fontUI }}>{l}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1750,6 +1846,34 @@ export default function MidnightChronicleEditor() {
   useEffect(() => {
     useStoryStore.getState().loadStreak();
   }, []);
+
+  // ── Narrative Intelligence Debounce ──────────────────────────────────
+  const runNarrativeQuick = useStoryStore(s => s.runNarrativeQuick);
+  const manuscriptId = useStoryStore(s => s.projectId);
+  const narrativeIntel = useStoryStore(s => s.narrativeIntel);
+  const activeChapterId = useStoryStore(s => s.activeChapterId);
+  const chapters = useStoryStore(s => s.chapters);
+  const scenes = useStoryStore(s => s.scenes);
+  const chapterSceneMap = useStoryStore(s => s.chapterSceneMap);
+
+  // Extract content for current context to watch for changes
+  const activeContent = (() => {
+    const ch = chapters[activeChapterId];
+    if (!ch) return "";
+    const sceneId = chapterSceneMap?.[activeChapterId];
+    const scene = sceneId ? scenes[sceneId] : null;
+    return scene?.content || ch.content || "";
+  })();
+
+  useEffect(() => {
+    if (!manuscriptId || activeContent.length < 100) return;
+    
+    const timer = setTimeout(() => {
+      runNarrativeQuick();
+    }, 3000); // 3s debounce for the deep-ish analysis
+    
+    return () => clearTimeout(timer);
+  }, [activeContent, manuscriptId, runNarrativeQuick]);
 
   return (
     <div className="midnight-chronicle-editor" style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: T.bg, overflow: "hidden" }}>

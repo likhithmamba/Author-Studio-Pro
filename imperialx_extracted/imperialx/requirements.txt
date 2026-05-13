@@ -1,0 +1,21 @@
+# ImperialX Narrative Intelligence — Python Dependencies
+# All engines are deterministic — no ML model downloads required.
+# Install: pip install -r requirements.txt
+
+# Core (no version pinning on purpose — works with any recent version)
+pytest>=7.0
+pytest-cov>=4.0
+
+# Optional: for future FastAPI wrapper layer
+# fastapi>=0.100
+# uvicorn>=0.23
+# pydantic>=2.0
+
+# Optional: lightweight NLP (not required — all NER is rule-based)
+# compromise-py is not available; we use pure regex
+# If you want spaCy as a future upgrade for NER accuracy:
+# spacy>=3.6
+# python -m spacy download en_core_web_sm
+
+# Standard library only for core engines:
+# re, hashlib, json, zlib, math, collections, dataclasses, typing — all built-in

@@ -103,6 +103,9 @@ from routers.editor_tools import router as editor_tools_router
 app.include_router(editor_router)
 app.include_router(editor_tools_router)
 
+from routers.narrative_routes import router as narrative_router
+app.include_router(narrative_router)
+
 
 
 # ─── Health check ──────────────────────────────────────────────────────────────
