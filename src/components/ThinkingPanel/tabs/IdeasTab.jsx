@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import IdeaCard from './IdeaCard';
 import { HiOutlinePlus, HiOutlineMagnifyingGlassMinus, HiOutlineMagnifyingGlassPlus, HiOutlineArrowsPointingOut } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -44,6 +44,17 @@ export default function IdeasTab({ projectId }) {
     
     const canvasRef = useRef(null);
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+    // ⚡ Bolt: Pre-calculate O(1) lookup map for connections to prevent O(N*M) nested loops.
+    // This runs during every pan/zoom event, so avoiding array.find() drastically improves framerate.
+    const cardMap = useMemo(() => {
+        const map = {};
+        for (const card of cards) {
+            map[card.id] = card;
+        }
+        return map;
+    }, [cards]);
+
 
     // Handle Wheel Zoom
     const handleWheel = (e) => {
@@ -235,8 +246,8 @@ export default function IdeasTab({ projectId }) {
                             </marker>
                         </defs>
                         {connections.map(c => {
-                            const source = cards.find(card => card.id === c.from);
-                            const target = cards.find(card => card.id === c.to);
+                            const source = cardMap[c.from];
+                            const target = cardMap[c.to];
                             if (!source || !target) return null;
                             const sx = source.x + 110;
                             const sy = source.y + 60;
@@ -252,7 +263,7 @@ export default function IdeasTab({ projectId }) {
                             );
                         })}
                         {connectingMode && connectingMode.targetPos && (() => {
-                            const source = cards.find(card => card.id === connectingMode.sourceId);
+                            const source = cardMap[connectingMode.sourceId];
                             if (!source) return null;
                             return (
                                 <line 
