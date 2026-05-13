@@ -72,8 +72,8 @@
     "hash": "edfcf668609bf67c704df132d738449b"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\main.py": {
-    "mtime": 1778257948.912971,
-    "hash": "bb1606f3222fb4e56f2cacc06d233403"
+    "mtime": 1778362647.4030612,
+    "hash": "94a9285807a7544a652b2799ee200124"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\parser.py": {
     "mtime": 1775379044.1969361,
@@ -131,6 +131,58 @@
     "mtime": 1775488711.8678672,
     "hash": "da7550a3043507c86539ff2bc10d3861"
   },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\orchestrator.py": {
+    "mtime": 1778327224.0,
+    "hash": "32c11ffd4daaf032cff630b9cd4db6b1"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\__init__.py": {
+    "mtime": 1778362513.334837,
+    "hash": "0878f9a2a97b5b8f4864660b7baf8148"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_01_fingerprint.py": {
+    "mtime": 1778273016.0,
+    "hash": "444f04dd03f98dce6d539d598dd20764"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_02_03_tension_voice.py": {
+    "mtime": 1778273108.0,
+    "hash": "203429795b2eefe751ee8d6ce42644c2"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_04_05_guns_entropy.py": {
+    "mtime": 1778273214.0,
+    "hash": "69d02a3fc28b03103e9e4341cd1764e3"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_06_archaeology.py": {
+    "mtime": 1778293634.0,
+    "hash": "059a2a64946e678099ac13f3cc14341c"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_07_08_iceberg_temporal.py": {
+    "mtime": 1778327288.0,
+    "hash": "765e32969af6379bac9a81d59e771a57"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\engine_09_cold_open.py": {
+    "mtime": 1778293832.0,
+    "hash": "6b9d6eb58fcf634183f7aded1dbf9730"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\engines\\__init__.py": {
+    "mtime": 1778327174.0,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\shared\\ner_core.py": {
+    "mtime": 1778272966.0,
+    "hash": "92595fc0e313a02aa2d5f7e7786f9352"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\shared\\pipeline_core.py": {
+    "mtime": 1778327284.0,
+    "hash": "02e649581ea42b5b8dc1313ef19e368e"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\shared\\stylometry.py": {
+    "mtime": 1778272888.0,
+    "hash": "23ad6ba3483873eab4fc71bb67175b7f"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\narrative_engines\\shared\\__init__.py": {
+    "mtime": 1778327174.0,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\prompts\\india_fiction_system.py": {
     "mtime": 1778081518.3399594,
     "hash": "09496f6b83b04f7eaab1ac49588d2bd5"
@@ -140,8 +192,8 @@
     "hash": "b16bfedba03c203090555f10ddc9e67d"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\routers\\ai_routes.py": {
-    "mtime": 1778257834.498446,
-    "hash": "1fb07be84c5608261b88622b9c1d3695"
+    "mtime": 1778697198.825332,
+    "hash": "0c73f20fdca49a3aa7257ad19be1181c"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\routers\\auth_routes.py": {
     "mtime": 1778257059.9174538,
@@ -159,9 +211,13 @@
     "mtime": 1778081235.7416856,
     "hash": "6a2ba7085c6f95c1ac2a28c74e2a42eb"
   },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\routers\\narrative_routes.py": {
+    "mtime": 1778362635.061996,
+    "hash": "0b2ffa378fffa62812a6809b020b777f"
+  },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\routers\\sso_routes.py": {
-    "mtime": 1776448709.801937,
-    "hash": "2c3887ce6ff2a1551083e96d4b0d7a3f"
+    "mtime": 1778697156.8274426,
+    "hash": "eeeb7f2c684d3b6c7416e3feec5dfd93"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\routers\\thinking_routes.py": {
     "mtime": 1776448755.2193463,
@@ -203,6 +259,66 @@
     "mtime": 1778257484.8817012,
     "hash": "66355a95e0249744f52972d6428950e6"
   },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\orchestrator.py": {
+    "mtime": 1778327224.0,
+    "hash": "32c11ffd4daaf032cff630b9cd4db6b1"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\__init__.py": {
+    "mtime": 1778327172.0,
+    "hash": "6b6272732b0de44cc9bd9ca77f6e588c"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_01_fingerprint.py": {
+    "mtime": 1778273016.0,
+    "hash": "444f04dd03f98dce6d539d598dd20764"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_02_03_tension_voice.py": {
+    "mtime": 1778273108.0,
+    "hash": "203429795b2eefe751ee8d6ce42644c2"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_04_05_guns_entropy.py": {
+    "mtime": 1778273214.0,
+    "hash": "69d02a3fc28b03103e9e4341cd1764e3"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_06_archaeology.py": {
+    "mtime": 1778293634.0,
+    "hash": "059a2a64946e678099ac13f3cc14341c"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_07_08_iceberg_temporal.py": {
+    "mtime": 1778327288.0,
+    "hash": "765e32969af6379bac9a81d59e771a57"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\engine_09_cold_open.py": {
+    "mtime": 1778293832.0,
+    "hash": "6b9d6eb58fcf634183f7aded1dbf9730"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\engines\\__init__.py": {
+    "mtime": 1778327174.0,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\shared\\ner_core.py": {
+    "mtime": 1778272966.0,
+    "hash": "92595fc0e313a02aa2d5f7e7786f9352"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\shared\\pipeline_core.py": {
+    "mtime": 1778327284.0,
+    "hash": "02e649581ea42b5b8dc1313ef19e368e"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\shared\\stylometry.py": {
+    "mtime": 1778272888.0,
+    "hash": "23ad6ba3483873eab4fc71bb67175b7f"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\shared\\__init__.py": {
+    "mtime": 1778327174.0,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\tests\\test_all_engines.py": {
+    "mtime": 1778293906.0,
+    "hash": "fc6a210c38d36dfc2f78a8adeadd77a4"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\tests\\__init__.py": {
+    "mtime": 1778327174.0,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\raw claude novel editor pro\\author_studio\\ai_analyst.py": {
     "mtime": 1777392558.3840177,
     "hash": "d2af6b2f04b24ecc605179fb30f62142"
@@ -240,8 +356,8 @@
     "hash": "ca8a04b5272c0865ee6201c823da8b0c"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\api.js": {
-    "mtime": 1778082183.5729513,
-    "hash": "cc19c5ac9fec15ffec36e392b1204e36"
+    "mtime": 1778362739.4124563,
+    "hash": "383e97d88fd02ffff8a711423ebadb1f"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\App.jsx": {
     "mtime": 1778082281.9919672,
@@ -356,8 +472,8 @@
     "hash": "c82284beb1489d8505576aa8da77a7fe"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\components\\Editor\\MidnightChronicleEditor.jsx": {
-    "mtime": 1778082371.9028437,
-    "hash": "0328b079e487073a3de617edb8b1e565"
+    "mtime": 1778697418.3468888,
+    "hash": "2fd7df29637792e9c77572b52f1678a9"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\components\\Editor\\NovelEditor.jsx": {
     "mtime": 1778082183.5986676,
@@ -492,8 +608,8 @@
     "hash": "f34a5dc633fc7f56005a8343f5189908"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\store\\storyStore.js": {
-    "mtime": 1778082282.0204287,
-    "hash": "4a02716fa269007ec7d3cf3b26758f99"
+    "mtime": 1778362784.6869123,
+    "hash": "ea2345ee5946a09eac0fa3a36bb18525"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\src\\utils\\aiModes.js": {
     "mtime": 1776441599.085837,
@@ -603,6 +719,10 @@
     "mtime": 1778257955.8182235,
     "hash": "94241153bf741a61771d5f5c97c7d0a5"
   },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\supabase\\migrations\\014_sso_snapshots_and_ai_logs.sql": {
+    "mtime": 1778697145.5499563,
+    "hash": "72c4adec328733c8a2c31a1272651349"
+  },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\supabase\\migrations\\20240420_001_create_scenes.sql": {
     "mtime": 1776658906.1426537,
     "hash": "d23bfd84ee96b3189f63df719890cfe3"
@@ -660,8 +780,8 @@
     "hash": "0924ef06d952bb5c3b255b5661b27583"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\ARCHITECTURE.md": {
-    "mtime": 1778260554.4119315,
-    "hash": "5386b2860f7a37634c5486a32b5def69"
+    "mtime": 1778697268.089051,
+    "hash": "b4932caca7c0b59dcefd76e9cc4d699d"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\extracted_report.txt": {
     "mtime": 1778082183.4887445,
@@ -732,15 +852,15 @@
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\test_dummy_9586fd94.md": {
-    "mtime": 1778353389.237836,
+    "mtime": 1778698546.268569,
     "hash": "1e6d2a8efab70446ca9d9d344961b52e"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\test_manuscript_5a2c176f.md": {
-    "mtime": 1778353389.2818325,
+    "mtime": 1778698546.3009174,
     "hash": "7f7ae04704774be5b7e635ee4b24e219"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\test_out_902ed030.md": {
-    "mtime": 1778353389.3521378,
+    "mtime": 1778698546.3840523,
     "hash": "5f25731cc75afdf2846cb5bcdaabd11f"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\prompt_templates\\depth.txt": {
@@ -754,6 +874,10 @@
   "D:\\Downloads\\antigravityfiles\\novel formatter\\backend\\prompt_templates\\normal.txt": {
     "mtime": 1776441574.5429938,
     "hash": "f13ac01749047672fff9e9d6de6f29b9"
+  },
+  "D:\\Downloads\\antigravityfiles\\novel formatter\\imperialx_extracted\\imperialx\\requirements.txt": {
+    "mtime": 1778327180.0,
+    "hash": "332a250ee07b45f5e452b93d5234aafd"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\public\\robots.txt": {
     "mtime": 1773136129.3461194,
@@ -1088,7 +1212,7 @@
     "hash": "900b80a80f76ed87a7d3a9a42e6fc7a5"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\asp_landing_v2_2f790938.md": {
-    "mtime": 1778353391.4785228,
+    "mtime": 1778698546.8082514,
     "hash": "10a9fb3b43dac0183cac857a2c240700"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\temp_audit\\audit.txt": {
@@ -1096,7 +1220,7 @@
     "hash": "aa84d45ccf95a9e0c266cf71e4cad174"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\AuthorStudioPro_Audit_v5_Consolidated_1a930d78.md": {
-    "mtime": 1778353391.631741,
+    "mtime": 1778698546.9558537,
     "hash": "8e7a442d89d619474d32effe694e8882"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\temp_audit\\landing.txt": {
@@ -1104,7 +1228,7 @@
     "hash": "acee01512ee3d3e688b4d41bd3c2a9b1"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\asp_landing_v2_07cd8cb3.md": {
-    "mtime": 1778353391.815599,
+    "mtime": 1778698547.130614,
     "hash": "10a9fb3b43dac0183cac857a2c240700"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\temp_unzip\\audit.txt": {
@@ -1112,7 +1236,7 @@
     "hash": "aa84d45ccf95a9e0c266cf71e4cad174"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\graphify-out\\converted\\AuthorStudioPro_Audit_v5_Consolidated_ae2f864a.md": {
-    "mtime": 1778353391.9638176,
+    "mtime": 1778698547.3996356,
     "hash": "8e7a442d89d619474d32effe694e8882"
   },
   "D:\\Downloads\\antigravityfiles\\novel formatter\\temp_unzip\\landing.txt": {
