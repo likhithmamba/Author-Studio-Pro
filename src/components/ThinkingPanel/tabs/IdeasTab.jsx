@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import IdeaCard from './IdeaCard';
 import { HiOutlinePlus, HiOutlineMagnifyingGlassMinus, HiOutlineMagnifyingGlassPlus, HiOutlineArrowsPointingOut } from 'react-icons/hi2';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -19,6 +19,17 @@ export default function IdeasTab({ projectId }) {
     const [cards, setCards] = useState([]);
     const [connections, setConnections] = useState([]);
     const [signalIdeas, setSignalIdeas] = useState([]);
+
+    // ⚡ Bolt Optimization: O(1) card lookups for high-frequency render loops (pan/zoom)
+    const cardMap = useMemo(() => {
+        const map = {};
+        for (let i = 0; i < cards.length; i++) {
+            if (!map[cards[i].id]) {
+                map[cards[i].id] = cards[i];
+            }
+        }
+        return map;
+    }, [cards]);
 
     useEffect(() => {
         if (!projectId || !token) return;
@@ -235,8 +246,8 @@ export default function IdeasTab({ projectId }) {
                             </marker>
                         </defs>
                         {connections.map(c => {
-                            const source = cards.find(card => card.id === c.from);
-                            const target = cards.find(card => card.id === c.to);
+                            const source = cardMap[c.from];
+                            const target = cardMap[c.to];
                             if (!source || !target) return null;
                             const sx = source.x + 110;
                             const sy = source.y + 60;
@@ -252,7 +263,7 @@ export default function IdeasTab({ projectId }) {
                             );
                         })}
                         {connectingMode && connectingMode.targetPos && (() => {
-                            const source = cards.find(card => card.id === connectingMode.sourceId);
+                            const source = cardMap[connectingMode.sourceId];
                             if (!source) return null;
                             return (
                                 <line 

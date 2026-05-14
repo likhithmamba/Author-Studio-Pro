@@ -4,13 +4,33 @@ from pathlib import Path
 try:
     import enchant
     DICT_PATH = Path('backend/data/dictionaries')
-    LANG_MAP = {
-        'hi': enchant.DictWithPWL('hi_IN', str(DICT_PATH / 'hi_IN.dic')),
-        'kn': enchant.DictWithPWL('kn_IN', str(DICT_PATH / 'kn_IN.dic')),
-        'ta': enchant.DictWithPWL('ta_IN', str(DICT_PATH / 'ta_IN.dic')),
-        'te': enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic')),
-        'en': enchant.Dict('en_US'),
-    }
+    LANG_MAP = {}
+
+    try:
+        LANG_MAP['hi'] = enchant.DictWithPWL('hi_IN', str(DICT_PATH / 'hi_IN.dic'))
+    except enchant.errors.DictNotFoundError:
+        pass
+
+    try:
+        LANG_MAP['kn'] = enchant.DictWithPWL('kn_IN', str(DICT_PATH / 'kn_IN.dic'))
+    except enchant.errors.DictNotFoundError:
+        pass
+
+    try:
+        LANG_MAP['ta'] = enchant.DictWithPWL('ta_IN', str(DICT_PATH / 'ta_IN.dic'))
+    except enchant.errors.DictNotFoundError:
+        pass
+
+    try:
+        LANG_MAP['te'] = enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic'))
+    except enchant.errors.DictNotFoundError:
+        pass
+
+    try:
+        LANG_MAP['en'] = enchant.Dict('en_US')
+    except enchant.errors.DictNotFoundError:
+        pass
+
 except ImportError:
     enchant = None
 
