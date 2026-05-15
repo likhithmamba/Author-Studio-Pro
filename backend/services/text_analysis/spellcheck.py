@@ -11,7 +11,7 @@ try:
         'te': enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic')),
         'en': enchant.Dict('en_US'),
     }
-except ImportError:
+except Exception:
     enchant = None
 
 # In-memory cache fallback since redis might not be available
