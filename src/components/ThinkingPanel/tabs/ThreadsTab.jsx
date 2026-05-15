@@ -17,11 +17,23 @@ export default function ThreadsTab({ projectId }) {
         }).catch(err => console.error(err));
     }, [projectId, token]);
 
-    const columns = [
+    const columns = React.useMemo(() => [
         { id: 'todo', title: 'TODO' },
         { id: 'in_progress', title: 'DEVELOPING' },
         { id: 'resolved', title: 'RESOLVED' }
-    ];
+    ], []);
+
+    // ⚡ Bolt: Pre-calculate grouped cards in O(N) to avoid multiple O(N) filters during render
+    const groupedCards = React.useMemo(() => {
+        const groups = {};
+        columns.forEach(col => groups[col.id] = []);
+        cards.forEach(card => {
+            if (groups[card.status]) {
+                groups[card.status].push(card);
+            }
+        });
+        return groups;
+    }, [cards, columns]);
 
     const handleDragStart = (e, id) => {
         setDraggingId(id);
@@ -129,7 +141,7 @@ export default function ThreadsTab({ projectId }) {
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {cards.filter(c => c.status === col.id).map(card => (
+                        {(groupedCards[col.id] || []).map(card => (
                             <div 
                                 key={card.id}
                                 draggable

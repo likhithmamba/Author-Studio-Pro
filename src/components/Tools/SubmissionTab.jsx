@@ -84,6 +84,20 @@ export default function SubmissionTab() {
 
     useEffect(() => { saveSubmissions(submissions) }, [submissions])
 
+    // ⚡ Bolt: Pre-calculate grouped submissions in O(N) to avoid multiple O(N) filters during render
+    const groupedSubmissions = useMemo(() => {
+        const groups = {};
+        KANBAN_COLUMNS.forEach(col => groups[col.id] = []);
+
+        submissions.forEach(sub => {
+            const col = KANBAN_COLUMNS.find(c => c.statuses.includes(sub.status));
+            if (col) {
+                groups[col.id].push(sub);
+            }
+        });
+        return groups;
+    }, [submissions]);
+
     const stats = useMemo(() => {
         const total = submissions.length
         const pending = submissions.filter(s => ['Queried', 'Requested', 'Full Sent'].includes(s.status)).length
@@ -277,11 +291,11 @@ export default function SubmissionTab() {
                                 }}
                             >
                                 <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>
-                                    {col.title} ({submissions.filter(c => col.statuses.includes(c.status)).length})
+                                    {col.title} ({(groupedSubmissions[col.id] || []).length})
                                 </h3>
     
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {submissions.filter(c => col.statuses.includes(c.status)).map(card => (
+                                    {(groupedSubmissions[col.id] || []).map(card => (
                                         <div 
                                             key={card.id}
                                             draggable
