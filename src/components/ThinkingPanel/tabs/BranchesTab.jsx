@@ -126,7 +126,7 @@ export default function BranchesTab({ projectId }) {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
                 }}>
                     <span style={{ fontSize: '13px', color: '#c9915a', fontWeight: 'bold' }}>STORY BRANCHES</span>
-                    <button onClick={addBranch} style={{ background: 'none', border: 'none', color: '#6b6560', cursor: 'pointer' }}><HiOutlinePlus /></button>
+                    <button onClick={addBranch} aria-label="Add Branch" title="Add Branch" style={{ background: 'none', border: 'none', color: '#6b6560', cursor: 'pointer' }}><HiOutlinePlus /></button>
                 </div>
                 
                 <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -154,7 +154,7 @@ export default function BranchesTab({ projectId }) {
                                 }}
                             />
                             {activeBranchId === b.id && (
-                                <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}>
+                                <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id); }} aria-label="Delete Branch" title="Delete Branch" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}>
                                     <HiOutlineTrash />
                                 </button>
                             )}
@@ -206,7 +206,7 @@ export default function BranchesTab({ projectId }) {
                                             }}
                                         />
                                     </div>
-                                    <button onClick={() => deletePath(p.id)} style={{ background: 'none', border: 'none', color: '#6b6560', cursor: 'pointer', alignSelf: 'flex-start' }}>
+                                    <button onClick={() => deletePath(p.id)} aria-label="Delete Event" title="Delete Event" style={{ background: 'none', border: 'none', color: '#6b6560', cursor: 'pointer', alignSelf: 'flex-start' }}>
                                         <HiOutlineTrash />
                                     </button>
                                 </div>
