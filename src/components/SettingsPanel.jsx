@@ -199,6 +199,7 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose, onR
                                                 className="settings-key-toggle"
                                                 onClick={() => setShowKey(!showKey)}
                                                 type="button"
+                                                aria-label={showKey ? "Hide API key" : "Show API key"}
                                             >
                                                 {showKey ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
