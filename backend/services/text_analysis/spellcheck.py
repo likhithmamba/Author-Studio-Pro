@@ -1,16 +1,37 @@
 import json
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import enchant
     DICT_PATH = Path('backend/data/dictionaries')
-    LANG_MAP = {
-        'hi': enchant.DictWithPWL('hi_IN', str(DICT_PATH / 'hi_IN.dic')),
-        'kn': enchant.DictWithPWL('kn_IN', str(DICT_PATH / 'kn_IN.dic')),
-        'ta': enchant.DictWithPWL('ta_IN', str(DICT_PATH / 'ta_IN.dic')),
-        'te': enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic')),
-        'en': enchant.Dict('en_US'),
-    }
+
+    LANG_MAP = {}
+
+    def try_load_dict(lang_code, dict_name, file_name):
+        try:
+            dict_file = DICT_PATH / file_name
+            if dict_file.exists():
+                return enchant.DictWithPWL(dict_name, str(dict_file))
+            else:
+                return enchant.Dict(dict_name)
+        except Exception as e:
+            logger.warning(f"Failed to load dictionary {dict_name}: {e}")
+            return None
+
+    LANG_MAP['hi'] = try_load_dict('hi', 'hi_IN', 'hi_IN.dic')
+    LANG_MAP['kn'] = try_load_dict('kn', 'kn_IN', 'kn_IN.dic')
+    LANG_MAP['ta'] = try_load_dict('ta', 'ta_IN', 'ta_IN.dic')
+    LANG_MAP['te'] = try_load_dict('te', 'te_IN', 'te_IN.dic')
+
+    try:
+        LANG_MAP['en'] = enchant.Dict('en_US')
+    except Exception as e:
+        logger.warning(f"Failed to load english dictionary en_US: {e}")
+        LANG_MAP['en'] = None
+
 except ImportError:
     enchant = None
 
