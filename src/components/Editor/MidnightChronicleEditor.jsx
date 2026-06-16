@@ -804,8 +804,8 @@ const WritingCanvas = ({ activeScene }) => {
   const Row1 = () => (
     <div style={{ display: "flex", alignItems: "center", padding: "5px 14px", gap: 4, borderBottom: `1px solid ${T.borderSoft}`, flexWrap: "wrap" }}>
       {/* Undo / Redo */}
-      <button title="Undo" style={btnSt()}><Ico n="undo" s={13} c={T.textMuted} /></button>
-      <button title="Redo" style={btnSt()}><Ico n="redo" s={13} c={T.textMuted} /></button>
+      <button title="Undo" aria-label="Undo" style={btnSt()}><Ico n="undo" s={13} c={T.textMuted} /></button>
+      <button title="Redo" aria-label="Redo" style={btnSt()}><Ico n="redo" s={13} c={T.textMuted} /></button>
       <Divider vertical style={{ margin: "0 4px" }} />
 
       {/* Paragraph style */}
@@ -823,9 +823,9 @@ const WritingCanvas = ({ activeScene }) => {
       {/* Highlight */}
       <span style={labelSt}>H:</span>
       {[T.amber, T.green, T.blue, T.red, T.purple].map(c => (
-        <button key={c} title="Highlight" style={{ width: 14, height: 14, borderRadius: 3, background: c, border: "none", cursor: "pointer", opacity: 0.8, flexShrink: 0 }} />
+        <button key={c} title="Highlight" aria-label={`Highlight with color ${c}`} style={{ width: 14, height: 14, borderRadius: 3, background: c, border: "none", cursor: "pointer", opacity: 0.8, flexShrink: 0 }} />
       ))}
-      <button title="Clear" style={{ ...btnSt(18), fontSize: 9 }}>✕</button>
+      <button title="Clear highlight" aria-label="Clear highlight" style={{ ...btnSt(18), fontSize: 9 }}>✕</button>
       <Divider vertical style={{ margin: "0 4px" }} />
 
       {/* Smart punctuation */}
