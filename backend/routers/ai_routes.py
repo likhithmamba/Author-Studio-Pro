@@ -661,7 +661,12 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
     if not body.api_key:
         raise HTTPException(400, "API key required")
         
+    # Security: Prevent path traversal by validating mode against an allowlist
+    ALLOWED_MODES = {"normal", "depth", "extended"}
     mode = body.mode.lower()
+    if mode not in ALLOWED_MODES:
+        mode = "normal"
+
     prompt_file = f"prompt_templates/{mode}.txt"
     if not os.path.exists(prompt_file):
         prompt_file = "prompt_templates/normal.txt"
@@ -706,7 +711,6 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
     if body.track:
         try:
             import sys
-            import os
             sys.path.append(os.path.join(os.path.dirname(__file__), "..", "prompts"))
             from india_fiction_system import inject_indian_intelligence
             sys_prompt = inject_indian_intelligence(sys_prompt, body.track)
