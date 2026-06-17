@@ -18,7 +18,7 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer } from "react";
+import { useState, useEffect, useRef, useCallback, createContext, useContext, useReducer, useMemo } from "react";
 import { useStoryStore } from "../../store/storyStore";
 import { useTranslation } from 'react-i18next';
 import ThinkingPanel from '../ThinkingPanel/ThinkingPanel';
@@ -632,17 +632,29 @@ const BinderPanel = ({ activeScene, onSelect }) => {
     }
   }, [chapterOrder]);
 
-  const mappedChapters = chapterOrder.map(cid => {
-    const ch = chapters[cid];
-    const chScenes = Object.values(scenes).filter(s => s.chapter_id === cid).sort((a,b) => a.position - b.position);
-    return {
-      id: cid,
-      label: ch.title || ch.label,
-      status: ch.status || "active",
-      words: ch.wordCount || 0,
-      scenes: chScenes
-    };
-  });
+  // ⚡ Bolt: Optimize BinderPanel by memoizing mappedChapters and using an O(N) hash map
+  // for scene lookups instead of filtering the scenes array inside the chapter map loop.
+  const mappedChapters = useMemo(() => {
+    // 1. Group scenes by chapter_id in a single pass (O(N) instead of O(N^2))
+    const scenesByChapter = {};
+    Object.values(scenes || {}).forEach(sc => {
+      if (!scenesByChapter[sc.chapter_id]) scenesByChapter[sc.chapter_id] = [];
+      scenesByChapter[sc.chapter_id].push(sc);
+    });
+
+    // 2. Map chapters using the pre-computed hash map
+    return chapterOrder.map(cid => {
+      const ch = chapters[cid] || {};
+      const chScenes = (scenesByChapter[cid] || []).sort((a, b) => (a.position || 0) - (b.position || 0));
+      return {
+        id: cid,
+        label: ch.title || ch.label || `Chapter`,
+        status: ch.status || "active",
+        words: ch.wordCount || 0,
+        scenes: chScenes
+      };
+    });
+  }, [chapterOrder, chapters, scenes]);
 
   const handleAddChapter = () => {
     const num = chapterOrder.length + 1;
