@@ -661,7 +661,12 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
     if not body.api_key:
         raise HTTPException(400, "API key required")
         
+    # Prevent path traversal by strictly validating against an allowlist
     mode = body.mode.lower()
+    valid_modes = ["normal", "depth", "extended"]
+    if mode not in valid_modes:
+        mode = "normal"
+
     prompt_file = f"prompt_templates/{mode}.txt"
     if not os.path.exists(prompt_file):
         prompt_file = "prompt_templates/normal.txt"
