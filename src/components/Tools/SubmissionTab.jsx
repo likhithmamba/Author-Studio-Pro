@@ -85,16 +85,36 @@ export default function SubmissionTab() {
     useEffect(() => { saveSubmissions(submissions) }, [submissions])
 
     const stats = useMemo(() => {
-        const total = submissions.length
-        const pending = submissions.filter(s => ['Queried', 'Requested', 'Full Sent'].includes(s.status)).length
-        const rejected = submissions.filter(s => s.status === 'Rejected').length
-        const offers = submissions.filter(s => s.status === 'Offer').length
-        const avgDays = submissions
-            .filter(s => s.responseDate && s.dateSent)
-            .map(s => (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24))
-        const avgResponseDays = avgDays.length > 0 ? Math.round(avgDays.reduce((a, b) => a + b, 0) / avgDays.length) : 0
-        return { total, pending, rejected, offers, avgResponseDays }
+        let pending = 0;
+        let rejected = 0;
+        let offers = 0;
+        let totalDays = 0;
+        let responseCount = 0;
+
+        submissions.forEach(s => {
+            if (['Queried', 'Requested', 'Full Sent'].includes(s.status)) pending++;
+            else if (s.status === 'Rejected') rejected++;
+            else if (s.status === 'Offer') offers++;
+
+            if (s.responseDate && s.dateSent) {
+                totalDays += (new Date(s.responseDate) - new Date(s.dateSent)) / (1000 * 60 * 60 * 24);
+                responseCount++;
+            }
+        });
+
+        const avgResponseDays = responseCount > 0 ? Math.round(totalDays / responseCount) : 0;
+        return { total: submissions.length, pending, rejected, offers, avgResponseDays };
     }, [submissions])
+
+    const groupedSubmissions = useMemo(() => {
+        const groups = {};
+        KANBAN_COLUMNS.forEach(c => groups[c.id] = []);
+        submissions.forEach(s => {
+            const col = KANBAN_COLUMNS.find(c => c.statuses.includes(s.status));
+            if (col) groups[col.id].push(s);
+        });
+        return groups;
+    }, [submissions]);
 
     const handleAdd = () => {
         if (!form.agentName) { setStatus({ err: 'Agent name is required.' }); return }
@@ -277,11 +297,11 @@ export default function SubmissionTab() {
                                 }}
                             >
                                 <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>
-                                    {col.title} ({submissions.filter(c => col.statuses.includes(c.status)).length})
+                                    {col.title} ({groupedSubmissions[col.id]?.length || 0})
                                 </h3>
     
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {submissions.filter(c => col.statuses.includes(c.status)).map(card => (
+                                    {groupedSubmissions[col.id]?.map(card => (
                                         <div 
                                             key={card.id}
                                             draggable
