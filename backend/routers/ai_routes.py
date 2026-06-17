@@ -8,6 +8,7 @@ import tempfile
 from typing import Optional, List
 
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form, BackgroundTasks, Depends
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -662,12 +663,18 @@ async def analyze_signals(request: Request, body: SignalAnalysisRequest, _user: 
         raise HTTPException(400, "API key required")
         
     mode = body.mode.lower()
+    # Sentinel: Strict allowlist validation to prevent path traversal vulnerability
+    allowed_modes = ["normal", "depth", "extended"]
+    if mode not in allowed_modes:
+        mode = "normal"
     prompt_file = f"prompt_templates/{mode}.txt"
-    if not os.path.exists(prompt_file):
-        prompt_file = "prompt_templates/normal.txt"
         
-    with open(prompt_file, 'r', encoding='utf-8') as f:
-        sys_prompt = f.read()
+    # Sentinel: Offload blocking I/O to threadpool
+    def _read_prompt(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    sys_prompt = await run_in_threadpool(_read_prompt, prompt_file)
         
     sys_prompt = sys_prompt.replace("{{signals_json}}", json.dumps(body.signals))
     sys_prompt = sys_prompt.replace("{{primary_signals_json}}", json.dumps(body.signals))
