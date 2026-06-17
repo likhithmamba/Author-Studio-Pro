@@ -4,18 +4,32 @@ from pathlib import Path
 try:
     import enchant
     DICT_PATH = Path('backend/data/dictionaries')
-    LANG_MAP = {
-        'hi': enchant.DictWithPWL('hi_IN', str(DICT_PATH / 'hi_IN.dic')),
-        'kn': enchant.DictWithPWL('kn_IN', str(DICT_PATH / 'kn_IN.dic')),
-        'ta': enchant.DictWithPWL('ta_IN', str(DICT_PATH / 'ta_IN.dic')),
-        'te': enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic')),
-        'en': enchant.Dict('en_US'),
-    }
+
+    # Check if custom dictionaries exist to prevent DictNotFoundError in environments where they are missing
+    LANG_MAP = {}
+
+    if (DICT_PATH / 'hi_IN.dic').exists():
+        LANG_MAP['hi'] = enchant.DictWithPWL('hi_IN', str(DICT_PATH / 'hi_IN.dic'))
+    if (DICT_PATH / 'kn_IN.dic').exists():
+        LANG_MAP['kn'] = enchant.DictWithPWL('kn_IN', str(DICT_PATH / 'kn_IN.dic'))
+    if (DICT_PATH / 'ta_IN.dic').exists():
+        LANG_MAP['ta'] = enchant.DictWithPWL('ta_IN', str(DICT_PATH / 'ta_IN.dic'))
+    if (DICT_PATH / 'te_IN.dic').exists():
+        LANG_MAP['te'] = enchant.DictWithPWL('te_IN', str(DICT_PATH / 'te_IN.dic'))
+
+    try:
+        LANG_MAP['en'] = enchant.Dict('en_US')
+    except Exception:
+        pass
+
 except ImportError:
+    enchant = None
+except Exception:
     enchant = None
 
 # In-memory cache fallback since redis might not be available
 _cache = {}
+
 
 async def check_words(words: list[str], language: str) -> list[dict]:
     """Check a batch of words against the appropriate Hunspell dictionary."""
